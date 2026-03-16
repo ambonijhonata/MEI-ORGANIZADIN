@@ -40,23 +40,39 @@ The system SHALL require the user to perform a new full authentication flow (idT
 - **THEN** the system SHALL exchange the new code for fresh OAuth tokens, clear the invalid status, and re-enable synchronization
 
 ### Requirement: Expose integration status
-The system SHALL provide an authenticated endpoint for querying the current state of the user's Google integration, including whether re-authentication is needed.
+The system SHALL provide an authenticated endpoint for querying the current state of the user's Google integration. The status SHALL reflect the full sync lifecycle.
 
-#### Scenario: Query integration status — active
-- **WHEN** an authenticated user queries their integration status and the integration is active
-- **THEN** the system SHALL return status ACTIVE with last sync timestamp
+#### Scenario: Query integration status — never synced
+- **WHEN** an authenticated user queries their integration status and no sync has ever occurred
+- **THEN** the system SHALL return status `NEVER_SYNCED` with null lastSyncAt, errorCategory, and errorMessage
+
+#### Scenario: Query integration status — synced
+- **WHEN** an authenticated user queries their integration status and the last sync was successful
+- **THEN** the system SHALL return status `SYNCED` with the last sync timestamp
+
+#### Scenario: Query integration status — syncing
+- **WHEN** an authenticated user queries their integration status while a sync is in progress
+- **THEN** the system SHALL return status `SYNCING`
+
+#### Scenario: Query integration status — sync failed
+- **WHEN** an authenticated user queries their integration status and the last sync failed (transient error)
+- **THEN** the system SHALL return status `SYNC_FAILED` with errorCategory and errorMessage
 
 #### Scenario: Query integration status — reauth required
 - **WHEN** an authenticated user queries their integration status and re-authentication is needed
-- **THEN** the system SHALL return status REAUTH_REQUIRED with the failure timestamp and reason
+- **THEN** the system SHALL return status `REAUTH_REQUIRED` with the failure timestamp, errorCategory and errorMessage
+
+#### Scenario: Integration status response format
+- **WHEN** the integration status endpoint is called
+- **THEN** the system SHALL return a JSON response with fields: `status` (String), `lastSyncAt` (String, nullable), `errorCategory` (String, nullable), `errorMessage` (String, nullable)
 
 ### Requirement: Distinguish transient from permanent failures
 The system SHALL distinguish transient failures (network issues, temporary Google errors) from permanent authorization failures (revoked tokens). Transient failures SHALL be retried with controlled backoff; permanent failures SHALL mark the integration as invalid.
 
 #### Scenario: Transient failure retried
 - **WHEN** a sync fails due to a transient error (e.g., 503 from Google)
-- **THEN** the system SHALL retry with exponential backoff without marking the integration as invalid
+- **THEN** the system SHALL retry with exponential backoff (max 3 retries, base delay 1000ms doubling each attempt) without marking the integration as invalid
 
 #### Scenario: Permanent failure stops sync
 - **WHEN** a sync fails due to a permanent authorization error (e.g., 401 with invalid_grant)
-- **THEN** the system SHALL mark the integration as REAUTH_REQUIRED and stop retries
+- **THEN** the system SHALL mark the integration as REAUTH_REQUIRED and stop retries immediately (OAuthRevokedException and SyncTokenExpiredException are non-retryable)

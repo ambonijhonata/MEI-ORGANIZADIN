@@ -15,6 +15,32 @@ The system SHALL allow an authenticated user to create a client by providing a n
 - **WHEN** an authenticated user submits an empty or blank name
 - **THEN** the system SHALL reject the request with a validation error
 
+### Requirement: Get single client
+The system SHALL allow an authenticated user to retrieve a single client by its ID, provided it belongs to the authenticated user.
+
+#### Scenario: Successful retrieval
+- **WHEN** an authenticated user requests a client by ID that belongs to them
+- **THEN** the system SHALL return the client details
+
+#### Scenario: Client not found
+- **WHEN** an authenticated user requests a client by ID that does not exist or belongs to another user
+- **THEN** the system SHALL return HTTP 404
+
+### Requirement: Check client appointment link
+The system SHALL provide an endpoint to check whether a client (identified by name) has any linked calendar appointments.
+
+#### Scenario: Client has linked appointments
+- **WHEN** an authenticated user checks a client name that has linked calendar events
+- **THEN** the system SHALL return true
+
+#### Scenario: Client has no linked appointments
+- **WHEN** an authenticated user checks a client name that has no linked calendar events
+- **THEN** the system SHALL return false
+
+#### Scenario: Client not found by name
+- **WHEN** an authenticated user checks a client name that does not exist
+- **THEN** the system SHALL return false
+
 ### Requirement: List clients for authenticated user
 The system SHALL return only clients belonging to the authenticated user. By default, results SHALL be ordered by id ascending.
 

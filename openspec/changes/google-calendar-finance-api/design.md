@@ -85,14 +85,31 @@ Restrições: TDD obrigatório, metas de performance agressivas (p50=80ms, 1000 
 
 ```
 com.api
-  ├── auth/          (controller, service, security config)
+  ├── auth/          (controller, service, security config, callback controller)
   ├── user/          (entity, repository)
   ├── servicecatalog/ (controller, service, entity, repository, normalizer)
-  ├── calendar/      (controller, service, entity, repository, sync, matcher)
+  ├── client/        (controller, service, entity, repository)
+  ├── calendar/      (controller, service, entity, repository, sync, matcher, reprocessor)
   ├── report/        (controller, service)
-  ├── google/        (OAuth client, Calendar client)
-  └── common/        (exception handling, DTOs base, validation)
+  ├── google/        (OAuth client, Calendar client, retryable client)
+  └── common/        (exception handling, DTOs base, validation, OpenAPI config)
 ```
+
+### 9. Tratamento global de erros com mapeamento padronizado
+
+**Decisão**: Centralizar o tratamento de exceções em um `GlobalExceptionHandler` com mapeamento explícito de cada tipo de exceção para um HTTP status e código de erro.
+
+**Mapeamentos implementados**:
+- `InvalidTokenException` → 401 UNAUTHORIZED (INVALID_TOKEN)
+- `OAuthExchangeException` → 502 BAD_GATEWAY (OAUTH_EXCHANGE_FAILED)
+- `ResourceNotFoundException` → 404 NOT_FOUND (NOT_FOUND)
+- `BusinessException` → 422 UNPROCESSABLE_ENTITY (BUSINESS_ERROR)
+- `InvalidPeriodException` → 400 BAD_REQUEST (INVALID_PERIOD)
+- `IntegrationRevokedException` → 403 FORBIDDEN (INTEGRATION_REVOKED)
+- `MethodArgumentNotValidException` → 400 BAD_REQUEST (VALIDATION_ERROR, com field errors)
+- `ConstraintViolationException` → 400 BAD_REQUEST (VALIDATION_ERROR)
+
+**Formato padrão**: Todas as respostas de erro incluem `status` (int), `code` (String), `message` (String), `timestamp` (Instant).
 
 ## Risks / Trade-offs
 

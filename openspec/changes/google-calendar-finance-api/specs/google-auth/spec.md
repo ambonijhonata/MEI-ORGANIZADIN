@@ -74,9 +74,31 @@ The system SHALL obtain the user identity exclusively from the authenticated sec
 - **WHEN** client includes a userId field in the request body
 - **THEN** the system SHALL ignore it and use only the userId from the authenticated security context
 
-### Requirement: Trigger initial sync after authentication
-The system SHALL trigger a full synchronization of the user's primary Google Calendar events immediately after the initial authentication bootstrap (code exchange).
+### Requirement: Clear invalid integration status on re-authentication
+The system SHALL clear the REAUTH_REQUIRED status and restore the integration when a user with revoked integration completes a new authentication with valid idToken and authorizationCode.
 
-#### Scenario: First-time user authentication
-- **WHEN** a user completes the initial authentication with both idToken and authorizationCode
-- **THEN** the system SHALL initiate a full sync of the user's primary calendar events
+#### Scenario: Re-authentication clears invalid status
+- **WHEN** a user with REAUTH_REQUIRED status completes a new authentication with valid idToken and authorizationCode
+- **THEN** the system SHALL exchange the new code for fresh OAuth tokens, clear the REAUTH_REQUIRED status, reset error fields, and mark the integration as SYNCED
+
+#### Scenario: Normal login does not trigger automatic sync
+- **WHEN** a user completes the authentication with both idToken and authorizationCode
+- **THEN** the system SHALL NOT automatically trigger a calendar sync; the user must trigger sync explicitly
+
+### Requirement: Login response
+The system SHALL return a response with the user's internal ID, email, and name after successful authentication.
+
+#### Scenario: Successful login response
+- **WHEN** the initial authentication is successful
+- **THEN** the system SHALL return a JSON response with `userId` (Long), `email` (String), and `name` (String)
+
+### Requirement: Browser-based OAuth flow for testing
+The system SHALL provide a browser-based OAuth flow for testing purposes, allowing developers to obtain a valid idToken via browser redirect.
+
+#### Scenario: Initiate browser OAuth
+- **WHEN** a GET request is made to the browser OAuth endpoint
+- **THEN** the system SHALL redirect to Google's authorization endpoint with scopes `openid email profile https://www.googleapis.com/auth/calendar.readonly`, `access_type=offline`, and `prompt=consent`
+
+#### Scenario: Browser OAuth callback
+- **WHEN** Google redirects back with an authorization code
+- **THEN** the system SHALL exchange the code for tokens, validate the ID token, create/update the user and OAuth credentials, and return the userId, email, name, and idToken
