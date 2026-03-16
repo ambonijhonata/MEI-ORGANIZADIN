@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(which openspec:*)",
+      "Bash(openspec new:*)",
+      "Bash(openspec status:*)",
+      "Bash(openspec instructions:*)",
+      "Bash(openspec list:*)",
+      "Bash(java:*)",
+      "Bash(curl:*)",
+      "Bash(cd:*)",
+      "Bash(find:*)",
+      "Bash(for f:*)",
+      "Bash(do echo:*)",
+      "Read(//c/Users/Pichau/source/repos/TCC/API/**)",
+      "Bash(done)",
+      "Bash(npx openspec:*)",
+      "Bash(gh auth:*)"
+    ]
+  }
+}

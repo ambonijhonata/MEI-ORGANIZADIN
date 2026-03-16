@@ -1,0 +1,11 @@
+http://localhost:8080/api/auth/google -> autententicar
+http://localhost:8080/swagger-ui/index.html#/ -> swagger
+claude --resume 9e9debd3-e6e7-49de-9789-6d44905d9949 -> voltar conversa
+
+Cadastrar cliente
+- Nome e sobrenome
+- CPF
+- Data nasc
+- Email
+- Celular
+

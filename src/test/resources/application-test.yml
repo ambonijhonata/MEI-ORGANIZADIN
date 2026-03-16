@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:tc:postgresql:16:///mei_organizadin_test
+    username: test
+    password: test
+    hikari:
+      maximum-pool-size: 5
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+  flyway:
+    enabled: true
+
+google:
+  oauth:
+    client-id: test-client-id
+    client-secret: test-client-secret
+    token-uri: https://oauth2.googleapis.com/token
+    auth-uri: https://accounts.google.com/o/oauth2/auth
+
+sync:
+  freshness-minutes: 30
