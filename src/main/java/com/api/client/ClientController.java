@@ -52,17 +52,34 @@ public class ClientController {
 
     @GetMapping
     @Operation(summary = "Listar clientes",
-            description = "Retorna clientes do usuário autenticado. Permite busca por nome e ordenação por name, cpf, dateOfBirth, email, phone ou createdAt.")
-    public ResponseEntity<List<ClientResponse>> list(
+            description = "Retorna clientes do usuário autenticado com paginação. Permite busca por nome e ordenação por name, cpf, dateOfBirth, email, phone ou createdAt.")
+    public ResponseEntity<PaginatedResponse<ClientResponse>> list(
             @AuthenticationPrincipal AuthenticatedUser user,
             @RequestParam(required = false) @Parameter(description = "Filtrar por nome (parcial, case-insensitive)") String name,
             @RequestParam(defaultValue = "id") @Parameter(description = "Campo de ordenação: id, name, cpf, dateOfBirth, email, phone, createdAt") String sortBy,
-            @RequestParam(defaultValue = "asc") @Parameter(description = "Direção: asc ou desc") String direction) {
+            @RequestParam(defaultValue = "asc") @Parameter(description = "Direção: asc ou desc") String direction,
+            @RequestParam(defaultValue = "1") @Parameter(description = "Página (começa em 1)") int pageIndex,
+            @RequestParam(defaultValue = "25") @Parameter(description = "Itens por página") int itemsPerPage) {
         Sort sort = Sort.by(Sort.Direction.fromString(direction), sortBy);
-        List<ClientResponse> clients = clientService.listClients(user.userId(), name, sort).stream()
-                .map(ClientResponse::from).toList();
-        return ResponseEntity.ok(clients);
+        var page = clientService.listClientsPaginated(user.userId(), name, pageIndex, itemsPerPage, sort);
+        List<ClientResponse> items = page.getContent().stream().map(ClientResponse::from).toList();
+        int totalPages = (int) Math.ceil((double) page.getTotalElements() / itemsPerPage);
+        return ResponseEntity.ok(new PaginatedResponse<>(
+                items,
+                page.getTotalElements(),
+                totalPages,
+                itemsPerPage,
+                pageIndex
+        ));
     }
+
+    public record PaginatedResponse<T>(
+            List<T> items,
+            long totalItems,
+            int totalPages,
+            int itemsPerPage,
+            int pageIndex
+    ) {}
 
     @GetMapping("/client-has-link-with-appointment")
     @Operation(summary = "Verificar vínculo do cliente com agendamento",
@@ -114,6 +131,21 @@ public class ClientController {
         clientService.deleteClient(user.userId(), id);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/delete")
+    @Operation(summary = "Excluir clientes em lote",
+            description = "Exclui múltiplos clientes por ID. Clientes com agendamentos vinculados não são excluídos.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Resultado da exclusão em lote")
+            })
+    public ResponseEntity<BulkDeleteResponse> bulkDelete(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @RequestBody List<Long> ids) {
+        var result = clientService.bulkDeleteClients(user.userId(), ids);
+        return ResponseEntity.ok(new BulkDeleteResponse(result.deleted(), result.hasLink()));
+    }
+
+    public record BulkDeleteResponse(int deleted, int hasLink) {}
 
     public record CreateClientRequest(
             @NotBlank String name,

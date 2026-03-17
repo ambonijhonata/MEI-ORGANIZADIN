@@ -6,6 +6,8 @@ import com.api.common.ResourceNotFoundException;
 import com.api.servicecatalog.ServiceDescriptionNormalizer;
 import com.api.user.User;
 import com.api.user.UserRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,6 +56,15 @@ public class ClientService {
     }
 
     @Transactional(readOnly = true)
+    public Page<Client> listClientsPaginated(Long userId, String name, int pageIndex, int itemsPerPage, Sort sort) {
+        PageRequest pageable = PageRequest.of(pageIndex - 1, itemsPerPage, sort);
+        if (name != null && !name.isBlank()) {
+            return clientRepository.findByUserIdAndNameContainingIgnoreCase(userId, name, pageable);
+        }
+        return clientRepository.findByUserId(userId, pageable);
+    }
+
+    @Transactional(readOnly = true)
     public Client getClient(Long userId, Long clientId) {
         return clientRepository.findByIdAndUserId(clientId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Client not found"));
@@ -97,6 +108,29 @@ public class ClientService {
     public java.util.Optional<Client> findByNormalizedName(Long userId, String normalizedName) {
         return clientRepository.findByUserIdAndNormalizedName(userId, normalizedName);
     }
+
+    @Transactional
+    public BulkDeleteResult bulkDeleteClients(Long userId, List<Long> ids) {
+        int deleted = 0;
+        int hasLink = 0;
+
+        for (Long id : ids) {
+            var optClient = clientRepository.findByIdAndUserId(id, userId);
+            if (optClient.isEmpty()) {
+                continue;
+            }
+            if (calendarEventRepository.existsByClientId(id)) {
+                hasLink++;
+            } else {
+                clientRepository.delete(optClient.get());
+                deleted++;
+            }
+        }
+
+        return new BulkDeleteResult(deleted, hasLink);
+    }
+
+    public record BulkDeleteResult(int deleted, int hasLink) {}
 
     public record ClientRequest(
             String name,
