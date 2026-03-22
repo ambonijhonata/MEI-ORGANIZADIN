@@ -1,0 +1,17 @@
+{
+  "name": "virtualizacao",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "pdf-parse": "^1.1.1",
+    "pdfkit": "^0.18.0",
+    "pptxgenjs": "^4.0.1"
+  }
+}

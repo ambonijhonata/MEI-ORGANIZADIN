@@ -7,12 +7,17 @@ import com.api.common.BusinessException;
 import com.api.common.ResourceNotFoundException;
 import com.api.user.User;
 import com.api.user.UserRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Component
 public class ServiceCatalogService {
@@ -58,11 +63,11 @@ public class ServiceCatalogService {
     }
 
     @Transactional(readOnly = true)
-    public List<Service> listServices(Long userId, String description, Sort sort) {
+    public Page<Service> listServices(Long userId, String description, Pageable pageable) {
         if (description != null && !description.isBlank()) {
-            return serviceRepository.findByUserIdAndDescriptionContainingIgnoreCase(userId, description, sort);
+            return serviceRepository.findByUserIdAndDescriptionContainingIgnoreCase(userId, description, pageable);
         }
-        return serviceRepository.findByUserId(userId, sort);
+        return serviceRepository.findByUserId(userId, pageable);
     }
 
     @Transactional(readOnly = true)
@@ -100,12 +105,50 @@ public class ServiceCatalogService {
         Service service = serviceRepository.findByIdAndUserId(serviceId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Service not found"));
 
-        boolean hasLinkedEvents = serviceLinkRepository.existsByServiceId(serviceId)
-                || calendarEventRepository.existsByServiceId(serviceId);
-        if (hasLinkedEvents) {
+        if (hasLinkedEvents(serviceId)) {
             throw new BusinessException("Cannot delete service with linked calendar events");
         }
 
         serviceRepository.delete(service);
     }
+
+    @Transactional
+    public BulkDeleteResult deleteServices(Long userId, List<Long> serviceIds) {
+        if (serviceIds == null || serviceIds.isEmpty()) {
+            return new BulkDeleteResult(0, 0);
+        }
+
+        Set<Long> uniqueIds = serviceIds.stream()
+                .filter(id -> id != null)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (uniqueIds.isEmpty()) {
+            return new BulkDeleteResult(0, 0);
+        }
+
+        List<Service> ownedServices = serviceRepository.findByUserIdAndIdIn(userId, uniqueIds);
+        int deleted = 0;
+        int hasLink = 0;
+
+        for (Service service : ownedServices) {
+            Long serviceId = service.getId();
+            if (serviceId == null) {
+                continue;
+            }
+            if (hasLinkedEvents(serviceId)) {
+                hasLink++;
+                continue;
+            }
+            serviceRepository.delete(service);
+            deleted++;
+        }
+
+        return new BulkDeleteResult(deleted, hasLink);
+    }
+
+    private boolean hasLinkedEvents(Long serviceId) {
+        return serviceLinkRepository.existsByServiceId(serviceId)
+                || calendarEventRepository.existsByServiceId(serviceId);
+    }
+
+    public record BulkDeleteResult(int deleted, int hasLink) {}
 }

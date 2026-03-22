@@ -2,10 +2,23 @@ http://localhost:8080/api/auth/google -> autententicar
 http://localhost:8080/swagger-ui/index.html#/ -> swagger
 claude --resume 9e9debd3-e6e7-49de-9789-6d44905d9949 -> voltar conversa
 
-Cadastrar cliente
-- Nome e sobrenome
-- CPF
-- Data nasc
-- Email
-- Celular
+Precisamos adicionar o endpoint no sistema:
 
+POST /api/clientes/delete com o body "{{id1}, {id2}, {idn...}}" para excluir vários clientes passando o ID deles no body:
+- Deve ser percorrido o body do endpoint verificando se o cliente do respectivo id tem vínculo com algum agendamento, se tiver não exclui, incrementa 1 no contador de clientes com vínculos e vai para o próximo código, se não, exclui o 
+cliente e incrementa 1 no contador de clientes excluidos e vai para o próximo código;
+- Retornar a resposta:
+{
+"deleted": {numeroDeClientesExcluidosComSucesso},
+"hasLink": {numeroDeClientesComVinculoComAgendamento}
+}
+
+
+Refatorar o endpoint GET /api/clients adicionando os filtros "totalItems", "itemsPerPage" e "PageIndex":
+- Por padrão devem ser retornado 25 itemsPerPage
+- Nenhum dos filtros é obrigatório, por exemplo, se for passado somente o filtro ?itemsPerPage=100 o endpoint deve retornar no pageIndex 1 com os 100 registros;
+- Deve ser adicionado na resposta do endpoint os metadados "totalItems", "totalPages", "itemsPerPage" e "pageIndex". O total pages deve ser o "totalItems" / "itemsPerPage", por exemplo, se o endpoint i retornar 100 items e o 
+"itemsPerPage" for 25, o total pages será 4;
+- O endpoint deve retornar os items ordenados por ID por padrão;
+- Exemplo se for feita a chamada do endpoint GET /api/clients?pageIndex=1 e o endpoint retornar 100 registros, deve ser feita a paginação e retornar os 25 primeiros registros;
+  - Se for feita a chamada do endpoint GET /api/clients?pageIndex=2 e o endpoint retornar 100 registros, deve ser feita a paginação e retornar os 25 próximos registros subsequentes aos 25 primeiros registros;

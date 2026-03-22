@@ -13,9 +13,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -70,11 +74,11 @@ class ServiceCatalogServiceTest {
 
     @Test
     void shouldListServicesForUser() {
-        Sort sort = Sort.by(Sort.Direction.ASC, "id");
-        when(serviceRepository.findByUserId(1L, sort)).thenReturn(List.of());
-        List<Service> result = service.listServices(1L, null, sort);
+        Pageable pageable = PageRequest.of(0, 25, Sort.by(Sort.Direction.ASC, "id"));
+        when(serviceRepository.findByUserId(1L, pageable)).thenReturn(Page.empty());
+        Page<Service> result = service.listServices(1L, null, pageable);
         assertNotNull(result);
-        verify(serviceRepository).findByUserId(1L, sort);
+        verify(serviceRepository).findByUserId(1L, pageable);
     }
 
     @Test
@@ -119,5 +123,70 @@ class ServiceCatalogServiceTest {
     void shouldThrowNotFoundForMissingService() {
         when(serviceRepository.findByIdAndUserId(99L, 1L)).thenReturn(Optional.empty());
         assertThrows(ResourceNotFoundException.class, () -> service.getService(1L, 99L));
+    }
+
+    @Test
+    void shouldDeleteManyServicesWithMixedResult() {
+        Service deletable = serviceWithId(10L);
+        Service linked = serviceWithId(11L);
+        when(serviceRepository.findByUserIdAndIdIn(eq(1L), anyCollection()))
+                .thenReturn(List.of(deletable, linked));
+        when(serviceLinkRepository.existsByServiceId(10L)).thenReturn(false);
+        when(calendarEventRepository.existsByServiceId(10L)).thenReturn(false);
+        when(serviceLinkRepository.existsByServiceId(11L)).thenReturn(true);
+
+        ServiceCatalogService.BulkDeleteResult result = service.deleteServices(1L, List.of(10L, 11L));
+
+        assertEquals(1, result.deleted());
+        assertEquals(1, result.hasLink());
+        verify(serviceRepository).delete(deletable);
+        verify(serviceRepository, never()).delete(linked);
+    }
+
+    @Test
+    void shouldReturnOnlyHasLinkWhenAllServicesAreLinked() {
+        Service linkedA = serviceWithId(20L);
+        Service linkedB = serviceWithId(21L);
+        when(serviceRepository.findByUserIdAndIdIn(eq(1L), anyCollection()))
+                .thenReturn(List.of(linkedA, linkedB));
+        when(serviceLinkRepository.existsByServiceId(20L)).thenReturn(true);
+        when(serviceLinkRepository.existsByServiceId(21L)).thenReturn(true);
+
+        ServiceCatalogService.BulkDeleteResult result = service.deleteServices(1L, List.of(20L, 21L));
+
+        assertEquals(0, result.deleted());
+        assertEquals(2, result.hasLink());
+        verify(serviceRepository, never()).delete(any());
+    }
+
+    @Test
+    void shouldIgnoreUnknownIdsAndDuplicatesInBulkDelete() {
+        Service owned = serviceWithId(30L);
+        when(serviceRepository.findByUserIdAndIdIn(eq(1L), anyCollection()))
+                .thenReturn(List.of(owned));
+        when(serviceLinkRepository.existsByServiceId(30L)).thenReturn(false);
+        when(calendarEventRepository.existsByServiceId(30L)).thenReturn(false);
+
+        ServiceCatalogService.BulkDeleteResult result = service.deleteServices(1L, Arrays.asList(30L, 30L, 999L, null));
+
+        assertEquals(1, result.deleted());
+        assertEquals(0, result.hasLink());
+        verify(serviceRepository).delete(owned);
+        verify(serviceLinkRepository, times(1)).existsByServiceId(30L);
+    }
+
+    @Test
+    void shouldReturnZeroCountersForEmptyBulkDeleteList() {
+        ServiceCatalogService.BulkDeleteResult result = service.deleteServices(1L, List.of());
+
+        assertEquals(0, result.deleted());
+        assertEquals(0, result.hasLink());
+        verify(serviceRepository, never()).findByUserIdAndIdIn(anyLong(), anyCollection());
+    }
+
+    private Service serviceWithId(Long id) {
+        Service service = mock(Service.class);
+        when(service.getId()).thenReturn(id);
+        return service;
     }
 }

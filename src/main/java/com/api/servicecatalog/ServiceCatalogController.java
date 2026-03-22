@@ -9,6 +9,9 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -46,19 +49,29 @@ public class ServiceCatalogController {
     @GetMapping
     @Operation(summary = "Listar serviços",
             description = "Retorna serviços do usuário autenticado. Permite busca por descrição e ordenação por description, value ou createdAt.")
-    public ResponseEntity<List<ServiceResponse>> listServices(
+    public ResponseEntity<PaginatedServiceResponse> listServices(
             @AuthenticationPrincipal AuthenticatedUser user,
             @RequestParam(required = false) @Parameter(description = "Filtrar por descrição (parcial, case-insensitive)") String description,
             @RequestParam(defaultValue = "id") @Parameter(description = "Campo de ordenação: id, description, value, createdAt") String sortBy,
-            @RequestParam(defaultValue = "asc") @Parameter(description = "Direção: asc ou desc") String direction) {
-        Sort sort = Sort.by(Sort.Direction.fromString(direction), sortBy);
-        List<ServiceResponse> services = serviceCatalogService.listServices(user.userId(), description, sort).stream()
+            @RequestParam(defaultValue = "asc") @Parameter(description = "Direção: asc ou desc") String direction,
+            @RequestParam(defaultValue = "0") @Parameter(description = "Página (0-based)") int page,
+            @RequestParam(defaultValue = "25") @Parameter(description = "Itens por página") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.fromString(direction), sortBy));
+        Page<Service> servicePage = serviceCatalogService.listServices(user.userId(), description, pageable);
+        List<ServiceResponse> items = servicePage.getContent().stream()
                 .map(ServiceResponse::from)
                 .toList();
-        return ResponseEntity.ok(services);
+        PaginatedServiceResponse response = new PaginatedServiceResponse(
+                items,
+                (int) servicePage.getTotalElements(),
+                servicePage.getSize(),
+                servicePage.getTotalPages(),
+                servicePage.getNumber()
+        );
+        return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{id:\\d+}")
     @Operation(summary = "Buscar serviço por ID", responses = {
             @ApiResponse(responseCode = "200", description = "Serviço encontrado"),
             @ApiResponse(responseCode = "404", description = "Serviço não encontrado")
@@ -70,7 +83,7 @@ public class ServiceCatalogController {
         return ResponseEntity.ok(ServiceResponse.from(service));
     }
 
-    @PutMapping("/{id}")
+    @PutMapping("/{id:\\d+}")
     @Operation(summary = "Atualizar serviço", description = "Atualiza descrição e/ou valor. Dispara reprocessamento de eventos não identificados.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Serviço atualizado"),
@@ -85,7 +98,7 @@ public class ServiceCatalogController {
         return ResponseEntity.ok(ServiceResponse.from(service));
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{id:\\d+}")
     @Operation(summary = "Excluir serviço", description = "Exclui o serviço. Bloqueado se houver eventos vinculados.",
             responses = {
                     @ApiResponse(responseCode = "204", description = "Serviço excluído"),
@@ -97,6 +110,19 @@ public class ServiceCatalogController {
             @PathVariable Long id) {
         serviceCatalogService.deleteService(user.userId(), id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/delete")
+    @Operation(summary = "Excluir vários serviços",
+            description = "Recebe uma lista de IDs e remove apenas serviços sem vínculo com eventos sincronizados.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Processamento concluído com resumo de exclusões")
+            })
+    public ResponseEntity<DeleteManyServicesResponse> deleteManyServices(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @RequestBody List<Long> ids) {
+        ServiceCatalogService.BulkDeleteResult result = serviceCatalogService.deleteServices(user.userId(), ids);
+        return ResponseEntity.ok(new DeleteManyServicesResponse(result.deleted(), result.hasLink()));
     }
 
     public record CreateServiceRequest(
@@ -120,4 +146,8 @@ public class ServiceCatalogController {
             );
         }
     }
+
+    public record DeleteManyServicesResponse(int deleted, int hasLink) {}
+
+    public record PaginatedServiceResponse(List<ServiceResponse> items, int totalItems, int itemsPerPage, int totalPages, int pageIndex) {}
 }

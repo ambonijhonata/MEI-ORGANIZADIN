@@ -1,0 +1,404 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Users\Pichau\AppData\Roaming\npm\node_modules\npm\bin\npm-cli.js
+1 info using npm@10.6.0
+2 info using node@v22.0.0
+3 silly config:load:file:C:\Users\Pichau\AppData\Roaming\npm\node_modules\npm\npmrc
+4 silly config:load:file:C:\Users\Pichau\source\repos\TCC\API\.codex_tmp\virtualizacao\.npmrc
+5 silly config:load:file:C:\Users\Pichau\.npmrc
+6 silly config:load:file:C:\Users\Pichau\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm install pdf-parse pptxgenjs pdfkit
+8 verbose argv "install" "pdf-parse" "pptxgenjs" "pdfkit" "--cache" "C:\\Users\\Pichau\\source\\repos\\TCC\\API\\.codex_tmp\\virtualizacao\\.npm-cache"
+9 verbose logfile logs-max:10 dir:C:\Users\Pichau\source\repos\TCC\API\.codex_tmp\virtualizacao\.npm-cache\_logs\2026-03-18T11_55_33_442Z-
+10 verbose logfile C:\Users\Pichau\source\repos\TCC\API\.codex_tmp\virtualizacao\.npm-cache\_logs\2026-03-18T11_55_33_442Z-debug-0.log
+11 silly logfile done cleaning log files
+12 silly idealTree buildDeps
+13 silly fetch manifest pdf-parse@*
+14 http fetch GET 200 https://registry.npmjs.org/pdf-parse 189ms (cache miss)
+15 silly fetch manifest pptxgenjs@*
+16 http fetch GET 200 https://registry.npmjs.org/pptxgenjs 48ms (cache miss)
+17 silly fetch manifest pdfkit@*
+18 http fetch GET 200 https://registry.npmjs.org/pdfkit 40ms (cache miss)
+19 silly placeDep ROOT pdf-parse@2.4.5 OK for: virtualizacao@1.0.0 want: *
+20 silly placeDep ROOT pdfkit@0.18.0 OK for: virtualizacao@1.0.0 want: *
+21 silly placeDep ROOT pptxgenjs@4.0.1 OK for: virtualizacao@1.0.0 want: *
+22 silly fetch manifest pdfjs-dist@5.4.296
+23 silly fetch manifest @napi-rs/canvas@0.1.80
+24 silly fetch manifest @noble/ciphers@^1.0.0
+25 silly fetch manifest @noble/hashes@^1.6.0
+26 silly fetch manifest fontkit@^2.0.4
+27 silly fetch manifest js-md5@^0.8.3
+28 silly fetch manifest linebreak@^1.1.0
+29 silly fetch manifest png-js@^1.0.0
+30 silly fetch manifest @types/node@^22.8.1
+31 silly fetch manifest https@^1.0.0
+32 silly fetch manifest image-size@^1.2.1
+33 http fetch GET 200 https://registry.npmjs.org/pdfjs-dist 86ms (cache miss)
+34 silly fetch manifest jszip@^3.10.1
+35 http fetch GET 200 https://registry.npmjs.org/linebreak 116ms (cache miss)
+36 http fetch GET 200 https://registry.npmjs.org/png-js 119ms (cache miss)
+37 http fetch GET 200 https://registry.npmjs.org/fontkit 120ms (cache miss)
+38 http fetch GET 200 https://registry.npmjs.org/https 121ms (cache miss)
+39 http fetch GET 200 https://registry.npmjs.org/js-md5 123ms (cache miss)
+40 http fetch GET 200 https://registry.npmjs.org/@noble%2fciphers 132ms (cache miss)
+41 http fetch GET 200 https://registry.npmjs.org/@noble%2fhashes 137ms (cache miss)
+42 http fetch GET 200 https://registry.npmjs.org/image-size 142ms (cache miss)
+43 http fetch GET 200 https://registry.npmjs.org/jszip 54ms (cache miss)
+44 http fetch GET 200 https://registry.npmjs.org/@napi-rs%2fcanvas 154ms (cache miss)
+45 http fetch GET 200 https://registry.npmjs.org/@types%2fnode 260ms (cache miss)
+46 silly placeDep ROOT @napi-rs/canvas@0.1.80 OK for: pdf-parse@2.4.5 want: 0.1.80
+47 silly placeDep ROOT pdfjs-dist@5.4.296 OK for: pdf-parse@2.4.5 want: 5.4.296
+48 silly fetch manifest @napi-rs/canvas-darwin-x64@0.1.80
+49 silly fetch manifest @napi-rs/canvas-darwin-arm64@0.1.80
+50 silly fetch manifest @napi-rs/canvas-android-arm64@0.1.80
+51 silly fetch manifest @napi-rs/canvas-linux-x64-gnu@0.1.80
+52 silly fetch manifest @napi-rs/canvas-linux-x64-musl@0.1.80
+53 silly fetch manifest @napi-rs/canvas-win32-x64-msvc@0.1.80
+54 silly fetch manifest @napi-rs/canvas-linux-arm64-gnu@0.1.80
+55 silly fetch manifest @napi-rs/canvas-linux-arm64-musl@0.1.80
+56 silly fetch manifest @napi-rs/canvas-linux-riscv64-gnu@0.1.80
+57 silly fetch manifest @napi-rs/canvas-linux-arm-gnueabihf@0.1.80
+58 http fetch GET 200 https://registry.npmjs.org/@napi-rs%2fcanvas-win32-x64-msvc 64ms (cache miss)
+59 http fetch GET 200 https://registry.npmjs.org/@napi-rs%2fcanvas-darwin-x64 66ms (cache miss)
+60 http fetch GET 200 https://registry.npmjs.org/@napi-rs%2fcanvas-linux-riscv64-gnu 71ms (cache miss)
+61 http fetch GET 200 https://registry.npmjs.org/@napi-rs%2fcanvas-linux-arm64-gnu 75ms (cache miss)
+62 http fetch GET 200 https://registry.npmjs.org/@napi-rs%2fcanvas-android-arm64 78ms (cache miss)
+63 http fetch GET 200 https://registry.npmjs.org/@napi-rs%2fcanvas-linux-arm64-musl 83ms (cache miss)
+64 http fetch GET 200 https://registry.npmjs.org/@napi-rs%2fcanvas-linux-arm-gnueabihf 88ms (cache miss)
+65 http fetch GET 200 https://registry.npmjs.org/@napi-rs%2fcanvas-darwin-arm64 93ms (cache miss)
+66 http fetch GET 200 https://registry.npmjs.org/@napi-rs%2fcanvas-linux-x64-musl 96ms (cache miss)
+67 http fetch GET 200 https://registry.npmjs.org/@napi-rs%2fcanvas-linux-x64-gnu 98ms (cache miss)
+68 silly placeDep ROOT @napi-rs/canvas-android-arm64@0.1.80 OK for: @napi-rs/canvas@0.1.80 want: 0.1.80
+69 silly placeDep ROOT @napi-rs/canvas-darwin-arm64@0.1.80 OK for: @napi-rs/canvas@0.1.80 want: 0.1.80
+70 silly placeDep ROOT @napi-rs/canvas-darwin-x64@0.1.80 OK for: @napi-rs/canvas@0.1.80 want: 0.1.80
+71 silly placeDep ROOT @napi-rs/canvas-linux-arm-gnueabihf@0.1.80 OK for: @napi-rs/canvas@0.1.80 want: 0.1.80
+72 silly placeDep ROOT @napi-rs/canvas-linux-arm64-gnu@0.1.80 OK for: @napi-rs/canvas@0.1.80 want: 0.1.80
+73 silly placeDep ROOT @napi-rs/canvas-linux-arm64-musl@0.1.80 OK for: @napi-rs/canvas@0.1.80 want: 0.1.80
+74 silly placeDep ROOT @napi-rs/canvas-linux-riscv64-gnu@0.1.80 OK for: @napi-rs/canvas@0.1.80 want: 0.1.80
+75 silly placeDep ROOT @napi-rs/canvas-linux-x64-gnu@0.1.80 OK for: @napi-rs/canvas@0.1.80 want: 0.1.80
+76 silly placeDep ROOT @napi-rs/canvas-linux-x64-musl@0.1.80 OK for: @napi-rs/canvas@0.1.80 want: 0.1.80
+77 silly placeDep ROOT @napi-rs/canvas-win32-x64-msvc@0.1.80 OK for: @napi-rs/canvas@0.1.80 want: 0.1.80
+78 silly placeDep ROOT @noble/ciphers@1.3.0 OK for: pdfkit@0.18.0 want: ^1.0.0
+79 silly placeDep ROOT @noble/hashes@1.8.0 OK for: pdfkit@0.18.0 want: ^1.6.0
+80 silly placeDep ROOT fontkit@2.0.4 OK for: pdfkit@0.18.0 want: ^2.0.4
+81 silly placeDep ROOT js-md5@0.8.3 OK for: pdfkit@0.18.0 want: ^0.8.3
+82 silly placeDep ROOT linebreak@1.1.0 OK for: pdfkit@0.18.0 want: ^1.1.0
+83 silly placeDep ROOT png-js@1.0.0 OK for: pdfkit@0.18.0 want: ^1.0.0
+84 silly fetch manifest @swc/helpers@^0.5.12
+85 silly fetch manifest brotli@^1.3.2
+86 silly fetch manifest clone@^2.1.2
+87 silly fetch manifest dfa@^1.2.0
+88 silly fetch manifest fast-deep-equal@^3.1.3
+89 silly fetch manifest restructure@^3.0.0
+90 silly fetch manifest tiny-inflate@^1.0.3
+91 silly fetch manifest unicode-properties@^1.4.0
+92 silly fetch manifest unicode-trie@^2.0.0
+93 silly fetch manifest base64-js@0.0.8
+94 http fetch GET 200 https://registry.npmjs.org/fast-deep-equal 36ms (cache miss)
+95 http fetch GET 200 https://registry.npmjs.org/dfa 43ms (cache miss)
+96 http fetch GET 200 https://registry.npmjs.org/brotli 47ms (cache miss)
+97 http fetch GET 200 https://registry.npmjs.org/clone 49ms (cache miss)
+98 http fetch GET 200 https://registry.npmjs.org/tiny-inflate 51ms (cache miss)
+99 http fetch GET 200 https://registry.npmjs.org/base64-js 52ms (cache miss)
+100 http fetch GET 200 https://registry.npmjs.org/restructure 52ms (cache miss)
+101 http fetch GET 200 https://registry.npmjs.org/unicode-properties 53ms (cache miss)
+102 http fetch GET 200 https://registry.npmjs.org/unicode-trie 54ms (cache miss)
+103 http fetch GET 200 https://registry.npmjs.org/@swc%2fhelpers 66ms (cache miss)
+104 silly placeDep ROOT @swc/helpers@0.5.19 OK for: fontkit@2.0.4 want: ^0.5.12
+105 silly placeDep ROOT brotli@1.3.3 OK for: fontkit@2.0.4 want: ^1.3.2
+106 silly placeDep ROOT clone@2.1.2 OK for: fontkit@2.0.4 want: ^2.1.2
+107 silly placeDep ROOT dfa@1.2.0 OK for: fontkit@2.0.4 want: ^1.2.0
+108 silly placeDep ROOT fast-deep-equal@3.1.3 OK for: fontkit@2.0.4 want: ^3.1.3
+109 silly placeDep ROOT restructure@3.0.2 OK for: fontkit@2.0.4 want: ^3.0.0
+110 silly placeDep ROOT tiny-inflate@1.0.3 OK for: fontkit@2.0.4 want: ^1.0.3
+111 silly placeDep ROOT unicode-properties@1.4.1 OK for: fontkit@2.0.4 want: ^1.4.0
+112 silly placeDep ROOT unicode-trie@2.0.0 OK for: fontkit@2.0.4 want: ^2.0.0
+113 silly fetch manifest tslib@^2.8.0
+114 silly fetch manifest base64-js@^1.1.2
+115 silly fetch manifest base64-js@^1.3.0
+116 silly fetch manifest pako@^0.2.5
+117 http fetch GET 200 https://registry.npmjs.org/pako 38ms (cache miss)
+118 http fetch GET 200 https://registry.npmjs.org/tslib 47ms (cache miss)
+119 silly placeDep ROOT tslib@2.8.1 OK for: @swc/helpers@0.5.19 want: ^2.8.0
+120 silly placeDep ROOT base64-js@1.5.1 OK for: brotli@1.3.3 want: ^1.1.2
+121 silly placeDep node_modules/linebreak base64-js@0.0.8 OK for: linebreak@1.1.0 want: 0.0.8
+122 silly placeDep ROOT @types/node@22.19.15 OK for: pptxgenjs@4.0.1 want: ^22.8.1
+123 silly placeDep ROOT https@1.0.0 OK for: pptxgenjs@4.0.1 want: ^1.0.0
+124 silly placeDep ROOT image-size@1.2.1 OK for: pptxgenjs@4.0.1 want: ^1.2.1
+125 silly placeDep ROOT jszip@3.10.1 OK for: pptxgenjs@4.0.1 want: ^3.10.1
+126 silly fetch manifest undici-types@~6.21.0
+127 silly fetch manifest queue@6.0.2
+128 silly fetch manifest lie@~3.3.0
+129 silly fetch manifest pako@~1.0.2
+130 silly fetch manifest setimmediate@^1.0.5
+131 silly fetch manifest readable-stream@~2.3.6
+132 http fetch GET 200 https://registry.npmjs.org/queue 43ms (cache miss)
+133 http fetch GET 200 https://registry.npmjs.org/undici-types 45ms (cache miss)
+134 http fetch GET 200 https://registry.npmjs.org/setimmediate 51ms (cache miss)
+135 http fetch GET 200 https://registry.npmjs.org/readable-stream 52ms (cache miss)
+136 http fetch GET 200 https://registry.npmjs.org/lie 54ms (cache miss)
+137 silly placeDep ROOT undici-types@6.21.0 OK for: @types/node@22.19.15 want: ~6.21.0
+138 silly placeDep ROOT queue@6.0.2 OK for: image-size@1.2.1 want: 6.0.2
+139 silly fetch manifest inherits@~2.0.3
+140 http fetch GET 200 https://registry.npmjs.org/inherits 57ms (cache miss)
+141 silly placeDep ROOT lie@3.3.0 OK for: jszip@3.10.1 want: ~3.3.0
+142 silly placeDep ROOT pako@1.0.11 OK for: jszip@3.10.1 want: ~1.0.2
+143 silly placeDep ROOT readable-stream@2.3.8 OK for: jszip@3.10.1 want: ~2.3.6
+144 silly placeDep ROOT setimmediate@1.0.5 OK for: jszip@3.10.1 want: ^1.0.5
+145 silly fetch manifest immediate@~3.0.5
+146 silly fetch manifest isarray@~1.0.0
+147 silly fetch manifest safe-buffer@~5.1.1
+148 silly fetch manifest core-util-is@~1.0.0
+149 silly fetch manifest string_decoder@~1.1.1
+150 silly fetch manifest util-deprecate@~1.0.1
+151 silly fetch manifest process-nextick-args@~2.0.0
+152 http fetch GET 200 https://registry.npmjs.org/util-deprecate 37ms (cache miss)
+153 http fetch GET 200 https://registry.npmjs.org/isarray 42ms (cache miss)
+154 http fetch GET 200 https://registry.npmjs.org/core-util-is 42ms (cache miss)
+155 http fetch GET 200 https://registry.npmjs.org/safe-buffer 43ms (cache miss)
+156 http fetch GET 200 https://registry.npmjs.org/string_decoder 44ms (cache miss)
+157 http fetch GET 200 https://registry.npmjs.org/process-nextick-args 45ms (cache miss)
+158 http fetch GET 200 https://registry.npmjs.org/immediate 49ms (cache miss)
+159 silly placeDep ROOT immediate@3.0.6 OK for: lie@3.3.0 want: ~3.0.5
+160 silly placeDep ROOT inherits@2.0.4 OK for: queue@6.0.2 want: ~2.0.3
+161 silly placeDep ROOT core-util-is@1.0.3 OK for: readable-stream@2.3.8 want: ~1.0.0
+162 silly placeDep ROOT isarray@1.0.0 OK for: readable-stream@2.3.8 want: ~1.0.0
+163 silly placeDep ROOT process-nextick-args@2.0.1 OK for: readable-stream@2.3.8 want: ~2.0.0
+164 silly placeDep ROOT safe-buffer@5.1.2 OK for: readable-stream@2.3.8 want: ~5.1.1
+165 silly placeDep ROOT string_decoder@1.1.1 OK for: readable-stream@2.3.8 want: ~1.1.1
+166 silly placeDep ROOT util-deprecate@1.0.2 OK for: readable-stream@2.3.8 want: ~1.0.1
+167 silly placeDep node_modules/unicode-trie pako@0.2.9 OK for: unicode-trie@2.0.0 want: ^0.2.5
+168 warn EBADENGINE Unsupported engine {
+168 warn EBADENGINE   package: 'pdf-parse@2.4.5',
+168 warn EBADENGINE   required: { node: '>=20.16.0 <21 || >=22.3.0' },
+168 warn EBADENGINE   current: { node: 'v22.0.0', npm: '10.6.0' }
+168 warn EBADENGINE }
+169 silly reify moves {}
+170 silly audit bulk request {
+170 silly audit   'pdf-parse': [ '2.4.5' ],
+170 silly audit   pdfkit: [ '0.18.0' ],
+170 silly audit   pptxgenjs: [ '4.0.1' ],
+170 silly audit   '@napi-rs/canvas': [ '0.1.80' ],
+170 silly audit   'pdfjs-dist': [ '5.4.296' ],
+170 silly audit   '@napi-rs/canvas-android-arm64': [ '0.1.80' ],
+170 silly audit   '@napi-rs/canvas-darwin-arm64': [ '0.1.80' ],
+170 silly audit   '@napi-rs/canvas-darwin-x64': [ '0.1.80' ],
+170 silly audit   '@napi-rs/canvas-linux-arm-gnueabihf': [ '0.1.80' ],
+170 silly audit   '@napi-rs/canvas-linux-arm64-gnu': [ '0.1.80' ],
+170 silly audit   '@napi-rs/canvas-linux-arm64-musl': [ '0.1.80' ],
+170 silly audit   '@napi-rs/canvas-linux-riscv64-gnu': [ '0.1.80' ],
+170 silly audit   '@napi-rs/canvas-linux-x64-gnu': [ '0.1.80' ],
+170 silly audit   '@napi-rs/canvas-linux-x64-musl': [ '0.1.80' ],
+170 silly audit   '@napi-rs/canvas-win32-x64-msvc': [ '0.1.80' ],
+170 silly audit   '@noble/ciphers': [ '1.3.0' ],
+170 silly audit   '@noble/hashes': [ '1.8.0' ],
+170 silly audit   fontkit: [ '2.0.4' ],
+170 silly audit   'js-md5': [ '0.8.3' ],
+170 silly audit   linebreak: [ '1.1.0' ],
+170 silly audit   'png-js': [ '1.0.0' ],
+170 silly audit   '@swc/helpers': [ '0.5.19' ],
+170 silly audit   brotli: [ '1.3.3' ],
+170 silly audit   clone: [ '2.1.2' ],
+170 silly audit   dfa: [ '1.2.0' ],
+170 silly audit   'fast-deep-equal': [ '3.1.3' ],
+170 silly audit   restructure: [ '3.0.2' ],
+170 silly audit   'tiny-inflate': [ '1.0.3' ],
+170 silly audit   'unicode-properties': [ '1.4.1' ],
+170 silly audit   'unicode-trie': [ '2.0.0' ],
+170 silly audit   tslib: [ '2.8.1' ],
+170 silly audit   'base64-js': [ '1.5.1', '0.0.8' ],
+170 silly audit   '@types/node': [ '22.19.15' ],
+170 silly audit   https: [ '1.0.0' ],
+170 silly audit   'image-size': [ '1.2.1' ],
+170 silly audit   jszip: [ '3.10.1' ],
+170 silly audit   'undici-types': [ '6.21.0' ],
+170 silly audit   queue: [ '6.0.2' ],
+170 silly audit   lie: [ '3.3.0' ],
+170 silly audit   pako: [ '1.0.11', '0.2.9' ],
+170 silly audit   'readable-stream': [ '2.3.8' ],
+170 silly audit   setimmediate: [ '1.0.5' ],
+170 silly audit   immediate: [ '3.0.6' ],
+170 silly audit   inherits: [ '2.0.4' ],
+170 silly audit   'core-util-is': [ '1.0.3' ],
+170 silly audit   isarray: [ '1.0.0' ],
+170 silly audit   'process-nextick-args': [ '2.0.1' ],
+170 silly audit   'safe-buffer': [ '5.1.2' ],
+170 silly audit   string_decoder: [ '1.1.1' ],
+170 silly audit   'util-deprecate': [ '1.0.2' ]
+170 silly audit }
+171 verbose reify failed optional dependency C:\Users\Pichau\source\repos\TCC\API\.codex_tmp\virtualizacao\node_modules\@napi-rs\canvas-linux-x64-musl
+172 silly reify mark deleted [
+172 silly reify   'C:\\Users\\Pichau\\source\\repos\\TCC\\API\\.codex_tmp\\virtualizacao\\node_modules\\@napi-rs\\canvas-linux-x64-musl'
+172 silly reify ]
+173 verbose reify failed optional dependency C:\Users\Pichau\source\repos\TCC\API\.codex_tmp\virtualizacao\node_modules\@napi-rs\canvas-linux-x64-gnu
+174 silly reify mark deleted [
+174 silly reify   'C:\\Users\\Pichau\\source\\repos\\TCC\\API\\.codex_tmp\\virtualizacao\\node_modules\\@napi-rs\\canvas-linux-x64-gnu'
+174 silly reify ]
+175 verbose reify failed optional dependency C:\Users\Pichau\source\repos\TCC\API\.codex_tmp\virtualizacao\node_modules\@napi-rs\canvas-linux-riscv64-gnu
+176 silly reify mark deleted [
+176 silly reify   'C:\\Users\\Pichau\\source\\repos\\TCC\\API\\.codex_tmp\\virtualizacao\\node_modules\\@napi-rs\\canvas-linux-riscv64-gnu'
+176 silly reify ]
+177 verbose reify failed optional dependency C:\Users\Pichau\source\repos\TCC\API\.codex_tmp\virtualizacao\node_modules\@napi-rs\canvas-linux-arm64-musl
+178 silly reify mark deleted [
+178 silly reify   'C:\\Users\\Pichau\\source\\repos\\TCC\\API\\.codex_tmp\\virtualizacao\\node_modules\\@napi-rs\\canvas-linux-arm64-musl'
+178 silly reify ]
+179 verbose reify failed optional dependency C:\Users\Pichau\source\repos\TCC\API\.codex_tmp\virtualizacao\node_modules\@napi-rs\canvas-linux-arm64-gnu
+180 silly reify mark deleted [
+180 silly reify   'C:\\Users\\Pichau\\source\\repos\\TCC\\API\\.codex_tmp\\virtualizacao\\node_modules\\@napi-rs\\canvas-linux-arm64-gnu'
+180 silly reify ]
+181 verbose reify failed optional dependency C:\Users\Pichau\source\repos\TCC\API\.codex_tmp\virtualizacao\node_modules\@napi-rs\canvas-linux-arm-gnueabihf
+182 silly reify mark deleted [
+182 silly reify   'C:\\Users\\Pichau\\source\\repos\\TCC\\API\\.codex_tmp\\virtualizacao\\node_modules\\@napi-rs\\canvas-linux-arm-gnueabihf'
+182 silly reify ]
+183 verbose reify failed optional dependency C:\Users\Pichau\source\repos\TCC\API\.codex_tmp\virtualizacao\node_modules\@napi-rs\canvas-darwin-x64
+184 silly reify mark deleted [
+184 silly reify   'C:\\Users\\Pichau\\source\\repos\\TCC\\API\\.codex_tmp\\virtualizacao\\node_modules\\@napi-rs\\canvas-darwin-x64'
+184 silly reify ]
+185 verbose reify failed optional dependency C:\Users\Pichau\source\repos\TCC\API\.codex_tmp\virtualizacao\node_modules\@napi-rs\canvas-darwin-arm64
+186 silly reify mark deleted [
+186 silly reify   'C:\\Users\\Pichau\\source\\repos\\TCC\\API\\.codex_tmp\\virtualizacao\\node_modules\\@napi-rs\\canvas-darwin-arm64'
+186 silly reify ]
+187 verbose reify failed optional dependency C:\Users\Pichau\source\repos\TCC\API\.codex_tmp\virtualizacao\node_modules\@napi-rs\canvas-android-arm64
+188 silly reify mark deleted [
+188 silly reify   'C:\\Users\\Pichau\\source\\repos\\TCC\\API\\.codex_tmp\\virtualizacao\\node_modules\\@napi-rs\\canvas-android-arm64'
+188 silly reify ]
+189 silly tarball no local data for string_decoder@https://registry.npmjs.org/string_decoder/-/string_decoder-1.1.1.tgz. Extracting by manifest.
+190 silly tarball no local data for util-deprecate@https://registry.npmjs.org/util-deprecate/-/util-deprecate-1.0.2.tgz. Extracting by manifest.
+191 silly tarball no local data for safe-buffer@https://registry.npmjs.org/safe-buffer/-/safe-buffer-5.1.2.tgz. Extracting by manifest.
+192 silly tarball no local data for isarray@https://registry.npmjs.org/isarray/-/isarray-1.0.0.tgz. Extracting by manifest.
+193 silly tarball no local data for core-util-is@https://registry.npmjs.org/core-util-is/-/core-util-is-1.0.3.tgz. Extracting by manifest.
+194 silly tarball no local data for process-nextick-args@https://registry.npmjs.org/process-nextick-args/-/process-nextick-args-2.0.1.tgz. Extracting by manifest.
+195 silly tarball no local data for inherits@https://registry.npmjs.org/inherits/-/inherits-2.0.4.tgz. Extracting by manifest.
+196 silly tarball no local data for setimmediate@https://registry.npmjs.org/setimmediate/-/setimmediate-1.0.5.tgz. Extracting by manifest.
+197 silly tarball no local data for pako@https://registry.npmjs.org/pako/-/pako-1.0.11.tgz. Extracting by manifest.
+198 silly tarball no local data for readable-stream@https://registry.npmjs.org/readable-stream/-/readable-stream-2.3.8.tgz. Extracting by manifest.
+199 silly tarball no local data for queue@https://registry.npmjs.org/queue/-/queue-6.0.2.tgz. Extracting by manifest.
+200 silly tarball no local data for lie@https://registry.npmjs.org/lie/-/lie-3.3.0.tgz. Extracting by manifest.
+201 silly tarball no local data for undici-types@https://registry.npmjs.org/undici-types/-/undici-types-6.21.0.tgz. Extracting by manifest.
+202 silly tarball no local data for jszip@https://registry.npmjs.org/jszip/-/jszip-3.10.1.tgz. Extracting by manifest.
+203 silly tarball no local data for @types/node@https://registry.npmjs.org/@types/node/-/node-22.19.15.tgz. Extracting by manifest.
+204 silly tarball no local data for image-size@https://registry.npmjs.org/image-size/-/image-size-1.2.1.tgz. Extracting by manifest.
+205 silly tarball no local data for https@https://registry.npmjs.org/https/-/https-1.0.0.tgz. Extracting by manifest.
+206 silly tarball no local data for base64-js@https://registry.npmjs.org/base64-js/-/base64-js-1.5.1.tgz. Extracting by manifest.
+207 silly tarball no local data for tslib@https://registry.npmjs.org/tslib/-/tslib-2.8.1.tgz. Extracting by manifest.
+208 silly tarball no local data for unicode-trie@https://registry.npmjs.org/unicode-trie/-/unicode-trie-2.0.0.tgz. Extracting by manifest.
+209 silly tarball no local data for unicode-properties@https://registry.npmjs.org/unicode-properties/-/unicode-properties-1.4.1.tgz. Extracting by manifest.
+210 silly tarball no local data for tiny-inflate@https://registry.npmjs.org/tiny-inflate/-/tiny-inflate-1.0.3.tgz. Extracting by manifest.
+211 silly tarball no local data for restructure@https://registry.npmjs.org/restructure/-/restructure-3.0.2.tgz. Extracting by manifest.
+212 silly tarball no local data for dfa@https://registry.npmjs.org/dfa/-/dfa-1.2.0.tgz. Extracting by manifest.
+213 silly tarball no local data for fast-deep-equal@https://registry.npmjs.org/fast-deep-equal/-/fast-deep-equal-3.1.3.tgz. Extracting by manifest.
+214 silly tarball no local data for @swc/helpers@https://registry.npmjs.org/@swc/helpers/-/helpers-0.5.19.tgz. Extracting by manifest.
+215 silly tarball no local data for immediate@https://registry.npmjs.org/immediate/-/immediate-3.0.6.tgz. Extracting by manifest.
+216 silly tarball no local data for clone@https://registry.npmjs.org/clone/-/clone-2.1.2.tgz. Extracting by manifest.
+217 silly tarball no local data for brotli@https://registry.npmjs.org/brotli/-/brotli-1.3.3.tgz. Extracting by manifest.
+218 silly tarball no local data for png-js@https://registry.npmjs.org/png-js/-/png-js-1.0.0.tgz. Extracting by manifest.
+219 silly tarball no local data for js-md5@https://registry.npmjs.org/js-md5/-/js-md5-0.8.3.tgz. Extracting by manifest.
+220 silly tarball no local data for @noble/hashes@https://registry.npmjs.org/@noble/hashes/-/hashes-1.8.0.tgz. Extracting by manifest.
+221 silly tarball no local data for linebreak@https://registry.npmjs.org/linebreak/-/linebreak-1.1.0.tgz. Extracting by manifest.
+222 silly tarball no local data for fontkit@https://registry.npmjs.org/fontkit/-/fontkit-2.0.4.tgz. Extracting by manifest.
+223 silly tarball no local data for @noble/ciphers@https://registry.npmjs.org/@noble/ciphers/-/ciphers-1.3.0.tgz. Extracting by manifest.
+224 silly tarball no local data for pdfjs-dist@https://registry.npmjs.org/pdfjs-dist/-/pdfjs-dist-5.4.296.tgz. Extracting by manifest.
+225 silly tarball no local data for @napi-rs/canvas-win32-x64-msvc@https://registry.npmjs.org/@napi-rs/canvas-win32-x64-msvc/-/canvas-win32-x64-msvc-0.1.80.tgz. Extracting by manifest.
+226 silly tarball no local data for @napi-rs/canvas@https://registry.npmjs.org/@napi-rs/canvas/-/canvas-0.1.80.tgz. Extracting by manifest.
+227 silly tarball no local data for pptxgenjs@https://registry.npmjs.org/pptxgenjs/-/pptxgenjs-4.0.1.tgz. Extracting by manifest.
+228 silly tarball no local data for pako@https://registry.npmjs.org/pako/-/pako-0.2.9.tgz. Extracting by manifest.
+229 silly tarball no local data for base64-js@https://registry.npmjs.org/base64-js/-/base64-js-0.0.8.tgz. Extracting by manifest.
+230 silly tarball no local data for pdf-parse@https://registry.npmjs.org/pdf-parse/-/pdf-parse-2.4.5.tgz. Extracting by manifest.
+231 silly tarball no local data for pdfkit@https://registry.npmjs.org/pdfkit/-/pdfkit-0.18.0.tgz. Extracting by manifest.
+232 http fetch GET 200 https://registry.npmjs.org/setimmediate/-/setimmediate-1.0.5.tgz 229ms (cache miss)
+233 http fetch GET 200 https://registry.npmjs.org/isarray/-/isarray-1.0.0.tgz 241ms (cache miss)
+234 http fetch GET 200 https://registry.npmjs.org/inherits/-/inherits-2.0.4.tgz 245ms (cache miss)
+235 http fetch GET 200 https://registry.npmjs.org/process-nextick-args/-/process-nextick-args-2.0.1.tgz 248ms (cache miss)
+236 http fetch GET 200 https://registry.npmjs.org/core-util-is/-/core-util-is-1.0.3.tgz 252ms (cache miss)
+237 http fetch GET 200 https://registry.npmjs.org/util-deprecate/-/util-deprecate-1.0.2.tgz 253ms (cache miss)
+238 http fetch GET 200 https://registry.npmjs.org/https/-/https-1.0.0.tgz 256ms (cache miss)
+239 http fetch GET 200 https://registry.npmjs.org/string_decoder/-/string_decoder-1.1.1.tgz 264ms (cache miss)
+240 http fetch GET 200 https://registry.npmjs.org/base64-js/-/base64-js-1.5.1.tgz 262ms (cache miss)
+241 http fetch GET 200 https://registry.npmjs.org/safe-buffer/-/safe-buffer-5.1.2.tgz 268ms (cache miss)
+242 http fetch GET 200 https://registry.npmjs.org/clone/-/clone-2.1.2.tgz 272ms (cache miss)
+243 http fetch GET 200 https://registry.npmjs.org/tiny-inflate/-/tiny-inflate-1.0.3.tgz 280ms (cache miss)
+244 http fetch POST 200 https://registry.npmjs.org/-/npm/v1/security/advisories/bulk 302ms
+245 silly audit report {}
+246 http fetch GET 200 https://registry.npmjs.org/js-md5/-/js-md5-0.8.3.tgz 285ms (cache miss)
+247 http fetch GET 200 https://registry.npmjs.org/immediate/-/immediate-3.0.6.tgz 292ms (cache miss)
+248 http fetch GET 200 https://registry.npmjs.org/queue/-/queue-6.0.2.tgz 296ms (cache miss)
+249 http fetch GET 200 https://registry.npmjs.org/dfa/-/dfa-1.2.0.tgz 297ms (cache miss)
+250 http fetch GET 200 https://registry.npmjs.org/unicode-trie/-/unicode-trie-2.0.0.tgz 307ms (cache miss)
+251 http fetch GET 200 https://registry.npmjs.org/fast-deep-equal/-/fast-deep-equal-3.1.3.tgz 322ms (cache miss)
+252 http fetch GET 200 https://registry.npmjs.org/unicode-properties/-/unicode-properties-1.4.1.tgz 331ms (cache miss)
+253 http fetch GET 200 https://registry.npmjs.org/lie/-/lie-3.3.0.tgz 336ms (cache miss)
+254 http fetch GET 200 https://registry.npmjs.org/base64-js/-/base64-js-0.0.8.tgz 339ms (cache miss)
+255 http fetch GET 200 https://registry.npmjs.org/tslib/-/tslib-2.8.1.tgz 349ms (cache miss)
+256 http fetch GET 200 https://registry.npmjs.org/@napi-rs/canvas/-/canvas-0.1.80.tgz 361ms (cache miss)
+257 http fetch GET 200 https://registry.npmjs.org/linebreak/-/linebreak-1.1.0.tgz 368ms (cache miss)
+258 http fetch GET 200 https://registry.npmjs.org/readable-stream/-/readable-stream-2.3.8.tgz 401ms (cache miss)
+259 http fetch GET 200 https://registry.npmjs.org/pako/-/pako-1.0.11.tgz 505ms (cache miss)
+260 http fetch GET 200 https://registry.npmjs.org/pako/-/pako-0.2.9.tgz 499ms (cache miss)
+261 http fetch GET 200 https://registry.npmjs.org/restructure/-/restructure-3.0.2.tgz 508ms (cache miss)
+262 http fetch GET 200 https://registry.npmjs.org/brotli/-/brotli-1.3.3.tgz 508ms (cache miss)
+263 http fetch GET 200 https://registry.npmjs.org/undici-types/-/undici-types-6.21.0.tgz 513ms (cache miss)
+264 http fetch GET 200 https://registry.npmjs.org/image-size/-/image-size-1.2.1.tgz 545ms (cache miss)
+265 http fetch GET 200 https://registry.npmjs.org/jszip/-/jszip-3.10.1.tgz 585ms (cache miss)
+266 http fetch GET 200 https://registry.npmjs.org/@types/node/-/node-22.19.15.tgz 668ms (cache miss)
+267 http fetch GET 200 https://registry.npmjs.org/@noble/ciphers/-/ciphers-1.3.0.tgz 696ms (cache miss)
+268 http fetch GET 200 https://registry.npmjs.org/pptxgenjs/-/pptxgenjs-4.0.1.tgz 793ms (cache miss)
+269 http fetch GET 200 https://registry.npmjs.org/@noble/hashes/-/hashes-1.8.0.tgz 872ms (cache miss)
+270 http fetch GET 200 https://registry.npmjs.org/@swc/helpers/-/helpers-0.5.19.tgz 1066ms (cache miss)
+271 http fetch GET 200 https://registry.npmjs.org/png-js/-/png-js-1.0.0.tgz 1345ms (cache miss)
+272 http fetch GET 200 https://registry.npmjs.org/fontkit/-/fontkit-2.0.4.tgz 1368ms (cache miss)
+273 http fetch GET 200 https://registry.npmjs.org/pdfkit/-/pdfkit-0.18.0.tgz 1533ms (cache miss)
+274 http fetch GET 200 https://registry.npmjs.org/pdf-parse/-/pdf-parse-2.4.5.tgz 1622ms (cache miss)
+275 http fetch GET 200 https://registry.npmjs.org/pdfjs-dist/-/pdfjs-dist-5.4.296.tgz 3317ms (cache miss)
+276 http fetch GET 200 https://registry.npmjs.org/@napi-rs/canvas-win32-x64-msvc/-/canvas-win32-x64-msvc-0.1.80.tgz 3803ms (cache miss)
+277 silly ADD node_modules/util-deprecate
+278 silly ADD node_modules/string_decoder
+279 silly ADD node_modules/safe-buffer
+280 silly ADD node_modules/process-nextick-args
+281 silly ADD node_modules/isarray
+282 silly ADD node_modules/core-util-is
+283 silly ADD node_modules/inherits
+284 silly ADD node_modules/immediate
+285 silly ADD node_modules/setimmediate
+286 silly ADD node_modules/readable-stream
+287 silly ADD node_modules/pako
+288 silly ADD node_modules/lie
+289 silly ADD node_modules/queue
+290 silly ADD node_modules/undici-types
+291 silly ADD node_modules/jszip
+292 silly ADD node_modules/image-size
+293 silly ADD node_modules/https
+294 silly ADD node_modules/@types/node
+295 silly ADD node_modules/base64-js
+296 silly ADD node_modules/tslib
+297 silly ADD node_modules/unicode-trie
+298 silly ADD node_modules/unicode-trie/node_modules/pako
+299 silly ADD node_modules/unicode-properties
+300 silly ADD node_modules/tiny-inflate
+301 silly ADD node_modules/restructure
+302 silly ADD node_modules/fast-deep-equal
+303 silly ADD node_modules/dfa
+304 silly ADD node_modules/clone
+305 silly ADD node_modules/brotli
+306 silly ADD node_modules/@swc/helpers
+307 silly ADD node_modules/png-js
+308 silly ADD node_modules/linebreak
+309 silly ADD node_modules/linebreak/node_modules/base64-js
+310 silly ADD node_modules/js-md5
+311 silly ADD node_modules/fontkit
+312 silly ADD node_modules/@noble/hashes
+313 silly ADD node_modules/@noble/ciphers
+314 silly ADD node_modules/@napi-rs/canvas-win32-x64-msvc
+315 silly ADD
+316 silly ADD
+317 silly ADD
+318 silly ADD
+319 silly ADD
+320 silly ADD
+321 silly ADD
+322 silly ADD
+323 silly ADD
+324 silly ADD node_modules/pdfjs-dist
+325 silly ADD node_modules/@napi-rs/canvas
+326 silly ADD node_modules/pptxgenjs
+327 silly ADD node_modules/pdfkit
+328 silly ADD node_modules/pdf-parse
+329 verbose exit 0
+330 info ok

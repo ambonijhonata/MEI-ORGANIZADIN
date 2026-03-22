@@ -15,7 +15,18 @@
       "Read(//c/Users/Pichau/source/repos/TCC/API/**)",
       "Bash(done)",
       "Bash(npx openspec:*)",
-      "Bash(gh auth:*)"
+      "Bash(gh auth:*)",
+      "Bash(git config:*)",
+      "Bash(where gh:*)",
+      "Bash(git credential-manager:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(./mvnw compile:*)",
+      "Bash(ls:*)",
+      "Bash(which mvn:*)",
+      "Bash(mvn compile:*)",
+      "Bash(mvn test:*)"
     ]
   }
 }

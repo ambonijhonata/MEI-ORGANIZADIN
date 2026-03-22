@@ -38,15 +38,25 @@ The system SHALL allow an authenticated user to retrieve a single service by its
 - **THEN** the system SHALL return HTTP 404
 
 ### Requirement: List services for authenticated user
-The system SHALL return only services belonging to the authenticated user. By default, results SHALL be ordered by id ascending.
+The system SHALL return only services belonging to the authenticated user. By default, results SHALL be ordered by id ascending. The system SHALL support pagination with configurable page size and return pagination metadata.
 
 #### Scenario: User lists their services
 - **WHEN** an authenticated user requests their service list without filters
-- **THEN** the system SHALL return only services owned by that user, ordered by id ascending
+- **THEN** the system SHALL return only services owned by that user, ordered by id ascending, paginated with default size 25
 
 #### Scenario: User cannot see another user's services
 - **WHEN** user A requests the service list
 - **THEN** the response SHALL NOT contain any services belonging to user B
+
+#### Scenario: Pagination metadata
+- **WHEN** an authenticated user requests services with page=0 and size=10
+- **THEN** the response SHALL include `totalItems`, `itemsPerPage`, `totalPages`, and `pageIndex`
+- **AND** `itemsPerPage` SHALL be 10
+- **AND** `pageIndex` SHALL be 0
+
+#### Scenario: Default pagination
+- **WHEN** an authenticated user requests services without specifying page or size
+- **THEN** the system SHALL use page=0 and size=25
 
 ### Requirement: Search services by description
 The system SHALL allow filtering the service list by a partial, case-insensitive match on the description field.
