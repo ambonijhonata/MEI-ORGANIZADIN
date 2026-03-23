@@ -2,6 +2,7 @@ package com.api.calendar;
 
 import com.api.client.Client;
 import com.api.client.ClientService;
+import com.api.common.GoogleApiAccessDeniedException;
 import com.api.common.IntegrationRevokedException;
 import com.api.google.GoogleCalendarClient;
 import com.api.servicecatalog.Service;
@@ -73,7 +74,11 @@ public class CalendarSyncService {
         } catch (GoogleCalendarClient.OAuthRevokedException e) {
             syncState.markReauthRequired(e.getMessage());
             syncStateRepository.save(syncState);
-            throw new IntegrationRevokedException("Google OAuth token has been revoked");
+            throw new IntegrationRevokedException(e.getMessage());
+        } catch (GoogleCalendarClient.GoogleApiForbiddenException e) {
+            syncState.markFailed("GOOGLE_API_FORBIDDEN", e.getMessage());
+            syncStateRepository.save(syncState);
+            throw new GoogleApiAccessDeniedException(e.getMessage());
         } catch (IOException e) {
             syncState.markFailed("IO_ERROR", e.getMessage());
             syncStateRepository.save(syncState);

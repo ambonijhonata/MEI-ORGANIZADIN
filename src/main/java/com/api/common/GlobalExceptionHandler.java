@@ -106,6 +106,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
     }
 
+    @ExceptionHandler(GoogleApiAccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleGoogleApiAccessDenied(GoogleApiAccessDeniedException ex) {
+        var error = new ErrorResponse(
+                HttpStatus.FORBIDDEN.value(),
+                "GOOGLE_API_FORBIDDEN",
+                ex.getMessage(),
+                Instant.now()
+        );
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    }
+
     public record ErrorResponse(int status, String code, String message, Instant timestamp) {}
 
     public record ValidationErrorResponse(int status, String code, String message,

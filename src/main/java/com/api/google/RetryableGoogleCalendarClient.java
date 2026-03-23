@@ -20,7 +20,9 @@ public class RetryableGoogleCalendarClient {
         for (int attempt = 0; attempt <= MAX_RETRIES; attempt++) {
             try {
                 return action.get();
-            } catch (GoogleCalendarClient.OAuthRevokedException | GoogleCalendarClient.SyncTokenExpiredException e) {
+            } catch (GoogleCalendarClient.OAuthRevokedException
+                     | GoogleCalendarClient.SyncTokenExpiredException
+                     | GoogleCalendarClient.GoogleApiForbiddenException e) {
                 throw e;
             } catch (IOException e) {
                 lastException = e;

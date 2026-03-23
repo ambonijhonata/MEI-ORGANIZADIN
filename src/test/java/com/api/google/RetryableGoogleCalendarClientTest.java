@@ -67,4 +67,16 @@ class RetryableGoogleCalendarClientTest {
         );
         assertEquals(1, counter[0]);
     }
+
+    @Test
+    void shouldNotRetryGoogleApiForbiddenException() {
+        var counter = new int[]{0};
+        assertThrows(GoogleCalendarClient.GoogleApiForbiddenException.class, () ->
+                retryClient.executeWithRetry(() -> {
+                    counter[0]++;
+                    throw new GoogleCalendarClient.GoogleApiForbiddenException("access denied");
+                })
+        );
+        assertEquals(1, counter[0]);
+    }
 }

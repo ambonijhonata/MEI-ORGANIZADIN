@@ -4,6 +4,7 @@ import com.api.auth.OAuthCredential;
 import com.api.auth.OAuthCredentialRepository;
 import com.api.common.IntegrationRevokedException;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
+import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
@@ -64,11 +65,16 @@ public class GoogleCalendarClient {
             } while (pageToken != null);
 
         } catch (GoogleJsonResponseException e) {
-            if (e.getStatusCode() == 410) {
+            int statusCode = e.getStatusCode();
+            if (statusCode == 410) {
                 throw new SyncTokenExpiredException("Sync token expired, full resync required");
             }
-            if (isRevocationError(e)) {
-                throw new OAuthRevokedException("OAuth token has been revoked");
+            String googleMessage = extractGoogleErrorMessage(e);
+            if (statusCode == 401) {
+                throw new OAuthRevokedException(googleMessage);
+            }
+            if (statusCode == 403) {
+                throw new GoogleApiForbiddenException(googleMessage);
             }
             throw e;
         }
@@ -76,7 +82,7 @@ public class GoogleCalendarClient {
         return new CalendarSyncResult(allEvents, nextSyncToken);
     }
 
-    private Calendar buildCalendarService(OAuthCredential credential) {
+    Calendar buildCalendarService(OAuthCredential credential) {
         @SuppressWarnings("deprecation")
         GoogleCredential googleCredential = new GoogleCredential.Builder()
                 .setTransport(new NetHttpTransport())
@@ -95,9 +101,33 @@ public class GoogleCalendarClient {
                 .build();
     }
 
-    private boolean isRevocationError(GoogleJsonResponseException e) {
-        int status = e.getStatusCode();
-        return status == 401 || status == 403;
+    private String extractGoogleErrorMessage(GoogleJsonResponseException e) {
+        GoogleJsonError details = e.getDetails();
+        if (details != null) {
+            String detailMessage = details.getMessage();
+            if (details.getErrors() != null && !details.getErrors().isEmpty()) {
+                GoogleJsonError.ErrorInfo firstError = details.getErrors().get(0);
+                String reason = firstError.getReason();
+                if (detailMessage != null && reason != null && !reason.isBlank()) {
+                    return detailMessage + " (reason: " + reason + ")";
+                }
+            }
+            if (detailMessage != null && !detailMessage.isBlank()) {
+                return detailMessage;
+            }
+        }
+
+        String content = e.getContent();
+        if (content != null && !content.isBlank()) {
+            return content;
+        }
+
+        String statusMessage = e.getStatusMessage();
+        if (statusMessage != null && !statusMessage.isBlank()) {
+            return statusMessage;
+        }
+
+        return "Unknown Google API error";
     }
 
     public record CalendarSyncResult(List<Event> events, String nextSyncToken) {}
@@ -108,5 +138,9 @@ public class GoogleCalendarClient {
 
     public static class OAuthRevokedException extends IOException {
         public OAuthRevokedException(String message) { super(message); }
+    }
+
+    public static class GoogleApiForbiddenException extends IOException {
+        public GoogleApiForbiddenException(String message) { super(message); }
     }
 }

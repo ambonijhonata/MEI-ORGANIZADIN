@@ -2,6 +2,7 @@ package com.api.calendar;
 
 import com.api.client.Client;
 import com.api.client.ClientService;
+import com.api.common.GoogleApiAccessDeniedException;
 import com.api.common.IntegrationRevokedException;
 import com.api.google.GoogleCalendarClient;
 import com.api.servicecatalog.Service;
@@ -64,8 +65,9 @@ class CalendarSyncServiceExtendedTest {
         when(googleCalendarClient.fetchEvents(eq(1L), isNull()))
                 .thenThrow(new GoogleCalendarClient.OAuthRevokedException("Token revoked"));
 
-        assertThrows(IntegrationRevokedException.class, () -> syncService.synchronize(1L));
+        IntegrationRevokedException ex = assertThrows(IntegrationRevokedException.class, () -> syncService.synchronize(1L));
         assertEquals(SyncStatus.REAUTH_REQUIRED, syncState.getStatus());
+        assertEquals("Token revoked", ex.getMessage());
     }
 
     @Test
@@ -82,6 +84,28 @@ class CalendarSyncServiceExtendedTest {
         assertThrows(RuntimeException.class, () -> syncService.synchronize(1L));
         assertEquals(SyncStatus.SYNC_FAILED, syncState.getStatus());
         assertEquals("IO_ERROR", syncState.getErrorCategory());
+    }
+
+    @Test
+    void shouldMarkFailedOnGoogleForbiddenAndExposeMessage() throws IOException {
+        User user = new User("sub", "email@test.com", "Name");
+        SyncState syncState = new SyncState(user);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        when(syncStateRepository.save(any(SyncState.class))).thenReturn(syncState);
+        when(googleCalendarClient.fetchEvents(eq(1L), isNull()))
+                .thenThrow(new GoogleCalendarClient.GoogleApiForbiddenException(
+                        "Google Calendar API has not been used in project (reason: accessNotConfigured)"));
+
+        GoogleApiAccessDeniedException ex = assertThrows(
+                GoogleApiAccessDeniedException.class,
+                () -> syncService.synchronize(1L)
+        );
+
+        assertEquals("GOOGLE_API_FORBIDDEN", syncState.getErrorCategory());
+        assertEquals(SyncStatus.SYNC_FAILED, syncState.getStatus());
+        assertTrue(ex.getMessage().contains("accessNotConfigured"));
     }
 
     @Test

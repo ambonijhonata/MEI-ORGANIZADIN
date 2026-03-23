@@ -113,4 +113,15 @@ class GlobalExceptionHandlerTest {
         assertEquals(403, response.getBody().status());
         assertEquals("INTEGRATION_REVOKED", response.getBody().code());
     }
+
+    @Test
+    void shouldHandleGoogleApiAccessDeniedWith403() {
+        var ex = new GoogleApiAccessDeniedException("Calendar API is not enabled");
+        var response = handler.handleGoogleApiAccessDenied(ex);
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+        assertEquals(403, response.getBody().status());
+        assertEquals("GOOGLE_API_FORBIDDEN", response.getBody().code());
+        assertEquals("Calendar API is not enabled", response.getBody().message());
+    }
 }
