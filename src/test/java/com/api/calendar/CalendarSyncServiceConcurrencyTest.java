@@ -63,7 +63,7 @@ class CalendarSyncServiceConcurrencyTest {
                 .thenAnswer(inv -> inv.getArgument(0));
         lenient().when(normalizer.normalize(anyString())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(titleParser.parse(anyString()))
-                .thenReturn(new EventTitleParser.ParsedTitle(null, List.of()));
+                .thenReturn(new EventTitleParser.ParsedTitle(null, List.of(), null));
     }
 
     @AfterEach

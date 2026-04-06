@@ -374,6 +374,7 @@ public class CalendarSyncService {
             if (parsed.hasClient()) {
                 calendarEvent.setClient(resolvedClient);
             }
+            calendarEvent.setPaymentType(parsed.paymentType());
             applyServiceAssociation(calendarEvent, matchedServices);
             return new ProcessedEvent(calendarEvent, true, true);
         }
@@ -381,7 +382,8 @@ public class CalendarSyncService {
         boolean coreDataChanged = hasCoreDataChanges(existingEvent, title, normalizedTitle, eventStart, eventEnd);
         boolean clientChanged = parsed.hasClient() && !isEquivalentClient(existingEvent.getClient(), resolvedClient);
         boolean serviceAssociationChanged = hasServiceAssociationChanges(existingEvent, matchedServices);
-        boolean shouldPersist = coreDataChanged || clientChanged || serviceAssociationChanged;
+        boolean paymentTypeChanged = !Objects.equals(existingEvent.getPaymentType(), parsed.paymentType());
+        boolean shouldPersist = coreDataChanged || clientChanged || serviceAssociationChanged || paymentTypeChanged;
 
         if (!shouldPersist) {
             return new ProcessedEvent(existingEvent, false, false);
@@ -395,6 +397,9 @@ public class CalendarSyncService {
         }
         if (serviceAssociationChanged) {
             applyServiceAssociation(existingEvent, matchedServices);
+        }
+        if (paymentTypeChanged) {
+            existingEvent.setPaymentType(parsed.paymentType());
         }
 
         return new ProcessedEvent(existingEvent, false, true);

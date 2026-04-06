@@ -93,7 +93,7 @@ public class CalendarController {
             Long id, String googleEventId, String title,
             String eventStart, String eventEnd,
             boolean identified, String serviceDescription,
-            BigDecimal serviceValue
+            BigDecimal serviceValue, String paymentType
     ) {
         static EventResponse from(CalendarEvent e) {
             return new EventResponse(
@@ -102,7 +102,8 @@ public class CalendarController {
                     e.getEventEnd() != null ? e.getEventEnd().toString() : null,
                     e.isIdentified(),
                     e.getServiceDescriptionSnapshot(),
-                    e.getServiceValueSnapshot()
+                    e.getServiceValueSnapshot(),
+                    e.getPaymentType() != null ? e.getPaymentType().name() : null
             );
         }
     }

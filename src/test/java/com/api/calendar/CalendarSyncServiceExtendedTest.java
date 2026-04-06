@@ -23,6 +23,7 @@ import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.StreamSupport;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -131,7 +132,7 @@ class CalendarSyncServiceExtendedTest {
                 .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "token"));
         when(normalizer.normalize(anyString())).thenReturn("maria - corte + barba");
         when(titleParser.parse("maria - corte + barba"))
-                .thenReturn(new EventTitleParser.ParsedTitle("maria", List.of("corte", "barba")));
+                .thenReturn(new EventTitleParser.ParsedTitle("maria", List.of("corte", "barba"), null));
 
         Client client = new Client(user, "Maria", "maria");
         when(clientService.findOrCreateByName(eq(1L), eq(user), eq("maria"))).thenReturn(client);
@@ -168,7 +169,7 @@ class CalendarSyncServiceExtendedTest {
                 java.time.Instant.now(), java.time.Instant.now());
         when(calendarEventRepository.findWithAssociationsByUserIdAndGoogleEventIdIn(eq(1L), anyCollection()))
                 .thenReturn(List.of(existingEvent));
-        when(titleParser.parse("corte")).thenReturn(new EventTitleParser.ParsedTitle(null, List.of("corte")));
+        when(titleParser.parse("corte")).thenReturn(new EventTitleParser.ParsedTitle(null, List.of("corte"), null));
 
         CalendarSyncService.SyncResult result = syncService.synchronize(1L);
 
@@ -189,7 +190,7 @@ class CalendarSyncServiceExtendedTest {
         when(googleCalendarClient.fetchEvents(eq(1L), isNull()))
                 .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "token"));
         when(normalizer.normalize(anyString())).thenReturn("corte");
-        when(titleParser.parse("corte")).thenReturn(new EventTitleParser.ParsedTitle(null, List.of("corte")));
+        when(titleParser.parse("corte")).thenReturn(new EventTitleParser.ParsedTitle(null, List.of("corte"), null));
 
         syncService.synchronize(1L);
 
@@ -215,7 +216,7 @@ class CalendarSyncServiceExtendedTest {
         when(googleCalendarClient.fetchEvents(eq(1L), isNull()))
                 .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "token"));
         when(normalizer.normalize(anyString())).thenReturn("test");
-        when(titleParser.parse("test")).thenReturn(new EventTitleParser.ParsedTitle(null, List.of("test")));
+        when(titleParser.parse("test")).thenReturn(new EventTitleParser.ParsedTitle(null, List.of("test"), null));
 
         CalendarSyncService.SyncResult result = syncService.synchronize(1L);
 
@@ -239,7 +240,7 @@ class CalendarSyncServiceExtendedTest {
         when(googleCalendarClient.fetchEvents(eq(1L), isNull()))
                 .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "token"));
         when(normalizer.normalize(anyString())).thenReturn("test");
-        when(titleParser.parse("test")).thenReturn(new EventTitleParser.ParsedTitle(null, List.of("test")));
+        when(titleParser.parse("test")).thenReturn(new EventTitleParser.ParsedTitle(null, List.of("test"), null));
 
         CalendarSyncService.SyncResult result = syncService.synchronize(1L);
 
@@ -280,7 +281,7 @@ class CalendarSyncServiceExtendedTest {
         when(googleCalendarClient.fetchEvents(1L, "old-token"))
                 .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "new-token"));
         when(normalizer.normalize("corte")).thenReturn("corte");
-        when(titleParser.parse("corte")).thenReturn(new EventTitleParser.ParsedTitle(null, List.of("corte")));
+        when(titleParser.parse("corte")).thenReturn(new EventTitleParser.ParsedTitle(null, List.of("corte"), null));
 
         CalendarEvent existingEvent = new CalendarEvent(
                 user,
@@ -322,7 +323,7 @@ class CalendarSyncServiceExtendedTest {
         when(normalizer.normalize("corte")).thenReturn("corte");
         when(normalizer.normalize("barba")).thenReturn("barba");
         when(titleParser.parse("maria - corte + barba"))
-                .thenReturn(new EventTitleParser.ParsedTitle("maria", List.of("corte", "barba")));
+                .thenReturn(new EventTitleParser.ParsedTitle("maria", List.of("corte", "barba"), null));
 
         Client maria = new Client(user, "Maria", "maria");
         when(clientService.findOrCreateByName(1L, user, "maria")).thenReturn(maria);
@@ -353,6 +354,147 @@ class CalendarSyncServiceExtendedTest {
         assertEquals(1, result.updated());
         verify(calendarEventRepository, never()).saveAll(anyList());
         verify(calendarEventRepository, never()).flush();
+    }
+
+    @Test
+    void shouldAssociateOnlyKnownServicesWhenTitleContainsUnknownOnes() throws IOException {
+        User user = new User("sub", "email@test.com", "Name");
+        SyncState syncState = new SyncState(user);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        when(syncStateRepository.save(any(SyncState.class))).thenReturn(syncState);
+
+        Event event = createTestEvent("e1", "maria - corte + inexistente + barba");
+        when(googleCalendarClient.fetchEvents(eq(1L), isNull()))
+                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "token"));
+        when(normalizer.normalize(anyString())).thenAnswer(inv -> {
+            String value = inv.getArgument(0);
+            return value == null ? "" : value.toLowerCase();
+        });
+        when(titleParser.parse("maria - corte + inexistente + barba"))
+                .thenReturn(new EventTitleParser.ParsedTitle("maria", List.of("corte", "inexistente", "barba"), null));
+
+        Client client = new Client(user, "Maria", "maria");
+        when(clientService.findOrCreateByName(eq(1L), eq(user), eq("maria"))).thenReturn(client);
+
+        Service corte = new Service(user, "Corte", "corte", new BigDecimal("50.00"));
+        Service barba = new Service(user, "Barba", "barba", new BigDecimal("30.00"));
+        when(matcher.servicesByNormalizedDescription(1L)).thenReturn(new HashMap<>() {{
+            put("corte", corte);
+            put("barba", barba);
+        }});
+
+        CalendarSyncService.SyncResult result = syncService.synchronize(1L);
+
+        assertEquals(1, result.created());
+        verify(calendarEventRepository).saveAll(argThat(events -> {
+            if (events == null) {
+                return false;
+            }
+            List<CalendarEvent> persistedEvents = StreamSupport.stream(events.spliterator(), false).toList();
+            if (persistedEvents.size() != 1) {
+                return false;
+            }
+            CalendarEvent persisted = persistedEvents.get(0);
+            return persisted.isIdentified()
+                    && persisted.getServiceLinks().size() == 2
+                    && persisted.getServiceValueSnapshot() != null
+                    && persisted.getServiceValueSnapshot().compareTo(new BigDecimal("80.00")) == 0;
+        }));
+    }
+
+    @Test
+    void shouldPersistPaymentTypeForNewEvents() throws IOException {
+        User user = new User("sub", "email@test.com", "Name");
+        SyncState syncState = new SyncState(user);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        when(syncStateRepository.save(any(SyncState.class))).thenReturn(syncState);
+
+        Event event = createTestEvent("e1", "maria - corte (pix)");
+        when(googleCalendarClient.fetchEvents(eq(1L), isNull()))
+                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "token"));
+        when(normalizer.normalize(anyString())).thenAnswer(inv -> {
+            String value = inv.getArgument(0);
+            return value == null ? "" : value.toLowerCase();
+        });
+        when(titleParser.parse("maria - corte (pix)"))
+                .thenReturn(new EventTitleParser.ParsedTitle("maria", List.of("corte"), PaymentType.PIX));
+
+        Client client = new Client(user, "Maria", "maria");
+        when(clientService.findOrCreateByName(eq(1L), eq(user), eq("maria"))).thenReturn(client);
+
+        Service corte = new Service(user, "Corte", "corte", new BigDecimal("50.00"));
+        when(matcher.servicesByNormalizedDescription(1L)).thenReturn(new HashMap<>() {{
+            put("corte", corte);
+        }});
+
+        syncService.synchronize(1L);
+
+        verify(calendarEventRepository).saveAll(argThat(events -> {
+            if (events == null) {
+                return false;
+            }
+            List<CalendarEvent> persistedEvents = StreamSupport.stream(events.spliterator(), false).toList();
+            return persistedEvents.size() == 1
+                    && persistedEvents.get(0).getPaymentType() == PaymentType.PIX;
+        }));
+    }
+
+    @Test
+    void shouldUpdateExistingEventWhenOnlyPaymentTypeChanges() throws IOException {
+        User user = new User("sub", "email@test.com", "Name");
+        SyncState syncState = new SyncState(user);
+        syncState.markSynced("old-token");
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
+        when(syncStateRepository.save(any(SyncState.class))).thenReturn(syncState);
+
+        Event event = createTestEvent("e1", "maria - corte (pix)");
+        when(googleCalendarClient.fetchEvents(1L, "old-token"))
+                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "new-token"));
+        when(normalizer.normalize(anyString())).thenAnswer(inv -> {
+            String value = inv.getArgument(0);
+            return value == null ? "" : value.toLowerCase();
+        });
+        when(titleParser.parse("maria - corte (pix)"))
+                .thenReturn(new EventTitleParser.ParsedTitle("maria", List.of("corte"), PaymentType.PIX));
+
+        Client client = new Client(user, "Maria", "maria");
+        when(clientService.findOrCreateByName(eq(1L), eq(user), eq("maria"))).thenReturn(client);
+
+        Service corte = new Service(user, "Corte", "corte", new BigDecimal("50.00"));
+        CalendarEvent existingEvent = new CalendarEvent(
+                user,
+                "e1",
+                "maria - corte (pix)",
+                "maria - corte (pix)",
+                java.time.Instant.ofEpochMilli(event.getStart().getDateTime().getValue()),
+                java.time.Instant.ofEpochMilli(event.getEnd().getDateTime().getValue())
+        );
+        existingEvent.setClient(client);
+        existingEvent.associateServices(List.of(corte));
+
+        when(calendarEventRepository.findWithAssociationsByUserIdAndGoogleEventIdIn(eq(1L), anyCollection()))
+                .thenReturn(List.of(existingEvent));
+        when(matcher.servicesByNormalizedDescription(1L)).thenReturn(new HashMap<>() {{
+            put("corte", corte);
+        }});
+
+        CalendarSyncService.SyncResult result = syncService.synchronize(1L);
+
+        assertEquals(1, result.updated());
+        verify(calendarEventRepository).saveAll(argThat(events -> {
+            if (events == null) {
+                return false;
+            }
+            List<CalendarEvent> persistedEvents = StreamSupport.stream(events.spliterator(), false).toList();
+            return persistedEvents.size() == 1
+                    && persistedEvents.get(0).getPaymentType() == PaymentType.PIX;
+        }));
     }
 
     private Event createTestEvent(String id, String summary) {

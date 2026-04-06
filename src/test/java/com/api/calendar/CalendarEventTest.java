@@ -104,6 +104,20 @@ class CalendarEventTest {
     }
 
     @Test
+    void shouldSetAndKeepPaymentTypeWhenClearingServiceAssociation() {
+        CalendarEvent event = new CalendarEvent(user, "e1", "test", "test", Instant.now(), Instant.now());
+        Service service = new Service(user, "Corte", "corte", new BigDecimal("50.00"));
+        event.associateService(service);
+
+        event.setPaymentType(PaymentType.PIX);
+        event.clearServiceAssociation();
+
+        assertEquals(PaymentType.PIX, event.getPaymentType());
+        event.setPaymentType(null);
+        assertNull(event.getPaymentType());
+    }
+
+    @Test
     void shouldReturnCorrectFieldsFromConstructor() {
         Instant start = Instant.now();
         Instant end = Instant.now().plusSeconds(3600);

@@ -38,6 +38,10 @@ public class CalendarEvent {
     @Column(name = "event_end")
     private Instant eventEnd;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_type", length = 20)
+    private PaymentType paymentType;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "client_id")
     private Client client;
@@ -123,6 +127,10 @@ public class CalendarEvent {
         this.client = client;
     }
 
+    public void setPaymentType(PaymentType paymentType) {
+        this.paymentType = paymentType;
+    }
+
     public void updateFromGoogle(String title, String normalizedTitle, Instant eventStart, Instant eventEnd) {
         this.title = title;
         this.normalizedTitle = normalizedTitle;
@@ -141,6 +149,7 @@ public class CalendarEvent {
     public String getNormalizedTitle() { return normalizedTitle; }
     public Instant getEventStart() { return eventStart; }
     public Instant getEventEnd() { return eventEnd; }
+    public PaymentType getPaymentType() { return paymentType; }
     public Client getClient() { return client; }
     public Service getService() { return service; }
     public String getServiceDescriptionSnapshot() { return serviceDescriptionSnapshot; }

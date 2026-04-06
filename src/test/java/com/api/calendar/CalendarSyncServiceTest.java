@@ -69,7 +69,7 @@ class CalendarSyncServiceTest {
                 .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "sync-token-1"));
         when(normalizer.normalize(anyString())).thenReturn("maria - corte");
         when(titleParser.parse("maria - corte")).thenReturn(
-                new EventTitleParser.ParsedTitle("maria", List.of("corte")));
+                new EventTitleParser.ParsedTitle("maria", List.of("corte"), null));
 
         CalendarSyncService.SyncResult result = syncService.synchronize(1L);
 

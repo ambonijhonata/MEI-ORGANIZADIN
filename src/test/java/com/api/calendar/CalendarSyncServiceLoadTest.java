@@ -68,7 +68,7 @@ class CalendarSyncServiceLoadTest {
         lenient().when(calendarEventRepository.saveAll(org.mockito.ArgumentMatchers.anyList()))
                 .thenAnswer(inv -> inv.getArgument(0));
         lenient().when(normalizer.normalize(anyString())).thenAnswer(inv -> inv.getArgument(0));
-        lenient().when(titleParser.parse(anyString())).thenReturn(new EventTitleParser.ParsedTitle(null, List.of()));
+        lenient().when(titleParser.parse(anyString())).thenReturn(new EventTitleParser.ParsedTitle(null, List.of(), null));
 
         List<Event> events = IntStream.range(0, 14_354)
                 .mapToObj(i -> new Event()
