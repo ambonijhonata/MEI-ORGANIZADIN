@@ -2,7 +2,7 @@ package com.api.calendar;
 
 import org.springframework.stereotype.Component;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 
 @Component
@@ -26,12 +26,38 @@ public class EventTitleParser {
             clientName = null;
         }
 
-        List<String> serviceNames = Arrays.stream(servicesPart.split("\\+"))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .toList();
+        List<String> serviceNames = splitServices(servicesPart);
 
         return new ParsedTitle(clientName, serviceNames);
+    }
+
+    private List<String> splitServices(String servicesPart) {
+        if (servicesPart.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> serviceNames = new ArrayList<>();
+        int tokenStart = 0;
+
+        for (int i = 0; i < servicesPart.length(); i++) {
+            if (servicesPart.charAt(i) == '+') {
+                addTrimmedToken(serviceNames, servicesPart, tokenStart, i);
+                tokenStart = i + 1;
+            }
+        }
+
+        addTrimmedToken(serviceNames, servicesPart, tokenStart, servicesPart.length());
+        return serviceNames;
+    }
+
+    private void addTrimmedToken(List<String> serviceNames, String source, int startInclusive, int endExclusive) {
+        if (startInclusive >= endExclusive) {
+            return;
+        }
+        String token = source.substring(startInclusive, endExclusive).trim();
+        if (!token.isEmpty()) {
+            serviceNames.add(token);
+        }
     }
 
     public record ParsedTitle(String clientName, List<String> serviceNames) {

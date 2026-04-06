@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
@@ -45,6 +46,14 @@ class CalendarSyncServiceExtendedTest {
     void setUp() {
         syncService = new CalendarSyncService(googleCalendarClient, calendarEventRepository,
                 syncStateRepository, matcher, normalizer, userRepository, titleParser, clientService);
+
+        lenient().when(calendarEventRepository.findWithAssociationsByUserIdAndGoogleEventIdIn(anyLong(), anyCollection()))
+                .thenReturn(List.of());
+        lenient().when(calendarEventRepository.findAllWithAssociationsByUserId(anyLong()))
+                .thenReturn(List.of());
+        lenient().when(clientService.clientsByNormalizedName(anyLong())).thenReturn(new HashMap<>());
+        lenient().when(matcher.servicesByNormalizedDescription(anyLong())).thenReturn(new HashMap<>());
+        lenient().when(calendarEventRepository.saveAll(anyList())).thenAnswer(inv -> inv.getArgument(0));
     }
 
     @Test
@@ -121,7 +130,6 @@ class CalendarSyncServiceExtendedTest {
         when(googleCalendarClient.fetchEvents(eq(1L), isNull()))
                 .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "token"));
         when(normalizer.normalize(anyString())).thenReturn("maria - corte + barba");
-        when(calendarEventRepository.findByUserIdAndGoogleEventId(1L, "e1")).thenReturn(Optional.empty());
         when(titleParser.parse("maria - corte + barba"))
                 .thenReturn(new EventTitleParser.ParsedTitle("maria", List.of("corte", "barba")));
 
@@ -130,9 +138,10 @@ class CalendarSyncServiceExtendedTest {
 
         Service s1 = new Service(user, "Corte", "corte", new BigDecimal("50.00"));
         Service s2 = new Service(user, "Barba", "barba", new BigDecimal("30.00"));
-        when(matcher.matchService(1L, "corte")).thenReturn(Optional.of(s1));
-        when(matcher.matchService(1L, "barba")).thenReturn(Optional.of(s2));
-        when(calendarEventRepository.save(any(CalendarEvent.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(matcher.servicesByNormalizedDescription(1L)).thenReturn(new HashMap<>() {{
+            put("corte", s1);
+            put("barba", s2);
+        }});
 
         CalendarSyncService.SyncResult result = syncService.synchronize(1L);
 
@@ -157,10 +166,9 @@ class CalendarSyncServiceExtendedTest {
 
         CalendarEvent existingEvent = new CalendarEvent(user, "e1", "old", "old",
                 java.time.Instant.now(), java.time.Instant.now());
-        when(calendarEventRepository.findByUserIdAndGoogleEventId(1L, "e1")).thenReturn(Optional.of(existingEvent));
+        when(calendarEventRepository.findWithAssociationsByUserIdAndGoogleEventIdIn(eq(1L), anyCollection()))
+                .thenReturn(List.of(existingEvent));
         when(titleParser.parse("corte")).thenReturn(new EventTitleParser.ParsedTitle(null, List.of("corte")));
-        when(matcher.matchService(1L, "corte")).thenReturn(Optional.empty());
-        when(calendarEventRepository.save(any(CalendarEvent.class))).thenAnswer(inv -> inv.getArgument(0));
 
         CalendarSyncService.SyncResult result = syncService.synchronize(1L);
 
@@ -181,10 +189,7 @@ class CalendarSyncServiceExtendedTest {
         when(googleCalendarClient.fetchEvents(eq(1L), isNull()))
                 .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "token"));
         when(normalizer.normalize(anyString())).thenReturn("corte");
-        when(calendarEventRepository.findByUserIdAndGoogleEventId(1L, "e1")).thenReturn(Optional.empty());
         when(titleParser.parse("corte")).thenReturn(new EventTitleParser.ParsedTitle(null, List.of("corte")));
-        when(matcher.matchService(1L, "corte")).thenReturn(Optional.empty());
-        when(calendarEventRepository.save(any(CalendarEvent.class))).thenAnswer(inv -> inv.getArgument(0));
 
         syncService.synchronize(1L);
 
@@ -210,10 +215,7 @@ class CalendarSyncServiceExtendedTest {
         when(googleCalendarClient.fetchEvents(eq(1L), isNull()))
                 .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "token"));
         when(normalizer.normalize(anyString())).thenReturn("test");
-        when(calendarEventRepository.findByUserIdAndGoogleEventId(1L, "e1")).thenReturn(Optional.empty());
         when(titleParser.parse("test")).thenReturn(new EventTitleParser.ParsedTitle(null, List.of("test")));
-        when(matcher.matchService(1L, "test")).thenReturn(Optional.empty());
-        when(calendarEventRepository.save(any(CalendarEvent.class))).thenAnswer(inv -> inv.getArgument(0));
 
         CalendarSyncService.SyncResult result = syncService.synchronize(1L);
 
@@ -237,10 +239,7 @@ class CalendarSyncServiceExtendedTest {
         when(googleCalendarClient.fetchEvents(eq(1L), isNull()))
                 .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "token"));
         when(normalizer.normalize(anyString())).thenReturn("test");
-        when(calendarEventRepository.findByUserIdAndGoogleEventId(1L, "e1")).thenReturn(Optional.empty());
         when(titleParser.parse("test")).thenReturn(new EventTitleParser.ParsedTitle(null, List.of("test")));
-        when(matcher.matchService(1L, "test")).thenReturn(Optional.empty());
-        when(calendarEventRepository.save(any(CalendarEvent.class))).thenAnswer(inv -> inv.getArgument(0));
 
         CalendarSyncService.SyncResult result = syncService.synchronize(1L);
 
@@ -260,12 +259,100 @@ class CalendarSyncServiceExtendedTest {
         Event deletedEvent = new Event().setId("gone-1").setStatus("cancelled");
         when(googleCalendarClient.fetchEvents(1L, "token"))
                 .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(deletedEvent), "new-token"));
-        when(calendarEventRepository.findByUserIdAndGoogleEventId(1L, "gone-1")).thenReturn(Optional.empty());
 
         CalendarSyncService.SyncResult result = syncService.synchronize(1L);
 
         assertEquals(1, result.deleted());
-        verify(calendarEventRepository, never()).delete(any());
+        verify(calendarEventRepository, never()).deleteAllInBatch(anyList());
+    }
+
+    @Test
+    void shouldSkipPersistingWhenExistingEventIsSemanticallyUnchanged() throws IOException {
+        User user = new User("sub", "email@test.com", "Name");
+        SyncState syncState = new SyncState(user);
+        syncState.markSynced("old-token");
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
+        when(syncStateRepository.save(any(SyncState.class))).thenReturn(syncState);
+
+        Event event = createTestEvent("e1", "corte");
+        when(googleCalendarClient.fetchEvents(1L, "old-token"))
+                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "new-token"));
+        when(normalizer.normalize("corte")).thenReturn("corte");
+        when(titleParser.parse("corte")).thenReturn(new EventTitleParser.ParsedTitle(null, List.of("corte")));
+
+        CalendarEvent existingEvent = new CalendarEvent(
+                user,
+                "e1",
+                "corte",
+                "corte",
+                java.time.Instant.ofEpochMilli(event.getStart().getDateTime().getValue()),
+                java.time.Instant.ofEpochMilli(event.getEnd().getDateTime().getValue())
+        );
+
+        when(calendarEventRepository.findWithAssociationsByUserIdAndGoogleEventIdIn(eq(1L), anyCollection()))
+                .thenReturn(List.of(existingEvent));
+
+        CalendarSyncService.SyncResult result = syncService.synchronize(1L);
+
+        assertEquals(0, result.created());
+        assertEquals(1, result.updated());
+        assertEquals(0, result.deleted());
+        verify(calendarEventRepository, never()).saveAll(anyList());
+        verify(calendarEventRepository, never()).flush();
+    }
+
+    @Test
+    void shouldSkipServiceAssociationRewriteWhenEquivalent() throws IOException {
+        User user = new User("sub", "email@test.com", "Name");
+        SyncState syncState = new SyncState(user);
+        syncState.markSynced("old-token");
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
+        when(syncStateRepository.save(any(SyncState.class))).thenReturn(syncState);
+
+        Event event = createTestEvent("e1", "maria - corte + barba");
+        when(googleCalendarClient.fetchEvents(1L, "old-token"))
+                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "new-token"));
+
+        when(normalizer.normalize("maria - corte + barba")).thenReturn("maria - corte + barba");
+        when(normalizer.normalize("maria")).thenReturn("maria");
+        when(normalizer.normalize("corte")).thenReturn("corte");
+        when(normalizer.normalize("barba")).thenReturn("barba");
+        when(titleParser.parse("maria - corte + barba"))
+                .thenReturn(new EventTitleParser.ParsedTitle("maria", List.of("corte", "barba")));
+
+        Client maria = new Client(user, "Maria", "maria");
+        when(clientService.findOrCreateByName(1L, user, "maria")).thenReturn(maria);
+
+        Service corte = new Service(user, "Corte", "corte", new BigDecimal("50.00"));
+        Service barba = new Service(user, "Barba", "barba", new BigDecimal("30.00"));
+
+        CalendarEvent existingEvent = new CalendarEvent(
+                user,
+                "e1",
+                "maria - corte + barba",
+                "maria - corte + barba",
+                java.time.Instant.ofEpochMilli(event.getStart().getDateTime().getValue()),
+                java.time.Instant.ofEpochMilli(event.getEnd().getDateTime().getValue())
+        );
+        existingEvent.setClient(maria);
+        existingEvent.associateServices(List.of(corte, barba));
+
+        when(calendarEventRepository.findWithAssociationsByUserIdAndGoogleEventIdIn(eq(1L), anyCollection()))
+                .thenReturn(List.of(existingEvent));
+        when(matcher.servicesByNormalizedDescription(1L)).thenReturn(new HashMap<>() {{
+            put("corte", corte);
+            put("barba", barba);
+        }});
+
+        CalendarSyncService.SyncResult result = syncService.synchronize(1L);
+
+        assertEquals(1, result.updated());
+        verify(calendarEventRepository, never()).saveAll(anyList());
+        verify(calendarEventRepository, never()).flush();
     }
 
     private Event createTestEvent(String id, String summary) {

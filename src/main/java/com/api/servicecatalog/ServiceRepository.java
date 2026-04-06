@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ServiceRepository extends JpaRepository<Service, Long> {
+    List<Service> findAllByUserId(Long userId);
+
     Page<Service> findByUserId(Long userId, Pageable pageable);
 
     Page<Service> findByUserIdAndDescriptionContainingIgnoreCase(Long userId, String description, Pageable pageable);

@@ -18,8 +18,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.StreamSupport;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -43,6 +45,14 @@ class CalendarSyncServiceTest {
     void setUp() {
         syncService = new CalendarSyncService(googleCalendarClient, calendarEventRepository,
                 syncStateRepository, matcher, normalizer, userRepository, titleParser, clientService);
+
+        lenient().when(calendarEventRepository.findWithAssociationsByUserIdAndGoogleEventIdIn(anyLong(), anyCollection()))
+                .thenReturn(List.of());
+        lenient().when(calendarEventRepository.findAllWithAssociationsByUserId(anyLong()))
+                .thenReturn(List.of());
+        lenient().when(clientService.clientsByNormalizedName(anyLong())).thenReturn(new HashMap<>());
+        lenient().when(matcher.servicesByNormalizedDescription(anyLong())).thenReturn(new HashMap<>());
+        lenient().when(calendarEventRepository.saveAll(anyList())).thenAnswer(inv -> inv.getArgument(0));
     }
 
     @Test
@@ -58,11 +68,8 @@ class CalendarSyncServiceTest {
         when(googleCalendarClient.fetchEvents(eq(1L), isNull()))
                 .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "sync-token-1"));
         when(normalizer.normalize(anyString())).thenReturn("maria - corte");
-        when(calendarEventRepository.findByUserIdAndGoogleEventId(1L, "event-1")).thenReturn(Optional.empty());
         when(titleParser.parse("maria - corte")).thenReturn(
                 new EventTitleParser.ParsedTitle("maria", List.of("corte")));
-        when(matcher.matchService(eq(1L), eq("corte"))).thenReturn(Optional.empty());
-        when(calendarEventRepository.save(any(CalendarEvent.class))).thenAnswer(inv -> inv.getArgument(0));
 
         CalendarSyncService.SyncResult result = syncService.synchronize(1L);
 
@@ -105,13 +112,15 @@ class CalendarSyncServiceTest {
                 java.time.Instant.now(), java.time.Instant.now());
         when(googleCalendarClient.fetchEvents(1L, "sync-token"))
                 .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(deletedEvent), "new-token"));
-        when(calendarEventRepository.findByUserIdAndGoogleEventId(1L, "deleted-1"))
-                .thenReturn(Optional.of(localEvent));
+        when(calendarEventRepository.findWithAssociationsByUserIdAndGoogleEventIdIn(eq(1L), anyCollection()))
+                .thenReturn(List.of(localEvent));
 
         CalendarSyncService.SyncResult result = syncService.synchronize(1L);
 
         assertEquals(1, result.deleted());
-        verify(calendarEventRepository).delete(localEvent);
+        verify(calendarEventRepository).deleteAllInBatch(argThat(iterable ->
+                StreamSupport.stream(iterable.spliterator(), false).anyMatch(localEvent::equals)
+        ));
     }
 
     @Test

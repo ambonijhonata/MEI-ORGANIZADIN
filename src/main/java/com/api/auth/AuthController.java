@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -27,6 +29,7 @@ import java.time.Instant;
 @RequestMapping("/api/auth")
 @Tag(name = "Autenticação", description = "Login inicial com Google ID Token e authorization code")
 public class AuthController {
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
 
     private final GoogleIdTokenValidator tokenValidator;
     private final UserRepository userRepository;
@@ -77,26 +80,30 @@ public class AuthController {
                 })
                 .orElseGet(() -> userRepository.save(new User(googleSub, email, finalName)));
 
-        try {
-            GoogleTokenResponse tokenResponse = googleOAuthClient.exchangeAuthorizationCode(request.authorizationCode());
+        if (request.authorizationCode() != null && !request.authorizationCode().isBlank()) {
+            try {
+                GoogleTokenResponse tokenResponse = googleOAuthClient.exchangeAuthorizationCode(request.authorizationCode());
 
-            Instant expiresAt = Instant.now().plusSeconds(tokenResponse.getExpiresInSeconds());
-            OAuthCredential credential = oauthCredentialRepository.findByUserId(user.getId())
-                    .map(existing -> {
-                        existing.setAccessToken(tokenResponse.getAccessToken());
-                        existing.setRefreshToken(tokenResponse.getRefreshToken());
-                        existing.setExpiresAt(expiresAt);
-                        return existing;
-                    })
-                    .orElse(new OAuthCredential(
-                            user,
-                            tokenResponse.getAccessToken(),
-                            tokenResponse.getRefreshToken(),
-                            expiresAt
-                    ));
-            oauthCredentialRepository.save(credential);
-        } catch (IOException e) {
-            throw new OAuthExchangeException("Failed to exchange authorization code: " + e.getMessage());
+                Instant expiresAt = Instant.now().plusSeconds(tokenResponse.getExpiresInSeconds());
+                OAuthCredential credential = oauthCredentialRepository.findByUserId(user.getId())
+                        .map(existing -> {
+                            existing.setAccessToken(tokenResponse.getAccessToken());
+                            existing.setRefreshToken(tokenResponse.getRefreshToken());
+                            existing.setExpiresAt(expiresAt);
+                            return existing;
+                        })
+                        .orElse(new OAuthCredential(
+                                user,
+                                tokenResponse.getAccessToken(),
+                                tokenResponse.getRefreshToken(),
+                                expiresAt
+                        ));
+                oauthCredentialRepository.save(credential);
+            } catch (IOException e) {
+                log.warn("OAuth code exchange failed for userId={}: {}", user.getId(), e.getMessage());
+            }
+        } else {
+            log.info("Login without authorizationCode for userId={}", user.getId());
         }
 
         // Clear reauth-required status if re-authenticating
@@ -114,7 +121,7 @@ public class AuthController {
 
     public record LoginRequest(
             @NotBlank String idToken,
-            @NotBlank String authorizationCode
+            String authorizationCode
     ) {}
 
     public record LoginResponse(Long userId, String email, String name) {}

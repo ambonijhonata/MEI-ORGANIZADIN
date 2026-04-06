@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -14,6 +15,23 @@ import java.util.Optional;
 public interface CalendarEventRepository extends JpaRepository<CalendarEvent, Long> {
 
     Optional<CalendarEvent> findByUserIdAndGoogleEventId(Long userId, String googleEventId);
+
+    List<CalendarEvent> findByUserIdAndGoogleEventIdIn(Long userId, Collection<String> googleEventIds);
+
+    @Query("SELECT DISTINCT e FROM CalendarEvent e " +
+            "LEFT JOIN FETCH e.service legacyService " +
+            "LEFT JOIN FETCH e.serviceLinks serviceLink " +
+            "LEFT JOIN FETCH serviceLink.service linkedService " +
+            "WHERE e.user.id = :userId")
+    List<CalendarEvent> findAllWithAssociationsByUserId(@Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT e FROM CalendarEvent e " +
+            "LEFT JOIN FETCH e.service legacyService " +
+            "LEFT JOIN FETCH e.serviceLinks serviceLink " +
+            "LEFT JOIN FETCH serviceLink.service linkedService " +
+            "WHERE e.user.id = :userId AND e.googleEventId IN :googleEventIds")
+    List<CalendarEvent> findWithAssociationsByUserIdAndGoogleEventIdIn(@Param("userId") Long userId,
+                                                                        @Param("googleEventIds") Collection<String> googleEventIds);
 
     Page<CalendarEvent> findByUserId(Long userId, Pageable pageable);
 

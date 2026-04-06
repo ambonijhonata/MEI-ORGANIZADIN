@@ -12,7 +12,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Component
 public class ClientService {
@@ -107,6 +109,15 @@ public class ClientService {
     @Transactional(readOnly = true)
     public java.util.Optional<Client> findByNormalizedName(Long userId, String normalizedName) {
         return clientRepository.findByUserIdAndNormalizedName(userId, normalizedName);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Client> clientsByNormalizedName(Long userId) {
+        Map<String, Client> clients = new LinkedHashMap<>();
+        for (Client client : clientRepository.findAllByUserId(userId)) {
+            clients.putIfAbsent(client.getNormalizedName(), client);
+        }
+        return clients;
     }
 
     @Transactional

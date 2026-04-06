@@ -5,6 +5,8 @@ import com.api.servicecatalog.ServiceDescriptionNormalizer;
 import com.api.servicecatalog.ServiceRepository;
 import org.springframework.stereotype.Component;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Component
@@ -25,5 +27,13 @@ public class CalendarEventServiceMatcher {
         }
         String normalizedTitle = normalizer.normalize(eventTitle);
         return serviceRepository.findByUserIdAndNormalizedDescription(userId, normalizedTitle);
+    }
+
+    public Map<String, Service> servicesByNormalizedDescription(Long userId) {
+        Map<String, Service> services = new LinkedHashMap<>();
+        for (Service service : serviceRepository.findAllByUserId(userId)) {
+            services.putIfAbsent(service.getNormalizedDescription(), service);
+        }
+        return services;
     }
 }

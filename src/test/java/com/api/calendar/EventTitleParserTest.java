@@ -16,12 +16,12 @@ class EventTitleParserTest {
 
     @Test
     void shouldParseClientAndMultipleServices() {
-        var result = parser.parse("fabiane honorato - sobrancelha + buço + henna + rosto");
+        var result = parser.parse("fabiane honorato - sobrancelha + bu\u00E7o + henna + rosto");
 
         assertEquals("fabiane honorato", result.clientName());
         assertEquals(4, result.serviceNames().size());
         assertEquals("sobrancelha", result.serviceNames().get(0));
-        assertEquals("buço", result.serviceNames().get(1));
+        assertEquals("bu\u00E7o", result.serviceNames().get(1));
         assertEquals("henna", result.serviceNames().get(2));
         assertEquals("rosto", result.serviceNames().get(3));
         assertTrue(result.hasClient());
@@ -64,11 +64,29 @@ class EventTitleParserTest {
 
     @Test
     void shouldTrimClientAndServiceNames() {
-        var result = parser.parse("  ana clara  -  sobrancelha  +  buço  ");
+        var result = parser.parse("  ana clara  -  sobrancelha  +  bu\u00E7o  ");
 
         assertEquals("ana clara", result.clientName());
         assertEquals(2, result.serviceNames().size());
         assertEquals("sobrancelha", result.serviceNames().get(0));
-        assertEquals("buço", result.serviceNames().get(1));
+        assertEquals("bu\u00E7o", result.serviceNames().get(1));
+    }
+
+    @Test
+    void shouldIgnoreEmptyServiceTokens() {
+        var result = parser.parse("ana - corte +  + barba ++ ");
+
+        assertEquals("ana", result.clientName());
+        assertEquals(2, result.serviceNames().size());
+        assertEquals("corte", result.serviceNames().get(0));
+        assertEquals("barba", result.serviceNames().get(1));
+    }
+
+    @Test
+    void shouldAllowClientWithNoServiceTokens() {
+        var result = parser.parse("ana -   ");
+
+        assertEquals("ana", result.clientName());
+        assertTrue(result.serviceNames().isEmpty());
     }
 }

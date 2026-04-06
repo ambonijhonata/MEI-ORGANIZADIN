@@ -11,6 +11,7 @@ import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.calendar.Calendar;
 import com.google.api.services.calendar.model.Event;
 import com.google.api.services.calendar.model.Events;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -20,13 +21,22 @@ import java.util.List;
 @Component
 public class GoogleCalendarClient {
 
+    private static final int DEFAULT_MAX_RESULTS = 1000;
+    private static final String DEFAULT_FIELDS = "items(id,summary,status,start,end),nextPageToken,nextSyncToken";
+
     private final GoogleOAuthProperties properties;
     private final OAuthCredentialRepository oauthCredentialRepository;
+    private final int maxResults;
+    private final String requestFields;
 
     public GoogleCalendarClient(GoogleOAuthProperties properties,
-                                 OAuthCredentialRepository oauthCredentialRepository) {
+                                OAuthCredentialRepository oauthCredentialRepository,
+                                @Value("${google.calendar.sync.max-results:" + DEFAULT_MAX_RESULTS + "}") int maxResults,
+                                @Value("${google.calendar.sync.fields:" + DEFAULT_FIELDS + "}") String requestFields) {
         this.properties = properties;
         this.oauthCredentialRepository = oauthCredentialRepository;
+        this.maxResults = maxResults <= 0 ? DEFAULT_MAX_RESULTS : maxResults;
+        this.requestFields = (requestFields == null || requestFields.isBlank()) ? DEFAULT_FIELDS : requestFields;
     }
 
     public CalendarSyncResult fetchEvents(Long userId, String syncToken) throws IOException {
@@ -43,7 +53,9 @@ public class GoogleCalendarClient {
             do {
                 Calendar.Events.List request = calendarService.events().list("primary")
                         .setSingleEvents(true)
-                        .setOrderBy("startTime");
+                        .setOrderBy("startTime")
+                        .setMaxResults(maxResults)
+                        .setFields(requestFields);
 
                 if (syncToken != null) {
                     request.setSyncToken(syncToken);

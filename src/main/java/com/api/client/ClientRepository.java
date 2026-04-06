@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ClientRepository extends JpaRepository<Client, Long> {
+    List<Client> findAllByUserId(Long userId);
+
     List<Client> findByUserId(Long userId, Sort sort);
 
     List<Client> findByUserIdAndNameContainingIgnoreCase(Long userId, String name, Sort sort);

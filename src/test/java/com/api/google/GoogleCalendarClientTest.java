@@ -22,7 +22,10 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -40,12 +43,14 @@ class GoogleCalendarClientTest {
     void setUp() throws IOException {
         client = new TestableGoogleCalendarClient(properties, oauthCredentialRepository, calendarService);
 
-        when(calendarService.events()).thenReturn(calendarEvents);
-        when(calendarEvents.list(anyString())).thenReturn(listRequest);
-        when(listRequest.setSingleEvents(anyBoolean())).thenReturn(listRequest);
-        when(listRequest.setOrderBy(anyString())).thenReturn(listRequest);
-        when(listRequest.setPageToken(anyString())).thenReturn(listRequest);
-        when(listRequest.setSyncToken(anyString())).thenReturn(listRequest);
+        lenient().when(calendarService.events()).thenReturn(calendarEvents);
+        lenient().when(calendarEvents.list(anyString())).thenReturn(listRequest);
+        lenient().when(listRequest.setSingleEvents(anyBoolean())).thenReturn(listRequest);
+        lenient().when(listRequest.setOrderBy(anyString())).thenReturn(listRequest);
+        lenient().when(listRequest.setMaxResults(anyInt())).thenReturn(listRequest);
+        lenient().when(listRequest.setFields(anyString())).thenReturn(listRequest);
+        lenient().when(listRequest.setPageToken(nullable(String.class))).thenReturn(listRequest);
+        lenient().when(listRequest.setSyncToken(nullable(String.class))).thenReturn(listRequest);
 
         User user = new User("sub", "user@test.com", "User");
         OAuthCredential credential = new OAuthCredential(user, "access", "refresh", Instant.now().plusSeconds(3600));
@@ -135,7 +140,12 @@ class GoogleCalendarClientTest {
                 OAuthCredentialRepository oauthCredentialRepository,
                 Calendar calendarService
         ) {
-            super(properties, oauthCredentialRepository);
+            super(
+                    properties,
+                    oauthCredentialRepository,
+                    1000,
+                    "items(id,summary,status,start,end),nextPageToken,nextSyncToken"
+            );
             this.calendarService = calendarService;
         }
 

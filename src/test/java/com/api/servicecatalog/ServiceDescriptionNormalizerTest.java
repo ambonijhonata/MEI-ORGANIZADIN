@@ -32,13 +32,23 @@ class ServiceDescriptionNormalizerTest {
     @Test
     void shouldRemoveAccents() {
         assertEquals("manicure e pedicure", normalizer.normalize("Manicure e Pedicure"));
-        assertEquals("depilacao", normalizer.normalize("Depilação"));
-        assertEquals("coloracao", normalizer.normalize("Coloração"));
+        assertEquals("depilacao", normalizer.normalize("Depila\u00E7\u00E3o"));
+        assertEquals("coloracao", normalizer.normalize("Colora\u00E7\u00E3o"));
     }
 
     @Test
     void shouldHandleAllTransformationsTogether() {
-        assertEquals("coloracao e corte", normalizer.normalize("  Coloração   e   CORTE  "));
+        assertEquals("coloracao e corte", normalizer.normalize("  Colora\u00E7\u00E3o   e   CORTE  "));
+    }
+
+    @Test
+    void shouldCollapseTabAndLineBreakWhitespaceLikeRegex() {
+        assertEquals("corte de cabelo", normalizer.normalize("corte\t\tde\ncabelo"));
+    }
+
+    @Test
+    void shouldRemoveCombiningAccentMarks() {
+        assertEquals("cafe", normalizer.normalize("Cafe\u0301"));
     }
 
     @Test
