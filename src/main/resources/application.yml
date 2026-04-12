@@ -11,6 +11,8 @@ spring:
       connection-timeout: ${HIKARI_CONNECTION_TIMEOUT:30000}
       idle-timeout: ${HIKARI_IDLE_TIMEOUT:600000}
       max-lifetime: ${HIKARI_MAX_LIFETIME:1800000}
+      data-source-properties:
+        reWriteBatchedInserts: ${POSTGRES_REWRITE_BATCHED_INSERTS:true}
 
   jpa:
     hibernate:
@@ -19,6 +21,10 @@ spring:
     properties:
       hibernate:
         format_sql: false
+        jdbc:
+          batch_size: ${HIBERNATE_BATCH_SIZE:200}
+        order_inserts: ${HIBERNATE_ORDER_INSERTS:true}
+        order_updates: ${HIBERNATE_ORDER_UPDATES:true}
 
   flyway:
     enabled: true
@@ -26,13 +32,22 @@ spring:
 
 google:
   oauth:
-    client-id: ${GOOGLE_CLIENT_ID}
-    client-secret: ${GOOGLE_CLIENT_SECRET}
+    client-id: ${GOOGLE_OAUTH_CLIENT_ID}
+    client-secret: ${GOOGLE_OAUTH_CLIENT_SECRET}
     token-uri: https://oauth2.googleapis.com/token
     auth-uri: https://accounts.google.com/o/oauth2/auth
+  calendar:
+    sync:
+      max-results: ${GOOGLE_CALENDAR_SYNC_MAX_RESULTS:2500}
+      fields: ${GOOGLE_CALENDAR_SYNC_FIELDS:items(id,summary,status,start,end),nextPageToken,nextSyncToken}
 
 sync:
   freshness-minutes: ${SYNC_FRESHNESS_MINUTES:30}
+
+calendar:
+  sync:
+    batch-size: ${CALENDAR_SYNC_BATCH_SIZE:1000}
+    batch-clear-enabled: ${CALENDAR_SYNC_BATCH_CLEAR_ENABLED:true}
 
 server:
   port: ${SERVER_PORT:8080}

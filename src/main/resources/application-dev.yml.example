@@ -1,6 +1,0 @@
-# Copy this file to application-dev.yml and fill in real values
-# DO NOT commit application-dev.yml to version control
-google:
-  oauth:
-    client-id: YOUR_GOOGLE_CLIENT_ID
-    client-secret: YOUR_GOOGLE_CLIENT_SECRET

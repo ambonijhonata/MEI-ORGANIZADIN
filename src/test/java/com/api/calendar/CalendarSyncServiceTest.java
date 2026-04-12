@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
@@ -90,11 +91,36 @@ class CalendarSyncServiceTest {
         when(googleCalendarClient.fetchEvents(1L, "old-sync-token"))
                 .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(), "new-sync-token"));
 
-        CalendarSyncService.SyncResult result = syncService.synchronize(1L);
+        CalendarSyncService.SyncResult result = syncService.synchronize(1L, null);
 
         assertEquals(0, result.created());
         assertEquals(0, result.updated());
         assertEquals(0, result.deleted());
+    }
+
+    @Test
+    void shouldRunStartDateSyncWithoutOverwritingExistingSyncToken() throws IOException {
+        User user = new User("sub", "email@test.com", "Name");
+        SyncState syncState = new SyncState(user);
+        syncState.markSynced("persisted-sync-token");
+        LocalDate startDate = LocalDate.of(2026, 4, 1);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
+        when(syncStateRepository.save(any(SyncState.class))).thenReturn(syncState);
+
+        Event event = createTestEvent("event-2", "ana - corte");
+        when(googleCalendarClient.fetchEvents(1L, null, startDate))
+                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "ignored-token"));
+        when(normalizer.normalize(anyString())).thenReturn("ana - corte");
+        when(titleParser.parse("ana - corte")).thenReturn(
+                new EventTitleParser.ParsedTitle("ana", List.of("corte"), null));
+
+        CalendarSyncService.SyncResult result = syncService.synchronize(1L, startDate);
+
+        assertEquals(1, result.created());
+        assertEquals("persisted-sync-token", syncState.getSyncToken());
+        verify(googleCalendarClient, never()).fetchEvents(1L, "persisted-sync-token");
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.api.calendar;
 
 import com.api.auth.AuthenticatedUser;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.domain.Page;
@@ -39,8 +40,13 @@ public class CalendarController {
                     @ApiResponse(responseCode = "200", description = "Sincronização concluída"),
                     @ApiResponse(responseCode = "403", description = "Integração Google revogada, reautenticação necessária")
             })
-    public ResponseEntity<SyncResponse> triggerSync(@AuthenticationPrincipal AuthenticatedUser user) {
-        CalendarSyncService.SyncResult result = calendarSyncService.synchronize(user.userId());
+    public ResponseEntity<SyncResponse> triggerSync(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            @Parameter(description = "Data inicial opcional para sincronizar eventos a partir do dia informado", example = "2026-04-01")
+            LocalDate startDate) {
+        CalendarSyncService.SyncResult result = calendarSyncService.synchronize(user.userId(), startDate);
         return ResponseEntity.ok(new SyncResponse(result.created(), result.updated(), result.deleted()));
     }
 

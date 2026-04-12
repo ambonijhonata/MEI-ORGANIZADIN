@@ -6,6 +6,7 @@ import com.api.common.IntegrationRevokedException;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.util.DateTime;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.calendar.Calendar;
@@ -15,6 +16,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -40,6 +44,10 @@ public class GoogleCalendarClient {
     }
 
     public CalendarSyncResult fetchEvents(Long userId, String syncToken) throws IOException {
+        return fetchEvents(userId, syncToken, null);
+    }
+
+    public CalendarSyncResult fetchEvents(Long userId, String syncToken, LocalDate startDate) throws IOException {
         OAuthCredential credential = oauthCredentialRepository.findByUserId(userId)
                 .orElseThrow(() -> new IntegrationRevokedException("No OAuth credentials found for user"));
 
@@ -61,6 +69,10 @@ public class GoogleCalendarClient {
                     request.setSyncToken(syncToken);
                 } else {
                     request.setPageToken(pageToken);
+                    if (startDate != null) {
+                        Instant startDateUtc = startDate.atStartOfDay(ZoneOffset.UTC).toInstant();
+                        request.setTimeMin(new DateTime(startDateUtc.toEpochMilli()));
+                    }
                 }
 
                 if (pageToken != null) {

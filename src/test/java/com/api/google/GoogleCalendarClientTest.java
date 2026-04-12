@@ -5,9 +5,11 @@ import com.api.auth.OAuthCredentialRepository;
 import com.api.user.User;
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.util.DateTime;
 import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpResponseException;
 import com.google.api.services.calendar.Calendar;
+import com.google.api.services.calendar.model.Events;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,8 +27,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -51,6 +56,7 @@ class GoogleCalendarClientTest {
         lenient().when(listRequest.setFields(anyString())).thenReturn(listRequest);
         lenient().when(listRequest.setPageToken(nullable(String.class))).thenReturn(listRequest);
         lenient().when(listRequest.setSyncToken(nullable(String.class))).thenReturn(listRequest);
+        lenient().when(listRequest.setTimeMin(nullable(DateTime.class))).thenReturn(listRequest);
 
         User user = new User("sub", "user@test.com", "User");
         OAuthCredential credential = new OAuthCredential(user, "access", "refresh", Instant.now().plusSeconds(3600));
@@ -105,6 +111,16 @@ class GoogleCalendarClientTest {
         );
 
         assertEquals("Sync token expired, full resync required", ex.getMessage());
+    }
+
+    @Test
+    void shouldApplyTimeMinWhenStartDateIsProvided() throws IOException {
+        when(listRequest.execute()).thenReturn(new Events().setItems(List.of()).setNextSyncToken("token"));
+
+        client.fetchEvents(1L, null, LocalDate.of(2026, 4, 1));
+
+        long expectedEpochMillis = Instant.parse("2026-04-01T00:00:00Z").toEpochMilli();
+        verify(listRequest).setTimeMin(argThat(value -> value != null && value.getValue() == expectedEpochMillis));
     }
 
     private static GoogleJsonResponseException googleError(

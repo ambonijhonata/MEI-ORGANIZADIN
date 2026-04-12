@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -93,6 +94,11 @@ public class CalendarSyncService {
 
     @Transactional
     public SyncResult synchronize(Long userId) {
+        return synchronize(userId, null);
+    }
+
+    @Transactional
+    public SyncResult synchronize(Long userId, LocalDate startDate) {
         ReentrantLock lock = userSyncLocks.computeIfAbsent(userId, ignored -> new ReentrantLock());
         lock.lock();
         try {
@@ -110,6 +116,9 @@ public class CalendarSyncService {
             syncStateRepository.save(syncState);
 
             try {
+                if (startDate != null) {
+                    return performStartDateSync(userId, user, syncState, startDate);
+                }
                 return performSync(userId, user, syncState);
             } catch (GoogleCalendarClient.OAuthRevokedException e) {
                 syncState.markReauthRequired(e.getMessage());
@@ -240,6 +249,56 @@ public class CalendarSyncService {
         );
 
         return new SyncResult(mutations.created(), mutations.updated(), 0);
+    }
+
+    private SyncResult performStartDateSync(Long userId,
+                                            User user,
+                                            SyncState syncState,
+                                            LocalDate startDate) throws IOException {
+        long totalStartNs = System.nanoTime();
+        long googleFetchMs = 0L;
+        long dbLookupMs = 0L;
+        long processingMs = 0L;
+        long dbWriteMs = 0L;
+        int eventsReceived = 0;
+        Map<String, String> normalizationCache = new HashMap<>();
+
+        long fetchStartNs = System.nanoTime();
+        GoogleCalendarClient.CalendarSyncResult result = googleCalendarClient.fetchEvents(userId, null, startDate);
+        googleFetchMs = elapsedMs(fetchStartNs);
+        eventsReceived = result.events() != null ? result.events().size() : 0;
+
+        long lookupStartNs = System.nanoTime();
+        SyncLookups lookups = buildLookups(userId, result.events(), false);
+        dbLookupMs = elapsedMs(lookupStartNs);
+
+        long processingStartNs = System.nanoTime();
+        SyncMutations mutations = buildMutations(userId, user, result.events(), lookups, false, normalizationCache);
+        processingMs = elapsedMs(processingStartNs);
+
+        long writeStartNs = System.nanoTime();
+        persistMutations(mutations);
+        dbWriteMs = elapsedMs(writeStartNs);
+
+        markSyncedWithoutTouchingToken(syncState);
+        syncStateRepository.save(syncState);
+
+        logSyncSummary(
+                userId,
+                "start_date_sync",
+                eventsReceived,
+                mutations.created(),
+                mutations.updated(),
+                mutations.deleted(),
+                googleFetchMs,
+                dbLookupMs,
+                processingMs,
+                dbWriteMs,
+                elapsedMs(totalStartNs),
+                false
+        );
+
+        return new SyncResult(mutations.created(), mutations.updated(), mutations.deleted());
     }
 
     private SyncLookups buildLookups(Long userId, List<Event> googleEvents, boolean fullSync) {
@@ -652,6 +711,13 @@ public class CalendarSyncService {
 
     private long elapsedMs(long startNs) {
         return (System.nanoTime() - startNs) / 1_000_000L;
+    }
+
+    private void markSyncedWithoutTouchingToken(SyncState syncState) {
+        syncState.setLastSyncAt(Instant.now());
+        syncState.setStatus(SyncStatus.SYNCED);
+        syncState.setErrorCategory(null);
+        syncState.setErrorMessage(null);
     }
 
     private <K, V> Map<K, V> copyMap(Map<K, V> source) {
