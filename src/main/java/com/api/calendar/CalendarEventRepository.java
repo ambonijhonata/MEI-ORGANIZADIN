@@ -59,6 +59,14 @@ public interface CalendarEventRepository extends JpaRepository<CalendarEvent, Lo
                                          @Param("startDate") Instant startDate,
                                          @Param("endDate") Instant endDate);
 
+    @Query("SELECT COALESCE(SUM(e.serviceValueSnapshot), 0) FROM CalendarEvent e " +
+            "WHERE e.user.id = :userId AND e.identified = true " +
+            "AND e.eventStart >= :startDate AND e.eventStart < :endDate " +
+            "AND (e.paymentType IS NOT NULL OR e.payments IS NOT EMPTY)")
+    BigDecimal sumRevenueByUserAndPeriodPaidOnly(@Param("userId") Long userId,
+                                                 @Param("startDate") Instant startDate,
+                                                 @Param("endDate") Instant endDate);
+
     @Query("SELECT e FROM CalendarEvent e " +
             "WHERE e.user.id = :userId AND e.identified = true " +
             "AND e.eventStart >= :startDate AND e.eventStart < :endDate " +
@@ -66,4 +74,6 @@ public interface CalendarEventRepository extends JpaRepository<CalendarEvent, Lo
     List<CalendarEvent> findIdentifiedByUserAndPeriod(@Param("userId") Long userId,
                                                        @Param("startDate") Instant startDate,
                                                        @Param("endDate") Instant endDate);
+
+    Optional<CalendarEvent> findByIdAndUserId(Long id, Long userId);
 }

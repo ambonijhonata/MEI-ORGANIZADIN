@@ -101,6 +101,7 @@ public class AuthController {
                 oauthCredentialRepository.save(credential);
             } catch (IOException e) {
                 log.warn("OAuth code exchange failed for userId={}: {}", user.getId(), e.getMessage());
+                throw new OAuthExchangeException("OAuth exchange failed: " + e.getMessage());
             }
         } else {
             log.info("Login without authorizationCode for userId={}", user.getId());

@@ -9,13 +9,18 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.Optional;
 
 @Component
 public class GoogleIdTokenAuthenticationFilter extends OncePerRequestFilter {
+
+    public static final String ATTR_AUTH_VERIFICATION_UNAVAILABLE = "auth.verification.unavailable";
+
+    private static final Logger log = LoggerFactory.getLogger(GoogleIdTokenAuthenticationFilter.class);
 
     private final GoogleIdTokenValidator tokenValidator;
     private final AuthenticatedUserResolver userResolver;
@@ -34,14 +39,29 @@ public class GoogleIdTokenAuthenticationFilter extends OncePerRequestFilter {
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
-            Optional<GoogleIdToken.Payload> payload = tokenValidator.validate(token);
-
-            if (payload.isPresent()) {
-                AuthenticatedUser authenticatedUser = userResolver.resolve(payload.get());
-                var authentication = new UsernamePasswordAuthenticationToken(
-                        authenticatedUser, null, Collections.emptyList()
-                );
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+            GoogleIdTokenValidator.ValidationResult validation = tokenValidator.validateDetailed(token);
+            switch (validation.status()) {
+                case VALID -> {
+                    AuthenticatedUser authenticatedUser = userResolver.resolve(validation.payload());
+                    var authentication = new UsernamePasswordAuthenticationToken(
+                            authenticatedUser, null, Collections.emptyList()
+                    );
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    log.debug("auth_id_token_validation result=valid method={} path={}", request.getMethod(), request.getRequestURI());
+                }
+                case INVALID -> {
+                    log.debug("auth_id_token_validation result=invalid method={} path={}", request.getMethod(), request.getRequestURI());
+                }
+                case UNAVAILABLE -> {
+                    request.setAttribute(ATTR_AUTH_VERIFICATION_UNAVAILABLE, Boolean.TRUE);
+                    log.warn(
+                            "auth_id_token_validation result=io_failure method={} path={} error={}",
+                            request.getMethod(),
+                            request.getRequestURI(),
+                            validation.exception() != null ? validation.exception().getMessage() : null,
+                            validation.exception()
+                    );
+                }
             }
         }
 

@@ -26,13 +26,18 @@ public class CashFlowReportService {
     }
 
     public CashFlowReport generateReport(Long userId, LocalDate startDate, LocalDate endDate) {
+        return generateReport(userId, startDate, endDate, PaymentScope.ALL);
+    }
+
+    public CashFlowReport generateReport(Long userId, LocalDate startDate, LocalDate endDate, PaymentScope paymentScope) {
         validatePeriod(startDate, endDate);
 
         Instant startInstant = startDate.atStartOfDay(ZoneOffset.UTC).toInstant();
         Instant endInstant = endDate.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
 
-        List<CalendarEventServiceLink> links = serviceLinkRepository.findByUserAndPeriod(
-                userId, startInstant, endInstant);
+        List<CalendarEventServiceLink> links = paymentScope == PaymentScope.PAID_ONLY
+                ? serviceLinkRepository.findByUserAndPeriodPaidOnly(userId, startInstant, endInstant)
+                : serviceLinkRepository.findByUserAndPeriod(userId, startInstant, endInstant);
 
         // Group by date -> service name -> sum
         Map<LocalDate, Map<String, BigDecimal>> dailyServiceTotals = new LinkedHashMap<>();

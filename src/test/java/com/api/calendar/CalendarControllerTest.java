@@ -17,14 +17,18 @@ import static org.mockito.Mockito.when;
 class CalendarControllerTest {
 
     @Mock private CalendarSyncService calendarSyncService;
+    @Mock private CalendarPaymentService calendarPaymentService;
     @Mock private CalendarEventRepository calendarEventRepository;
+    @Mock private CalendarEventPaymentRepository calendarEventPaymentRepository;
     @Mock private SyncStateRepository syncStateRepository;
 
     @Test
     void shouldTriggerSyncWithoutStartDate() {
         CalendarController controller = new CalendarController(
                 calendarSyncService,
+                calendarPaymentService,
                 calendarEventRepository,
+                calendarEventPaymentRepository,
                 syncStateRepository
         );
         AuthenticatedUser user = new AuthenticatedUser(1L, "sub", "test@example.com", "Test");
@@ -44,7 +48,9 @@ class CalendarControllerTest {
     void shouldTriggerSyncWithStartDate() {
         CalendarController controller = new CalendarController(
                 calendarSyncService,
+                calendarPaymentService,
                 calendarEventRepository,
+                calendarEventPaymentRepository,
                 syncStateRepository
         );
         AuthenticatedUser user = new AuthenticatedUser(1L, "sub", "test@example.com", "Test");

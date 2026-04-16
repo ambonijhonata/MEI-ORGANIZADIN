@@ -47,6 +47,20 @@ public class SecurityConfig {
     @Bean
     public AuthenticationEntryPoint unauthorizedEntryPoint() {
         return (request, response, authException) -> {
+            Object verificationUnavailable = request.getAttribute(GoogleIdTokenAuthenticationFilter.ATTR_AUTH_VERIFICATION_UNAVAILABLE);
+            if (Boolean.TRUE.equals(verificationUnavailable)) {
+                response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                Map<String, Object> body = Map.of(
+                        "status", 503,
+                        "code", "AUTH_VERIFICATION_UNAVAILABLE",
+                        "message", "Authentication verification temporarily unavailable. Please retry.",
+                        "timestamp", Instant.now().toString()
+                );
+                objectMapper.writeValue(response.getOutputStream(), body);
+                return;
+            }
+
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             Map<String, Object> body = Map.of(

@@ -17,6 +17,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -105,5 +106,23 @@ class RevenueReportServiceExtendedTest {
 
         assertEquals(LocalDate.of(2026, 3, 1), report.startDate());
         assertEquals(LocalDate.of(2026, 3, 15), report.endDate());
+    }
+
+    @Test
+    void shouldUsePaidOnlyRepositoriesWhenPaymentScopeIsPaidOnly() {
+        when(serviceLinkRepository.findByUserAndPeriodPaidOnly(eq(1L), any(), any())).thenReturn(List.of());
+        when(calendarEventRepository.sumRevenueByUserAndPeriodPaidOnly(eq(1L), any(), any())).thenReturn(BigDecimal.ZERO);
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.empty());
+
+        var report = reportService.generateReport(
+                1L,
+                LocalDate.of(2026, 3, 1),
+                LocalDate.of(2026, 3, 31),
+                PaymentScope.PAID_ONLY
+        );
+
+        assertEquals(BigDecimal.ZERO, report.totalRevenue());
+        verify(serviceLinkRepository).findByUserAndPeriodPaidOnly(eq(1L), any(), any());
+        verify(calendarEventRepository).sumRevenueByUserAndPeriodPaidOnly(eq(1L), any(), any());
     }
 }

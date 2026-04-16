@@ -31,19 +31,27 @@ public class RevenueReportService {
     }
 
     public RevenueReport generateReport(Long userId, LocalDate startDate, LocalDate endDate) {
+        return generateReport(userId, startDate, endDate, PaymentScope.ALL);
+    }
+
+    public RevenueReport generateReport(Long userId, LocalDate startDate, LocalDate endDate, PaymentScope paymentScope) {
         validatePeriod(startDate, endDate, 12);
 
         Instant startInstant = startDate.atStartOfDay(ZoneOffset.UTC).toInstant();
         Instant endInstant = endDate.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
 
-        List<CalendarEventServiceLink> links = serviceLinkRepository.findByUserAndPeriod(userId, startInstant, endInstant);
+        List<CalendarEventServiceLink> links = paymentScope == PaymentScope.PAID_ONLY
+                ? serviceLinkRepository.findByUserAndPeriodPaidOnly(userId, startInstant, endInstant)
+                : serviceLinkRepository.findByUserAndPeriod(userId, startInstant, endInstant);
 
         BigDecimal totalRevenue = links.stream()
                 .map(CalendarEventServiceLink::getServiceValueSnapshot)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // Fallback: also include legacy single-service events without links
-        BigDecimal legacyRevenue = calendarEventRepository.sumRevenueByUserAndPeriod(userId, startInstant, endInstant);
+        BigDecimal legacyRevenue = paymentScope == PaymentScope.PAID_ONLY
+                ? calendarEventRepository.sumRevenueByUserAndPeriodPaidOnly(userId, startInstant, endInstant)
+                : calendarEventRepository.sumRevenueByUserAndPeriod(userId, startInstant, endInstant);
         if (links.isEmpty() && legacyRevenue.compareTo(BigDecimal.ZERO) > 0) {
             totalRevenue = legacyRevenue;
         }

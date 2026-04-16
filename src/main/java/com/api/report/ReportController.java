@@ -38,9 +38,10 @@ public class ReportController {
     public ResponseEntity<RevenueReportService.RevenueReport> getRevenueReport(
             @AuthenticationPrincipal AuthenticatedUser user,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) @Parameter(example = "2026-01-01") LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) @Parameter(example = "2026-03-01") LocalDate endDate) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) @Parameter(example = "2026-03-01") LocalDate endDate,
+            @RequestParam(defaultValue = "ALL") PaymentScope paymentScope) {
         RevenueReportService.RevenueReport report = revenueReportService.generateReport(
-                user.userId(), startDate, endDate);
+                user.userId(), startDate, endDate, paymentScope);
         return ResponseEntity.ok(report);
     }
 
@@ -53,9 +54,10 @@ public class ReportController {
     public ResponseEntity<CashFlowReportService.CashFlowReport> getCashFlowReport(
             @AuthenticationPrincipal AuthenticatedUser user,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) @Parameter(example = "2026-03-10") LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) @Parameter(example = "2026-03-14") LocalDate endDate) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) @Parameter(example = "2026-03-14") LocalDate endDate,
+            @RequestParam(defaultValue = "ALL") PaymentScope paymentScope) {
         CashFlowReportService.CashFlowReport report = cashFlowReportService.generateReport(
-                user.userId(), startDate, endDate);
+                user.userId(), startDate, endDate, paymentScope);
         return ResponseEntity.ok(report);
     }
 }

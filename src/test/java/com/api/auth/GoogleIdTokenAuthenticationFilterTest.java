@@ -13,7 +13,6 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.io.IOException;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -41,7 +40,8 @@ class GoogleIdTokenAuthenticationFilterTest {
 
         GoogleIdToken.Payload payload = new GoogleIdToken.Payload();
         payload.setSubject("sub-1");
-        when(tokenValidator.validate("valid-token")).thenReturn(Optional.of(payload));
+        when(tokenValidator.validateDetailed("valid-token"))
+                .thenReturn(GoogleIdTokenValidator.ValidationResult.valid(payload));
 
         AuthenticatedUser authUser = new AuthenticatedUser(1L, "sub-1", "email@test.com", "Name");
         when(userResolver.resolve(payload)).thenReturn(authUser);
@@ -59,7 +59,8 @@ class GoogleIdTokenAuthenticationFilterTest {
         request.addHeader("Authorization", "Bearer invalid-token");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        when(tokenValidator.validate("invalid-token")).thenReturn(Optional.empty());
+        when(tokenValidator.validateDetailed("invalid-token"))
+                .thenReturn(GoogleIdTokenValidator.ValidationResult.invalid(new RuntimeException("invalid")));
 
         filter.doFilterInternal(request, response, filterChain);
 

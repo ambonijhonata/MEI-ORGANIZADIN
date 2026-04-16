@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -117,6 +118,22 @@ class CashFlowReportServiceExtendedTest {
 
         assertEquals(LocalDate.of(2026, 3, 10), report.startDate());
         assertEquals(LocalDate.of(2026, 3, 12), report.endDate());
+    }
+
+    @Test
+    void shouldUsePaidOnlyLinksWhenPaymentScopeIsPaidOnly() {
+        when(serviceLinkRepository.findByUserAndPeriodPaidOnly(eq(1L), any(), any())).thenReturn(List.of());
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.empty());
+
+        var report = reportService.generateReport(
+                1L,
+                LocalDate.of(2026, 3, 10),
+                LocalDate.of(2026, 3, 12),
+                PaymentScope.PAID_ONLY
+        );
+
+        assertEquals(3, report.entries().size());
+        verify(serviceLinkRepository).findByUserAndPeriodPaidOnly(eq(1L), any(), any());
     }
 
     private CalendarEventServiceLink mockLink(Instant eventStart, String serviceName, BigDecimal value) {

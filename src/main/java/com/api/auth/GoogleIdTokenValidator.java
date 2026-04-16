@@ -15,6 +15,30 @@ import java.util.Optional;
 @Component
 public class GoogleIdTokenValidator {
 
+    public enum Status {
+        VALID,
+        INVALID,
+        UNAVAILABLE
+    }
+
+    public record ValidationResult(
+            Status status,
+            GoogleIdToken.Payload payload,
+            Exception exception
+    ) {
+        public static ValidationResult valid(GoogleIdToken.Payload payload) {
+            return new ValidationResult(Status.VALID, payload, null);
+        }
+
+        public static ValidationResult invalid(Exception exception) {
+            return new ValidationResult(Status.INVALID, null, exception);
+        }
+
+        public static ValidationResult unavailable(Exception exception) {
+            return new ValidationResult(Status.UNAVAILABLE, null, exception);
+        }
+    }
+
     private final GoogleIdTokenVerifier verifier;
 
     public GoogleIdTokenValidator(GoogleOAuthProperties properties) {
@@ -27,14 +51,21 @@ public class GoogleIdTokenValidator {
     }
 
     public Optional<GoogleIdToken.Payload> validate(String idTokenString) {
+        ValidationResult result = validateDetailed(idTokenString);
+        return Optional.ofNullable(result.payload());
+    }
+
+    public ValidationResult validateDetailed(String idTokenString) {
         try {
             GoogleIdToken idToken = verifier.verify(idTokenString);
             if (idToken == null) {
-                return Optional.empty();
+                return ValidationResult.invalid(null);
             }
-            return Optional.of(idToken.getPayload());
-        } catch (GeneralSecurityException | IOException e) {
-            return Optional.empty();
+            return ValidationResult.valid(idToken.getPayload());
+        } catch (IOException e) {
+            return ValidationResult.unavailable(e);
+        } catch (GeneralSecurityException e) {
+            return ValidationResult.invalid(e);
         }
     }
 }

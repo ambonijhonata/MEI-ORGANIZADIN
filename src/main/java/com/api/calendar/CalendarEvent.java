@@ -60,6 +60,9 @@ public class CalendarEvent {
     @OneToMany(mappedBy = "calendarEvent", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<CalendarEventServiceLink> serviceLinks = new ArrayList<>();
 
+    @OneToMany(mappedBy = "calendarEvent", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<CalendarEventPayment> payments = new ArrayList<>();
+
     @Column(nullable = false)
     private boolean identified = false;
 
@@ -123,6 +126,15 @@ public class CalendarEvent {
         this.identified = false;
     }
 
+    public void replacePayments(List<CalendarEventPayment> newPayments) {
+        this.payments.clear();
+        this.payments.addAll(newPayments);
+    }
+
+    public void clearPayments() {
+        this.payments.clear();
+    }
+
     public void setClient(Client client) {
         this.client = client;
     }
@@ -155,6 +167,7 @@ public class CalendarEvent {
     public String getServiceDescriptionSnapshot() { return serviceDescriptionSnapshot; }
     public BigDecimal getServiceValueSnapshot() { return serviceValueSnapshot; }
     public List<CalendarEventServiceLink> getServiceLinks() { return serviceLinks; }
+    public List<CalendarEventPayment> getPayments() { return payments; }
     public boolean isIdentified() { return identified; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
