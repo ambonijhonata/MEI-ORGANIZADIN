@@ -40,6 +40,9 @@ public class ClientService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         String normalized = normalizer.normalize(request.name());
+        if (clientRepository.existsByUserIdAndNormalizedName(userId, normalized)) {
+            throw new BusinessException(request.name().trim() + " Já cadastrado.");
+        }
         Client client = new Client(user, request.name(), normalized);
         client.setCpf(request.cpf());
         client.setDateOfBirth(request.dateOfBirth());
@@ -77,8 +80,13 @@ public class ClientService {
         Client client = clientRepository.findByIdAndUserId(clientId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Client not found"));
 
+        String normalized = normalizer.normalize(request.name());
+        if (clientRepository.existsByUserIdAndNormalizedNameAndIdNot(userId, normalized, clientId)) {
+            throw new BusinessException(request.name().trim() + " Já cadastrado.");
+        }
+
         client.setName(request.name());
-        client.setNormalizedName(normalizer.normalize(request.name()));
+        client.setNormalizedName(normalized);
         client.setCpf(request.cpf());
         client.setDateOfBirth(request.dateOfBirth());
         client.setEmail(request.email());

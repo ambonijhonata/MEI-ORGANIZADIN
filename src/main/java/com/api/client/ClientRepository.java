@@ -22,4 +22,8 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
     Optional<Client> findByIdAndUserId(Long id, Long userId);
 
     Optional<Client> findByUserIdAndNormalizedName(Long userId, String normalizedName);
+
+    boolean existsByUserIdAndNormalizedName(Long userId, String normalizedName);
+
+    boolean existsByUserIdAndNormalizedNameAndIdNot(Long userId, String normalizedName, Long id);
 }

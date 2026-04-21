@@ -1,6 +1,7 @@
 package com.api.calendar;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -11,6 +12,10 @@ import java.util.List;
 public interface CalendarEventPaymentRepository extends JpaRepository<CalendarEventPayment, Long> {
     List<CalendarEventPayment> findByCalendarEventIdOrderByIdAsc(Long calendarEventId);
     void deleteByCalendarEventId(Long calendarEventId);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("DELETE FROM CalendarEventPayment p WHERE p.calendarEvent.id IN :calendarEventIds")
+    int deleteInBulkByCalendarEventIdIn(@Param("calendarEventIds") Collection<Long> calendarEventIds);
 
     @Query("SELECT new com.api.calendar.CalendarEventPaymentTotal(" +
             "p.calendarEvent.id, COALESCE(SUM(p.amount), 0)) " +

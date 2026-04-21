@@ -11,21 +11,22 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 
 @Component
 public class RevenueReportService {
 
-    private final CalendarEventServiceLinkRepository serviceLinkRepository;
     private final CalendarEventRepository calendarEventRepository;
+    private final ReportPaidAmountService reportPaidAmountService;
     private final SyncStateRepository syncStateRepository;
     private final long freshnessMinutes;
 
-    public RevenueReportService(CalendarEventServiceLinkRepository serviceLinkRepository,
-                                 CalendarEventRepository calendarEventRepository,
+    public RevenueReportService(CalendarEventRepository calendarEventRepository,
+                                 ReportPaidAmountService reportPaidAmountService,
                                  SyncStateRepository syncStateRepository,
                                  @Value("${sync.freshness-minutes}") long freshnessMinutes) {
-        this.serviceLinkRepository = serviceLinkRepository;
         this.calendarEventRepository = calendarEventRepository;
+        this.reportPaidAmountService = reportPaidAmountService;
         this.syncStateRepository = syncStateRepository;
         this.freshnessMinutes = freshnessMinutes;
     }
@@ -40,25 +41,32 @@ public class RevenueReportService {
         Instant startInstant = startDate.atStartOfDay(ZoneOffset.UTC).toInstant();
         Instant endInstant = endDate.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
 
-        List<CalendarEventServiceLink> links = paymentScope == PaymentScope.PAID_ONLY
-                ? serviceLinkRepository.findByUserAndPeriodPaidOnly(userId, startInstant, endInstant)
-                : serviceLinkRepository.findByUserAndPeriod(userId, startInstant, endInstant);
+        List<CalendarEvent> events = calendarEventRepository.findIdentifiedByUserAndPeriod(userId, startInstant, endInstant);
 
-        BigDecimal totalRevenue = links.stream()
-                .map(CalendarEventServiceLink::getServiceValueSnapshot)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        // Fallback: also include legacy single-service events without links
-        BigDecimal legacyRevenue = paymentScope == PaymentScope.PAID_ONLY
-                ? calendarEventRepository.sumRevenueByUserAndPeriodPaidOnly(userId, startInstant, endInstant)
-                : calendarEventRepository.sumRevenueByUserAndPeriod(userId, startInstant, endInstant);
-        if (links.isEmpty() && legacyRevenue.compareTo(BigDecimal.ZERO) > 0) {
-            totalRevenue = legacyRevenue;
+        BigDecimal totalRevenue;
+        if (paymentScope == PaymentScope.PAID_ONLY) {
+            List<Long> eventIds = events.stream().map(CalendarEvent::getId).toList();
+            Map<Long, BigDecimal> paidAmountsByEventId = reportPaidAmountService.loadPaidAmountsByEventId(eventIds);
+            totalRevenue = events.stream()
+                    .map(event -> reportPaidAmountService.resolvePaidOnlyEventAmount(
+                            event,
+                            safeAmount(event.getServiceValueSnapshot()),
+                            paidAmountsByEventId
+                    ))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        } else {
+            totalRevenue = events.stream()
+                    .map(event -> safeAmount(event.getServiceValueSnapshot()))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
         }
 
         SyncMetadata metadata = buildSyncMetadata(userId);
 
         return new RevenueReport(totalRevenue, startDate, endDate, metadata);
+    }
+
+    private BigDecimal safeAmount(BigDecimal amount) {
+        return amount != null ? amount : BigDecimal.ZERO;
     }
 
     private void validatePeriod(LocalDate startDate, LocalDate endDate, int maxMonths) {

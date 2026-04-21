@@ -15,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+import java.time.Instant;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -35,6 +36,7 @@ class CalendarSyncServiceConcurrencyTest {
 
     @Mock private GoogleCalendarClient googleCalendarClient;
     @Mock private CalendarEventRepository calendarEventRepository;
+    @Mock private CalendarEventPaymentRepository calendarEventPaymentRepository;
     @Mock private SyncStateRepository syncStateRepository;
     @Mock private CalendarEventServiceMatcher matcher;
     @Mock private ServiceDescriptionNormalizer normalizer;
@@ -48,12 +50,16 @@ class CalendarSyncServiceConcurrencyTest {
     @BeforeEach
     void setUp() {
         syncService = new CalendarSyncService(googleCalendarClient, calendarEventRepository,
-                syncStateRepository, matcher, normalizer, userRepository, titleParser, clientService);
+                syncStateRepository, matcher, normalizer, userRepository, titleParser, clientService, calendarEventPaymentRepository);
         executor = Executors.newFixedThreadPool(2);
 
         lenient().when(calendarEventRepository.findWithAssociationsByUserIdAndGoogleEventIdIn(anyLong(), anyCollection()))
                 .thenReturn(List.of());
         lenient().when(calendarEventRepository.findAllWithAssociationsByUserId(anyLong()))
+                .thenReturn(List.of());
+        lenient().when(calendarEventRepository.findGoogleBackedByUserId(anyLong()))
+                .thenReturn(List.of());
+        lenient().when(calendarEventRepository.findGoogleBackedByUserIdAndEventStartGreaterThanEqual(anyLong(), org.mockito.ArgumentMatchers.any(Instant.class)))
                 .thenReturn(List.of());
         lenient().when(clientService.clientsByNormalizedName(anyLong())).thenReturn(new HashMap<>());
         lenient().when(matcher.servicesByNormalizedDescription(anyLong())).thenReturn(new HashMap<>());

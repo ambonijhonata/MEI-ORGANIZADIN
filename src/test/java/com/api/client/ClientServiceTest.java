@@ -44,6 +44,7 @@ class ClientServiceTest {
         User user = new User("sub", "email@test.com", "Name");
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(normalizer.normalize("Maria Silva")).thenReturn("maria silva");
+        when(clientRepository.existsByUserIdAndNormalizedName(1L, "maria silva")).thenReturn(false);
         when(clientRepository.save(any(Client.class))).thenAnswer(inv -> inv.getArgument(0));
 
         var request = new ClientService.ClientRequest("Maria Silva", "12345678901", LocalDate.of(1990, 1, 1), "maria@test.com", "11999999999");
@@ -143,6 +144,7 @@ class ClientServiceTest {
         Client existing = new Client(user, "Old Name", "old name");
         when(clientRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(existing));
         when(normalizer.normalize("New Name")).thenReturn("new name");
+        when(clientRepository.existsByUserIdAndNormalizedNameAndIdNot(1L, "new name", 1L)).thenReturn(false);
         when(clientRepository.save(existing)).thenReturn(existing);
 
         var request = new ClientService.ClientRequest("New Name", "99999999999", LocalDate.of(1995, 5, 5), "new@test.com", "11888888888");
@@ -153,6 +155,55 @@ class ClientServiceTest {
         assertEquals("99999999999", result.getCpf());
         assertEquals("new@test.com", result.getEmail());
         assertEquals("11888888888", result.getPhone());
+    }
+
+    @Test
+    void shouldRejectDuplicateClientNameOnCreate() {
+        User user = new User("sub", "email@test.com", "Name");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(normalizer.normalize("Maria Silva")).thenReturn("maria silva");
+        when(clientRepository.existsByUserIdAndNormalizedName(1L, "maria silva")).thenReturn(true);
+
+        var request = new ClientService.ClientRequest("Maria Silva", null, null, null, null);
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                clientService.createClient(1L, request));
+
+        assertEquals("Maria Silva Já cadastrado.", exception.getMessage());
+        verify(clientRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldRejectDuplicateClientNameOnUpdateWhenAnotherRecordExists() {
+        User user = new User("sub", "email@test.com", "Name");
+        Client existing = new Client(user, "Old Name", "old name");
+        when(clientRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(existing));
+        when(normalizer.normalize("Maria Silva")).thenReturn("maria silva");
+        when(clientRepository.existsByUserIdAndNormalizedNameAndIdNot(1L, "maria silva", 1L)).thenReturn(true);
+
+        var request = new ClientService.ClientRequest("Maria Silva", null, null, null, null);
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                clientService.updateClient(1L, 1L, request));
+
+        assertEquals("Maria Silva Já cadastrado.", exception.getMessage());
+        verify(clientRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldAllowUpdateWhenClientKeepsSameNormalizedName() {
+        User user = new User("sub", "email@test.com", "Name");
+        Client existing = new Client(user, "Maria Silva", "maria silva");
+        when(clientRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(existing));
+        when(normalizer.normalize("Maria Silva")).thenReturn("maria silva");
+        when(clientRepository.existsByUserIdAndNormalizedNameAndIdNot(1L, "maria silva", 1L)).thenReturn(false);
+        when(clientRepository.save(existing)).thenReturn(existing);
+
+        var request = new ClientService.ClientRequest("Maria Silva", null, null, null, null);
+        Client result = clientService.updateClient(1L, 1L, request);
+
+        assertEquals("Maria Silva", result.getName());
+        verify(clientRepository).save(existing);
     }
 
     @Test

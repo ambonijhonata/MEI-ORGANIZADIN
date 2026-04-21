@@ -68,8 +68,42 @@ class ServiceCatalogServiceTest {
         when(normalizer.normalize("Corte")).thenReturn("corte");
         when(serviceRepository.existsByUserIdAndNormalizedDescription(1L, "corte")).thenReturn(true);
 
-        assertThrows(BusinessException.class, () ->
+        BusinessException exception = assertThrows(BusinessException.class, () ->
                 service.createService(1L, "Corte", new BigDecimal("50.00")));
+        assertEquals("Corte já cadastrado", exception.getMessage());
+    }
+
+    @Test
+    void shouldRejectDuplicateDescriptionOnUpdateWhenAnotherRecordExists() {
+        User user = new User("sub", "email@test.com", "Name");
+        Service existing = new Service(user, "Old", "old", new BigDecimal("30.00"));
+        Service duplicate = mock(Service.class);
+        when(duplicate.getId()).thenReturn(2L);
+        when(serviceRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(existing));
+        when(normalizer.normalize("New")).thenReturn("new");
+        when(serviceRepository.findByUserIdAndNormalizedDescription(1L, "new")).thenReturn(Optional.of(duplicate));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                service.updateService(1L, 1L, "New", new BigDecimal("60.00")));
+        assertEquals("New já cadastrado", exception.getMessage());
+        verify(serviceRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldAllowUpdateWhenServiceKeepsSameNormalizedDescription() {
+        User user = new User("sub", "email@test.com", "Name");
+        Service existing = mock(Service.class);
+        when(existing.getId()).thenReturn(1L);
+        when(serviceRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(existing));
+        when(normalizer.normalize("New")).thenReturn("new");
+        when(serviceRepository.findByUserIdAndNormalizedDescription(1L, "new")).thenReturn(Optional.of(existing));
+        when(serviceRepository.save(existing)).thenReturn(existing);
+
+        Service result = service.updateService(1L, 1L, "New", new BigDecimal("60.00"));
+
+        assertSame(existing, result);
+        verify(serviceRepository).save(existing);
+        verify(reprocessor).reprocessUnidentifiedEvents(1L);
     }
 
     @Test

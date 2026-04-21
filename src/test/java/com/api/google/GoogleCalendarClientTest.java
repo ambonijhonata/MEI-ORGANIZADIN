@@ -30,6 +30,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -56,6 +57,7 @@ class GoogleCalendarClientTest {
         lenient().when(listRequest.setFields(anyString())).thenReturn(listRequest);
         lenient().when(listRequest.setPageToken(nullable(String.class))).thenReturn(listRequest);
         lenient().when(listRequest.setSyncToken(nullable(String.class))).thenReturn(listRequest);
+        lenient().when(listRequest.setShowDeleted(anyBoolean())).thenReturn(listRequest);
         lenient().when(listRequest.setTimeMin(nullable(DateTime.class))).thenReturn(listRequest);
 
         User user = new User("sub", "user@test.com", "User");
@@ -120,7 +122,30 @@ class GoogleCalendarClientTest {
         client.fetchEvents(1L, null, LocalDate.of(2026, 4, 1));
 
         long expectedEpochMillis = Instant.parse("2026-04-01T00:00:00Z").toEpochMilli();
+        verify(listRequest).setOrderBy("startTime");
         verify(listRequest).setTimeMin(argThat(value -> value != null && value.getValue() == expectedEpochMillis));
+    }
+
+    @Test
+    void shouldOmitOrderByWhenSyncTokenIsProvided() throws IOException {
+        when(listRequest.execute()).thenReturn(new Events().setItems(List.of()).setNextSyncToken("token"));
+
+        client.fetchEvents(1L, "sync-token");
+
+        verify(listRequest).setSyncToken("sync-token");
+        verify(listRequest).setShowDeleted(true);
+        verify(listRequest, never()).setOrderBy("startTime");
+    }
+
+    @Test
+    void shouldApplyOrderByWhenSyncTokenIsMissing() throws IOException {
+        when(listRequest.execute()).thenReturn(new Events().setItems(List.of()).setNextSyncToken("token"));
+
+        client.fetchEvents(1L, null);
+
+        verify(listRequest).setOrderBy("startTime");
+        verify(listRequest, never()).setSyncToken(anyString());
+        verify(listRequest, never()).setShowDeleted(true);
     }
 
     private static GoogleJsonResponseException googleError(

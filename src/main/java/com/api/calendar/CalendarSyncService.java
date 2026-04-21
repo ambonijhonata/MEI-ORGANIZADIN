@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -44,6 +45,7 @@ public class CalendarSyncService {
 
     private final GoogleCalendarClient googleCalendarClient;
     private final CalendarEventRepository calendarEventRepository;
+    private final CalendarEventPaymentRepository calendarEventPaymentRepository;
     private final SyncStateRepository syncStateRepository;
     private final CalendarEventServiceMatcher matcher;
     private final ServiceDescriptionNormalizer normalizer;
@@ -66,7 +68,20 @@ public class CalendarSyncService {
                         EventTitleParser titleParser,
                         ClientService clientService) {
         this(googleCalendarClient, calendarEventRepository, syncStateRepository, matcher, normalizer,
-                userRepository, titleParser, clientService, DEFAULT_BATCH_SIZE, false);
+                userRepository, titleParser, clientService, null);
+    }
+
+    CalendarSyncService(GoogleCalendarClient googleCalendarClient,
+                        CalendarEventRepository calendarEventRepository,
+                        SyncStateRepository syncStateRepository,
+                        CalendarEventServiceMatcher matcher,
+                        ServiceDescriptionNormalizer normalizer,
+                        UserRepository userRepository,
+                        EventTitleParser titleParser,
+                        ClientService clientService,
+                        CalendarEventPaymentRepository calendarEventPaymentRepository) {
+        this(googleCalendarClient, calendarEventRepository, syncStateRepository, matcher, normalizer,
+                userRepository, titleParser, clientService, calendarEventPaymentRepository, DEFAULT_BATCH_SIZE, false);
     }
 
     @Autowired
@@ -78,10 +93,12 @@ public class CalendarSyncService {
                                UserRepository userRepository,
                                EventTitleParser titleParser,
                                ClientService clientService,
+                               CalendarEventPaymentRepository calendarEventPaymentRepository,
                                @Value("${calendar.sync.batch-size:" + DEFAULT_BATCH_SIZE + "}") int batchSize,
                                @Value("${calendar.sync.batch-clear-enabled:false}") boolean batchClearEnabled) {
         this.googleCalendarClient = googleCalendarClient;
         this.calendarEventRepository = calendarEventRepository;
+        this.calendarEventPaymentRepository = calendarEventPaymentRepository;
         this.syncStateRepository = syncStateRepository;
         this.matcher = matcher;
         this.normalizer = normalizer;
@@ -116,7 +133,7 @@ public class CalendarSyncService {
             syncStateRepository.save(syncState);
 
             try {
-                if (startDate != null) {
+                if (startDate != null && !hasSyncToken(syncState)) {
                     return performStartDateSync(userId, user, syncState, startDate);
                 }
                 return performSync(userId, user, syncState);
@@ -167,6 +184,11 @@ public class CalendarSyncService {
 
             long processingStartNs = System.nanoTime();
             SyncMutations mutations = buildMutations(userId, user, result.events(), lookups, true, normalizationCache);
+            if (fullSync) {
+                // Initial sync without token uses full Google result set, so cleanup can safely reconcile stale local rows.
+                List<CalendarEvent> localGoogleBackedEvents = calendarEventRepository.findGoogleBackedByUserId(userId);
+                mutations = withScopeReconciliation(mutations, result.events(), localGoogleBackedEvents, "initial_full_sync");
+            }
             processingMs = elapsedMs(processingStartNs);
             created = mutations.created();
             updated = mutations.updated();
@@ -224,6 +246,8 @@ public class CalendarSyncService {
 
         long processingStartNs = System.nanoTime();
         SyncMutations mutations = buildMutations(userId, user, result.events(), lookups, false, normalizationCache);
+        List<CalendarEvent> localGoogleBackedEvents = calendarEventRepository.findGoogleBackedByUserId(userId);
+        mutations = withScopeReconciliation(mutations, result.events(), localGoogleBackedEvents, "full_resync");
         processingMs = elapsedMs(processingStartNs);
 
         long writeStartNs = System.nanoTime();
@@ -239,7 +263,7 @@ public class CalendarSyncService {
                 eventsReceived,
                 mutations.created(),
                 mutations.updated(),
-                0,
+                mutations.deleted(),
                 googleFetchMs,
                 dbLookupMs,
                 processingMs,
@@ -248,7 +272,7 @@ public class CalendarSyncService {
                 true
         );
 
-        return new SyncResult(mutations.created(), mutations.updated(), 0);
+        return new SyncResult(mutations.created(), mutations.updated(), mutations.deleted());
     }
 
     private SyncResult performStartDateSync(Long userId,
@@ -274,13 +298,17 @@ public class CalendarSyncService {
 
         long processingStartNs = System.nanoTime();
         SyncMutations mutations = buildMutations(userId, user, result.events(), lookups, false, normalizationCache);
+        Instant startDateBoundary = startDate.atStartOfDay(ZoneOffset.UTC).toInstant();
+        List<CalendarEvent> localGoogleBackedEvents = calendarEventRepository
+                .findGoogleBackedByUserIdAndEventStartGreaterThanEqual(userId, startDateBoundary);
+        mutations = withScopeReconciliation(mutations, result.events(), localGoogleBackedEvents, "start_date_sync");
         processingMs = elapsedMs(processingStartNs);
 
         long writeStartNs = System.nanoTime();
         persistMutations(mutations);
         dbWriteMs = elapsedMs(writeStartNs);
 
-        markSyncedWithoutTouchingToken(syncState);
+        syncState.markSynced(result.nextSyncToken());
         syncStateRepository.save(syncState);
 
         logSyncSummary(
@@ -371,10 +399,12 @@ public class CalendarSyncService {
             }
 
             CalendarEvent existingEvent = lookups.existingEventsByGoogleEventId().get(googleEvent.getId());
-            if (allowDeletes && isDeletedEvent(googleEvent)) {
-                deleted++;
+            if (isDeletedEvent(googleEvent)) {
                 if (existingEvent != null) {
-                    deletions.add(existingEvent);
+                    if (allowDeletes) {
+                        deletions.add(existingEvent);
+                        deleted++;
+                    }
                 }
                 continue;
             }
@@ -645,6 +675,17 @@ public class CalendarSyncService {
 
     private void persistMutations(SyncMutations mutations) {
         if (!mutations.deletions().isEmpty()) {
+            Set<Long> deletionEventIds = new HashSet<>();
+            for (CalendarEvent deletion : mutations.deletions()) {
+                if (deletion != null && deletion.getId() != null) {
+                    deletionEventIds.add(deletion.getId());
+                }
+            }
+            if (!deletionEventIds.isEmpty() && calendarEventPaymentRepository != null) {
+                calendarEventPaymentRepository.deleteInBulkByCalendarEventIdIn(deletionEventIds);
+                // Explicitly flush between payment cleanup and event deletion to keep batched statements isolated.
+                calendarEventPaymentRepository.flush();
+            }
             calendarEventRepository.deleteAllInBatch(mutations.deletions());
         }
         if (!mutations.upserts().isEmpty()) {
@@ -667,6 +708,83 @@ public class CalendarSyncService {
 
     private boolean isDeletedEvent(Event event) {
         return "cancelled".equals(event.getStatus());
+    }
+
+    private boolean hasSyncToken(SyncState syncState) {
+        return syncState.getSyncToken() != null && !syncState.getSyncToken().isBlank();
+    }
+
+    private SyncMutations withScopeReconciliation(SyncMutations mutations,
+                                                  List<Event> googleEvents,
+                                                  List<CalendarEvent> localScopedEvents,
+                                                  String mode) {
+        if (localScopedEvents == null || localScopedEvents.isEmpty()) {
+            return mutations;
+        }
+
+        Map<String, CalendarEvent> localScopedByGoogleEventId = new HashMap<>();
+        for (CalendarEvent localEvent : localScopedEvents) {
+            if (localEvent == null || localEvent.getGoogleEventId() == null || localEvent.getGoogleEventId().isBlank()) {
+                continue;
+            }
+            localScopedByGoogleEventId.put(localEvent.getGoogleEventId(), localEvent);
+        }
+        if (localScopedByGoogleEventId.isEmpty()) {
+            return mutations;
+        }
+
+        Set<String> activeGoogleEventIds = new HashSet<>();
+        if (googleEvents != null) {
+            for (Event googleEvent : googleEvents) {
+                if (googleEvent == null || googleEvent.getId() == null || googleEvent.getId().isBlank()) {
+                    continue;
+                }
+                if (!isDeletedEvent(googleEvent)) {
+                    activeGoogleEventIds.add(googleEvent.getId());
+                }
+            }
+        }
+
+        List<CalendarEvent> reconciledDeletions = new ArrayList<>(mutations.deletions());
+        Set<String> deletionIds = new HashSet<>();
+        for (CalendarEvent deletion : mutations.deletions()) {
+            if (deletion.getGoogleEventId() != null) {
+                deletionIds.add(deletion.getGoogleEventId());
+            }
+        }
+
+        int reconciledDeleted = mutations.deleted();
+        for (Map.Entry<String, CalendarEvent> entry : localScopedByGoogleEventId.entrySet()) {
+            String googleEventId = entry.getKey();
+            if (!activeGoogleEventIds.contains(googleEventId) && !deletionIds.contains(googleEventId)) {
+                reconciledDeletions.add(entry.getValue());
+                deletionIds.add(googleEventId);
+                reconciledDeleted++;
+            }
+        }
+
+        if (reconciledDeleted == mutations.deleted()) {
+            return mutations;
+        }
+
+        int cleanupDeleted = reconciledDeleted - mutations.deleted();
+        log.info(
+                "calendar_sync_cleanup_summary mode={} cleanup_deleted={} marker_deleted={} total_deleted={} scoped_local_google_events={} active_google_events={}",
+                mode,
+                cleanupDeleted,
+                mutations.deleted(),
+                reconciledDeleted,
+                localScopedByGoogleEventId.size(),
+                activeGoogleEventIds.size()
+        );
+
+        return new SyncMutations(
+                mutations.upserts(),
+                reconciledDeletions,
+                mutations.created(),
+                mutations.updated(),
+                reconciledDeleted
+        );
     }
 
     private Instant extractInstant(EventDateTime eventDateTime) {

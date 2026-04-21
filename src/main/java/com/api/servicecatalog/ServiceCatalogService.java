@@ -51,7 +51,7 @@ public class ServiceCatalogService {
         String normalized = normalizer.normalize(description);
 
         if (serviceRepository.existsByUserIdAndNormalizedDescription(userId, normalized)) {
-            throw new BusinessException("Service with this description already exists");
+            throw new BusinessException(duplicateDescriptionMessage(description));
         }
 
         Service service = new Service(user, description, normalized, value);
@@ -86,7 +86,7 @@ public class ServiceCatalogService {
         serviceRepository.findByUserIdAndNormalizedDescription(userId, normalized)
                 .filter(existing -> !existing.getId().equals(serviceId))
                 .ifPresent(existing -> {
-                    throw new BusinessException("Service with this description already exists");
+                    throw new BusinessException(duplicateDescriptionMessage(description));
                 });
 
         service.setDescription(description);
@@ -148,6 +148,13 @@ public class ServiceCatalogService {
     private boolean hasLinkedEvents(Long serviceId) {
         return serviceLinkRepository.existsByServiceId(serviceId)
                 || calendarEventRepository.existsByServiceId(serviceId);
+    }
+
+    private String duplicateDescriptionMessage(String description) {
+        String trimmedDescription = description == null ? "" : description.trim();
+        return trimmedDescription.isBlank()
+                ? "Serviço já cadastrado"
+                : trimmedDescription + " já cadastrado";
     }
 
     public record BulkDeleteResult(int deleted, int hasLink) {}

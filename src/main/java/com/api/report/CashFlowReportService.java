@@ -13,14 +13,17 @@ import java.util.*;
 @Component
 public class CashFlowReportService {
 
-    private final CalendarEventServiceLinkRepository serviceLinkRepository;
+    private final CalendarEventRepository calendarEventRepository;
+    private final ReportPaidAmountService reportPaidAmountService;
     private final SyncStateRepository syncStateRepository;
     private final long freshnessMinutes;
 
-    public CashFlowReportService(CalendarEventServiceLinkRepository serviceLinkRepository,
+    public CashFlowReportService(CalendarEventRepository calendarEventRepository,
+                                   ReportPaidAmountService reportPaidAmountService,
                                    SyncStateRepository syncStateRepository,
                                    @Value("${sync.freshness-minutes}") long freshnessMinutes) {
-        this.serviceLinkRepository = serviceLinkRepository;
+        this.calendarEventRepository = calendarEventRepository;
+        this.reportPaidAmountService = reportPaidAmountService;
         this.syncStateRepository = syncStateRepository;
         this.freshnessMinutes = freshnessMinutes;
     }
@@ -35,21 +38,34 @@ public class CashFlowReportService {
         Instant startInstant = startDate.atStartOfDay(ZoneOffset.UTC).toInstant();
         Instant endInstant = endDate.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
 
-        List<CalendarEventServiceLink> links = paymentScope == PaymentScope.PAID_ONLY
-                ? serviceLinkRepository.findByUserAndPeriodPaidOnly(userId, startInstant, endInstant)
-                : serviceLinkRepository.findByUserAndPeriod(userId, startInstant, endInstant);
+        List<CalendarEvent> events = calendarEventRepository.findIdentifiedWithServiceLinksByUserAndPeriod(
+                userId,
+                startInstant,
+                endInstant
+        );
+        Map<Long, BigDecimal> paidAmountsByEventId = paymentScope == PaymentScope.PAID_ONLY
+                ? reportPaidAmountService.loadPaidAmountsByEventId(events.stream().map(CalendarEvent::getId).toList())
+                : Map.of();
 
-        // Group by date -> service name -> sum
         Map<LocalDate, Map<String, BigDecimal>> dailyServiceTotals = new LinkedHashMap<>();
         for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
             dailyServiceTotals.put(date, new TreeMap<>());
         }
 
-        for (CalendarEventServiceLink link : links) {
-            LocalDate eventDate = link.getCalendarEvent().getEventStart().atZone(ZoneOffset.UTC).toLocalDate();
+        for (CalendarEvent event : events) {
+            LocalDate eventDate = event.getEventStart().atZone(ZoneOffset.UTC).toLocalDate();
             Map<String, BigDecimal> serviceMap = dailyServiceTotals.get(eventDate);
-            if (serviceMap != null) {
-                serviceMap.merge(link.getServiceDescriptionSnapshot(), link.getServiceValueSnapshot(), BigDecimal::add);
+            if (serviceMap == null) {
+                continue;
+            }
+
+            Map<String, BigDecimal> eventContributions = resolveEventServiceContributions(
+                    event,
+                    paymentScope,
+                    paidAmountsByEventId
+            );
+            for (var contribution : eventContributions.entrySet()) {
+                serviceMap.merge(contribution.getKey(), contribution.getValue(), BigDecimal::add);
             }
         }
 
@@ -68,6 +84,72 @@ public class CashFlowReportService {
         RevenueReportService.SyncMetadata metadata = buildSyncMetadata(userId);
 
         return new CashFlowReport(entries, startDate, endDate, metadata);
+    }
+
+    private Map<String, BigDecimal> resolveEventServiceContributions(CalendarEvent event,
+                                                                     PaymentScope paymentScope,
+                                                                     Map<Long, BigDecimal> paidAmountsByEventId) {
+        Map<String, BigDecimal> serviceValues = extractEventServiceValues(event);
+        if (serviceValues.isEmpty()) {
+            return Map.of();
+        }
+
+        if (paymentScope == PaymentScope.ALL) {
+            return serviceValues;
+        }
+
+        BigDecimal eventServiceTotal = serviceValues.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal paidOnlyAmount = reportPaidAmountService.resolvePaidOnlyEventAmount(
+                event,
+                eventServiceTotal,
+                paidAmountsByEventId
+        );
+        if (paidOnlyAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return Map.of();
+        }
+
+        if (serviceValues.size() == 1) {
+            String serviceName = serviceValues.keySet().iterator().next();
+            return Map.of(serviceName, paidOnlyAmount);
+        }
+
+        List<String> serviceNames = new ArrayList<>(serviceValues.keySet());
+        List<BigDecimal> weights = serviceNames.stream().map(serviceValues::get).toList();
+        List<BigDecimal> distributedAmounts = reportPaidAmountService.distributeAmountProportionally(
+                paidOnlyAmount,
+                weights
+        );
+
+        Map<String, BigDecimal> distributedByService = new TreeMap<>();
+        for (int i = 0; i < serviceNames.size(); i++) {
+            distributedByService.put(serviceNames.get(i), distributedAmounts.get(i));
+        }
+        return distributedByService;
+    }
+
+    private Map<String, BigDecimal> extractEventServiceValues(CalendarEvent event) {
+        Map<String, BigDecimal> serviceValues = new TreeMap<>();
+        for (CalendarEventServiceLink serviceLink : event.getServiceLinks()) {
+            String serviceName = serviceLink.getServiceDescriptionSnapshot();
+            if (serviceName == null || serviceName.isBlank()) {
+                continue;
+            }
+            serviceValues.merge(serviceName, safeAmount(serviceLink.getServiceValueSnapshot()), BigDecimal::add);
+        }
+
+        if (!serviceValues.isEmpty()) {
+            return serviceValues;
+        }
+
+        String legacyServiceName = event.getServiceDescriptionSnapshot();
+        if (legacyServiceName != null && !legacyServiceName.isBlank()) {
+            serviceValues.put(legacyServiceName, safeAmount(event.getServiceValueSnapshot()));
+        }
+        return serviceValues;
+    }
+
+    private BigDecimal safeAmount(BigDecimal amount) {
+        return amount != null ? amount : BigDecimal.ZERO;
     }
 
     private void validatePeriod(LocalDate startDate, LocalDate endDate) {

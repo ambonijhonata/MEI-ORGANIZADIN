@@ -61,13 +61,14 @@ public class GoogleCalendarClient {
             do {
                 Calendar.Events.List request = calendarService.events().list("primary")
                         .setSingleEvents(true)
-                        .setOrderBy("startTime")
                         .setMaxResults(maxResults)
                         .setFields(requestFields);
 
-                if (syncToken != null) {
+                if (syncToken != null && !syncToken.isBlank()) {
                     request.setSyncToken(syncToken);
+                    request.setShowDeleted(true);
                 } else {
+                    request.setOrderBy("startTime");
                     request.setPageToken(pageToken);
                     if (startDate != null) {
                         Instant startDateUtc = startDate.atStartOfDay(ZoneOffset.UTC).toInstant();

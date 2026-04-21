@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
@@ -34,6 +35,7 @@ class CalendarSyncServiceExtendedTest {
 
     @Mock private GoogleCalendarClient googleCalendarClient;
     @Mock private CalendarEventRepository calendarEventRepository;
+    @Mock private CalendarEventPaymentRepository calendarEventPaymentRepository;
     @Mock private SyncStateRepository syncStateRepository;
     @Mock private CalendarEventServiceMatcher matcher;
     @Mock private ServiceDescriptionNormalizer normalizer;
@@ -46,11 +48,15 @@ class CalendarSyncServiceExtendedTest {
     @BeforeEach
     void setUp() {
         syncService = new CalendarSyncService(googleCalendarClient, calendarEventRepository,
-                syncStateRepository, matcher, normalizer, userRepository, titleParser, clientService);
+                syncStateRepository, matcher, normalizer, userRepository, titleParser, clientService, calendarEventPaymentRepository);
 
         lenient().when(calendarEventRepository.findWithAssociationsByUserIdAndGoogleEventIdIn(anyLong(), anyCollection()))
                 .thenReturn(List.of());
         lenient().when(calendarEventRepository.findAllWithAssociationsByUserId(anyLong()))
+                .thenReturn(List.of());
+        lenient().when(calendarEventRepository.findGoogleBackedByUserId(anyLong()))
+                .thenReturn(List.of());
+        lenient().when(calendarEventRepository.findGoogleBackedByUserIdAndEventStartGreaterThanEqual(anyLong(), any(Instant.class)))
                 .thenReturn(List.of());
         lenient().when(clientService.clientsByNormalizedName(anyLong())).thenReturn(new HashMap<>());
         lenient().when(matcher.servicesByNormalizedDescription(anyLong())).thenReturn(new HashMap<>());
@@ -263,7 +269,7 @@ class CalendarSyncServiceExtendedTest {
 
         CalendarSyncService.SyncResult result = syncService.synchronize(1L);
 
-        assertEquals(1, result.deleted());
+        assertEquals(0, result.deleted());
         verify(calendarEventRepository, never()).deleteAllInBatch(anyList());
     }
 

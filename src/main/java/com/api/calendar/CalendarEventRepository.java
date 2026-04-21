@@ -25,6 +25,22 @@ public interface CalendarEventRepository extends JpaRepository<CalendarEvent, Lo
             "WHERE e.user.id = :userId")
     List<CalendarEvent> findAllWithAssociationsByUserId(@Param("userId") Long userId);
 
+    @Query("SELECT e FROM CalendarEvent e " +
+            "WHERE e.user.id = :userId " +
+            "AND e.googleEventId IS NOT NULL " +
+            "AND e.googleEventId <> ''")
+    List<CalendarEvent> findGoogleBackedByUserId(@Param("userId") Long userId);
+
+    @Query("SELECT e FROM CalendarEvent e " +
+            "WHERE e.user.id = :userId " +
+            "AND e.googleEventId IS NOT NULL " +
+            "AND e.googleEventId <> '' " +
+            "AND e.eventStart >= :startDate")
+    List<CalendarEvent> findGoogleBackedByUserIdAndEventStartGreaterThanEqual(
+            @Param("userId") Long userId,
+            @Param("startDate") Instant startDate
+    );
+
     @Query("SELECT DISTINCT e FROM CalendarEvent e " +
             "LEFT JOIN FETCH e.service legacyService " +
             "LEFT JOIN FETCH e.serviceLinks serviceLink " +
@@ -74,6 +90,15 @@ public interface CalendarEventRepository extends JpaRepository<CalendarEvent, Lo
     List<CalendarEvent> findIdentifiedByUserAndPeriod(@Param("userId") Long userId,
                                                        @Param("startDate") Instant startDate,
                                                        @Param("endDate") Instant endDate);
+
+    @Query("SELECT DISTINCT e FROM CalendarEvent e " +
+            "LEFT JOIN FETCH e.serviceLinks serviceLink " +
+            "WHERE e.user.id = :userId AND e.identified = true " +
+            "AND e.eventStart >= :startDate AND e.eventStart < :endDate " +
+            "ORDER BY e.eventStart ASC")
+    List<CalendarEvent> findIdentifiedWithServiceLinksByUserAndPeriod(@Param("userId") Long userId,
+                                                                       @Param("startDate") Instant startDate,
+                                                                       @Param("endDate") Instant endDate);
 
     Optional<CalendarEvent> findByIdAndUserId(Long id, Long userId);
 }

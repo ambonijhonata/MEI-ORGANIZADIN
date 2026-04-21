@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+import java.time.Instant;
 import java.util.stream.IntStream;
 
 import static org.mockito.ArgumentMatchers.anyCollection;
@@ -31,6 +32,7 @@ class CalendarSyncServiceLoadTest {
 
     @Mock private GoogleCalendarClient googleCalendarClient;
     @Mock private CalendarEventRepository calendarEventRepository;
+    @Mock private CalendarEventPaymentRepository calendarEventPaymentRepository;
     @Mock private SyncStateRepository syncStateRepository;
     @Mock private CalendarEventServiceMatcher matcher;
     @Mock private ServiceDescriptionNormalizer normalizer;
@@ -49,6 +51,7 @@ class CalendarSyncServiceLoadTest {
                 userRepository,
                 titleParser,
                 clientService,
+                calendarEventPaymentRepository,
                 500,
                 false
         );
@@ -62,6 +65,10 @@ class CalendarSyncServiceLoadTest {
         lenient().when(calendarEventRepository.findWithAssociationsByUserIdAndGoogleEventIdIn(anyLong(), anyCollection()))
                 .thenReturn(List.of());
         lenient().when(calendarEventRepository.findAllWithAssociationsByUserId(anyLong()))
+                .thenReturn(List.of());
+        lenient().when(calendarEventRepository.findGoogleBackedByUserId(anyLong()))
+                .thenReturn(List.of());
+        lenient().when(calendarEventRepository.findGoogleBackedByUserIdAndEventStartGreaterThanEqual(anyLong(), org.mockito.ArgumentMatchers.any(Instant.class)))
                 .thenReturn(List.of());
         lenient().when(clientService.clientsByNormalizedName(anyLong())).thenReturn(new HashMap<>());
         lenient().when(matcher.servicesByNormalizedDescription(anyLong())).thenReturn(new HashMap<>());
