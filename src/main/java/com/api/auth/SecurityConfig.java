@@ -34,7 +34,13 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/login", "/api/auth/google", "/api/auth/callback").permitAll()
+                        .requestMatchers(
+                                "/api/auth/login",
+                                "/api/auth/refresh",
+                                "/api/auth/logout",
+                                "/api/auth/google",
+                                "/api/auth/callback"
+                        ).permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                         .anyRequest().authenticated()
                 )
@@ -47,26 +53,12 @@ public class SecurityConfig {
     @Bean
     public AuthenticationEntryPoint unauthorizedEntryPoint() {
         return (request, response, authException) -> {
-            Object verificationUnavailable = request.getAttribute(GoogleIdTokenAuthenticationFilter.ATTR_AUTH_VERIFICATION_UNAVAILABLE);
-            if (Boolean.TRUE.equals(verificationUnavailable)) {
-                response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
-                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                Map<String, Object> body = Map.of(
-                        "status", 503,
-                        "code", "AUTH_VERIFICATION_UNAVAILABLE",
-                        "message", "Authentication verification temporarily unavailable. Please retry.",
-                        "timestamp", Instant.now().toString()
-                );
-                objectMapper.writeValue(response.getOutputStream(), body);
-                return;
-            }
-
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             Map<String, Object> body = Map.of(
                     "status", 401,
                     "code", "UNAUTHORIZED",
-                    "message", "Authentication required. Provide a valid Google ID Token in the Authorization header.",
+                    "message", "Authentication required. Provide a valid access token in the Authorization header.",
                     "timestamp", Instant.now().toString()
             );
             objectMapper.writeValue(response.getOutputStream(), body);

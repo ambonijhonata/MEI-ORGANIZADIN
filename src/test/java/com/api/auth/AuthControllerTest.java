@@ -30,13 +30,15 @@ class AuthControllerTest {
     @Mock private GoogleOAuthClient googleOAuthClient;
     @Mock private OAuthCredentialRepository oauthCredentialRepository;
     @Mock private SyncStateRepository syncStateRepository;
+    @Mock private AccessTokenService accessTokenService;
+    @Mock private RefreshTokenService refreshTokenService;
 
     private AuthController authController;
 
     @BeforeEach
     void setUp() {
         authController = new AuthController(tokenValidator, userRepository, googleOAuthClient,
-                oauthCredentialRepository, syncStateRepository);
+                oauthCredentialRepository, syncStateRepository, accessTokenService, refreshTokenService);
     }
 
     @Test
@@ -61,12 +63,15 @@ class AuthControllerTest {
         when(oauthCredentialRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(syncStateRepository.findByUserId(any())).thenReturn(Optional.empty());
 
-        var request = new AuthController.LoginRequest("valid-token", "auth-code");
+        var request = new AuthController.LoginRequest("valid-token", "auth-code", null, null);
+        stubSessionIssuance(user);
         var response = authController.login(request);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("user@test.com", response.getBody().email());
         assertEquals("Test User", response.getBody().name());
+        assertEquals("access-session-token", response.getBody().accessToken());
+        assertEquals("refresh-session-token", response.getBody().refreshToken());
     }
 
     @Test
@@ -91,7 +96,8 @@ class AuthControllerTest {
         when(oauthCredentialRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(syncStateRepository.findByUserId(any())).thenReturn(Optional.empty());
 
-        var request = new AuthController.LoginRequest("valid-token", "auth-code");
+        var request = new AuthController.LoginRequest("valid-token", "auth-code", null, null);
+        stubSessionIssuance(existing);
         var response = authController.login(request);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
@@ -119,7 +125,8 @@ class AuthControllerTest {
         when(oauthCredentialRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(syncStateRepository.findByUserId(any())).thenReturn(Optional.empty());
 
-        var request = new AuthController.LoginRequest("valid-token", "auth-code");
+        var request = new AuthController.LoginRequest("valid-token", "auth-code", null, null);
+        stubSessionIssuance(user);
         var response = authController.login(request);
 
         assertEquals("user@test.com", response.getBody().name());
@@ -129,7 +136,7 @@ class AuthControllerTest {
     void shouldThrowInvalidTokenOnBadToken() {
         when(tokenValidator.validate("bad-token")).thenReturn(Optional.empty());
 
-        var request = new AuthController.LoginRequest("bad-token", "auth-code");
+        var request = new AuthController.LoginRequest("bad-token", "auth-code", null, null);
         assertThrows(AuthController.InvalidTokenException.class, () -> authController.login(request));
     }
 
@@ -147,7 +154,7 @@ class AuthControllerTest {
         when(userRepository.save(any(User.class))).thenReturn(user);
         when(googleOAuthClient.exchangeAuthorizationCode("bad-code")).thenThrow(new IOException("exchange failed"));
 
-        var request = new AuthController.LoginRequest("valid-token", "bad-code");
+        var request = new AuthController.LoginRequest("valid-token", "bad-code", null, null);
         assertThrows(AuthController.OAuthExchangeException.class, () -> authController.login(request));
     }
 
@@ -177,7 +184,8 @@ class AuthControllerTest {
         when(syncStateRepository.findByUserId(any())).thenReturn(Optional.of(syncState));
         when(syncStateRepository.save(any())).thenReturn(syncState);
 
-        var request = new AuthController.LoginRequest("valid-token", "auth-code");
+        var request = new AuthController.LoginRequest("valid-token", "auth-code", null, null);
+        stubSessionIssuance(user);
         authController.login(request);
 
         assertEquals(SyncStatus.SYNCED, syncState.getStatus());
@@ -209,10 +217,34 @@ class AuthControllerTest {
         when(oauthCredentialRepository.save(any())).thenReturn(existingCred);
         when(syncStateRepository.findByUserId(any())).thenReturn(Optional.empty());
 
-        var request = new AuthController.LoginRequest("valid-token", "auth-code");
+        var request = new AuthController.LoginRequest("valid-token", "auth-code", null, null);
+        stubSessionIssuance(user);
         authController.login(request);
 
         assertEquals("new-access", existingCred.getAccessToken());
         assertEquals("new-refresh", existingCred.getRefreshToken());
+    }
+
+    @Test
+    void logoutShouldRevokeRefreshToken() {
+        var request = new AuthController.LogoutRequest("refresh-session-token");
+
+        var response = authController.logout(request);
+
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+        verify(refreshTokenService).revoke("refresh-session-token", "LOGOUT");
+    }
+    private void stubSessionIssuance(User user) {
+        when(accessTokenService.issue(any())).thenReturn(
+                new AccessTokenService.IssuedAccessToken("access-session-token", java.time.Instant.now().plusSeconds(900))
+        );
+        when(refreshTokenService.issueForUser(eq(user), any())).thenReturn(
+                new RefreshTokenService.IssuedRefreshToken(
+                        "refresh-session-token",
+                        java.time.Instant.now().plusSeconds(2592000),
+                        java.util.UUID.randomUUID(),
+                        user
+                )
+        );
     }
 }

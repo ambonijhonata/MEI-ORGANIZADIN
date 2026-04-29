@@ -51,3 +51,9 @@ calendar:
 
 server:
   port: ${SERVER_PORT:8080}
+
+auth:
+  session:
+    jwt-secret: ${AUTH_SESSION_JWT_SECRET:change-me-change-me-change-me-change-me}
+    access-token-ttl-seconds: ${AUTH_SESSION_ACCESS_TOKEN_TTL_SECONDS:900}
+    refresh-token-ttl-seconds: ${AUTH_SESSION_REFRESH_TOKEN_TTL_SECONDS:2592000}

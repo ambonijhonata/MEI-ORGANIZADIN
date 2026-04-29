@@ -18,12 +18,12 @@ public class OpenApiConfig {
                         .version("1.0.0")
                         .description("API backend para acompanhamento de faturamento e fluxo de caixa " +
                                 "a partir de agendamentos do Google Agenda. " +
-                                "Autenticação via Google ID Token como Bearer."))
+                                "Autenticacao via access token de sessao emitido pelo backend."))
                 .addSecurityItem(new SecurityRequirement().addList("bearer-token"))
                 .schemaRequirement("bearer-token", new SecurityScheme()
                         .type(SecurityScheme.Type.HTTP)
                         .scheme("bearer")
-                        .bearerFormat("Google ID Token")
-                        .description("Insira o Google ID Token obtido pelo app Android"));
+                        .bearerFormat("Session Access Token")
+                        .description("Insira o access token retornado por /api/auth/login ou /api/auth/refresh"));
     }
 }

@@ -36,6 +36,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(error);
     }
 
+    @ExceptionHandler(AuthController.RefreshTokenException.class)
+    public ResponseEntity<ErrorResponse> handleRefreshToken(AuthController.RefreshTokenException ex) {
+        var error = new ErrorResponse(
+                HttpStatus.UNAUTHORIZED.value(),
+                ex.getCode(),
+                ex.getMessage(),
+                Instant.now()
+        );
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException ex) {
         var error = new ErrorResponse(

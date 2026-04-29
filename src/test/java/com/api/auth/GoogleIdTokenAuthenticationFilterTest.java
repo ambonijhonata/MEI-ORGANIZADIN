@@ -1,6 +1,4 @@
 package com.api.auth;
-
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,31 +18,26 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class GoogleIdTokenAuthenticationFilterTest {
 
-    @Mock private GoogleIdTokenValidator tokenValidator;
-    @Mock private AuthenticatedUserResolver userResolver;
+    @Mock private AccessTokenService accessTokenService;
     @Mock private FilterChain filterChain;
 
     private GoogleIdTokenAuthenticationFilter filter;
 
     @BeforeEach
     void setUp() {
-        filter = new GoogleIdTokenAuthenticationFilter(tokenValidator, userResolver);
+        filter = new GoogleIdTokenAuthenticationFilter(accessTokenService);
         SecurityContextHolder.clearContext();
     }
 
     @Test
-    void shouldAuthenticateWithValidBearerToken() throws ServletException, IOException {
+    void shouldAuthenticateWithValidAccessToken() throws ServletException, IOException {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.addHeader("Authorization", "Bearer valid-token");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        GoogleIdToken.Payload payload = new GoogleIdToken.Payload();
-        payload.setSubject("sub-1");
-        when(tokenValidator.validateDetailed("valid-token"))
-                .thenReturn(GoogleIdTokenValidator.ValidationResult.valid(payload));
-
         AuthenticatedUser authUser = new AuthenticatedUser(1L, "sub-1", "email@test.com", "Name");
-        when(userResolver.resolve(payload)).thenReturn(authUser);
+        when(accessTokenService.validate("valid-token"))
+                .thenReturn(AccessTokenService.AccessTokenValidationResult.valid(authUser));
 
         filter.doFilterInternal(request, response, filterChain);
 
@@ -59,8 +52,8 @@ class GoogleIdTokenAuthenticationFilterTest {
         request.addHeader("Authorization", "Bearer invalid-token");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        when(tokenValidator.validateDetailed("invalid-token"))
-                .thenReturn(GoogleIdTokenValidator.ValidationResult.invalid(new RuntimeException("invalid")));
+        when(accessTokenService.validate("invalid-token"))
+                .thenReturn(AccessTokenService.AccessTokenValidationResult.invalid("invalid"));
 
         filter.doFilterInternal(request, response, filterChain);
 

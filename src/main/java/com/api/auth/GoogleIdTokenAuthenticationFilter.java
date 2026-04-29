@@ -1,6 +1,4 @@
 package com.api.auth;
-
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,17 +16,14 @@ import java.util.Collections;
 @Component
 public class GoogleIdTokenAuthenticationFilter extends OncePerRequestFilter {
 
-    public static final String ATTR_AUTH_VERIFICATION_UNAVAILABLE = "auth.verification.unavailable";
-
     private static final Logger log = LoggerFactory.getLogger(GoogleIdTokenAuthenticationFilter.class);
 
-    private final GoogleIdTokenValidator tokenValidator;
-    private final AuthenticatedUserResolver userResolver;
+    private final AccessTokenService accessTokenService;
 
-    public GoogleIdTokenAuthenticationFilter(GoogleIdTokenValidator tokenValidator,
-                                              AuthenticatedUserResolver userResolver) {
-        this.tokenValidator = tokenValidator;
-        this.userResolver = userResolver;
+    public GoogleIdTokenAuthenticationFilter(
+            AccessTokenService accessTokenService
+    ) {
+        this.accessTokenService = accessTokenService;
     }
 
     @Override
@@ -39,30 +34,18 @@ public class GoogleIdTokenAuthenticationFilter extends OncePerRequestFilter {
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
-            GoogleIdTokenValidator.ValidationResult validation = tokenValidator.validateDetailed(token);
-            switch (validation.status()) {
-                case VALID -> {
-                    AuthenticatedUser authenticatedUser = userResolver.resolve(validation.payload());
-                    var authentication = new UsernamePasswordAuthenticationToken(
-                            authenticatedUser, null, Collections.emptyList()
-                    );
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                    log.debug("auth_id_token_validation result=valid method={} path={}", request.getMethod(), request.getRequestURI());
-                }
-                case INVALID -> {
-                    log.debug("auth_id_token_validation result=invalid method={} path={}", request.getMethod(), request.getRequestURI());
-                }
-                case UNAVAILABLE -> {
-                    request.setAttribute(ATTR_AUTH_VERIFICATION_UNAVAILABLE, Boolean.TRUE);
-                    log.warn(
-                            "auth_id_token_validation result=io_failure method={} path={} error={}",
-                            request.getMethod(),
-                            request.getRequestURI(),
-                            validation.exception() != null ? validation.exception().getMessage() : null,
-                            validation.exception()
-                    );
-                }
+            AccessTokenService.AccessTokenValidationResult accessValidation = accessTokenService.validate(token);
+            if (accessValidation.status() == AccessTokenService.TokenStatus.VALID && accessValidation.principal() != null) {
+                var authentication = new UsernamePasswordAuthenticationToken(
+                        accessValidation.principal(), null, Collections.emptyList()
+                );
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+                log.debug("auth_access_token_validation result=valid method={} path={}", request.getMethod(), request.getRequestURI());
+                filterChain.doFilter(request, response);
+                return;
             }
+            log.debug("auth_access_token_validation result={} method={} path={}",
+                    accessValidation.status(), request.getMethod(), request.getRequestURI());
         }
 
         filterChain.doFilter(request, response);
