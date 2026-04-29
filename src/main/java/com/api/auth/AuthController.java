@@ -113,9 +113,14 @@ public class AuthController {
                 request.refreshToken(),
                 request.metadataOrEmpty()
         );
-        if (rotation.status() != RefreshTokenService.RotationStatus.SUCCESS || rotation.issuedToken() == null) {
+        if (!rotation.isSuccessful() || rotation.issuedToken() == null) {
             throw RefreshTokenException.fromStatus(rotation.status());
         }
+        log.info(
+                "auth_refresh_result status={} retrySafe={}",
+                rotation.status(),
+                rotation.retrySafe()
+        );
 
         User user = rotation.issuedToken().user();
         AuthenticatedUser principal = new AuthenticatedUser(
@@ -275,6 +280,7 @@ public class AuthController {
                 case REVOKED -> new RefreshTokenException("REFRESH_TOKEN_REVOKED", "Refresh token is revoked");
                 case REUSED -> new RefreshTokenException("REFRESH_TOKEN_REUSED", "Refresh token reuse detected");
                 case EXPIRED -> new RefreshTokenException("REFRESH_TOKEN_EXPIRED", "Refresh token is expired");
+                case SUCCESS, RETRY_SAFE_SUCCESS -> new RefreshTokenException("REFRESH_TOKEN_INVALID", "Refresh token is invalid");
                 default -> new RefreshTokenException("REFRESH_TOKEN_INVALID", "Refresh token is invalid");
             };
         }

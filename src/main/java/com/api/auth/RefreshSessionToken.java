@@ -135,4 +135,20 @@ public class RefreshSessionToken {
     public UUID getReplacedByTokenId() {
         return replacedByTokenId;
     }
+
+    public String getDeviceId() {
+        return deviceId;
+    }
+
+    public String getAppVersion() {
+        return appVersion;
+    }
+
+    public String getCreatedIp() {
+        return createdIp;
+    }
+
+    public String getCreatedUserAgent() {
+        return createdUserAgent;
+    }
 }

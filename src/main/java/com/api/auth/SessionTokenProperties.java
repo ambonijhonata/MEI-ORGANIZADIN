@@ -9,6 +9,7 @@ public class SessionTokenProperties {
     private String jwtSecret = "change-me-change-me-change-me-change-me";
     private long accessTokenTtlSeconds = 900;
     private long refreshTokenTtlSeconds = 2_592_000;
+    private long refreshRetrySafetyWindowSeconds = 20;
 
     public String getJwtSecret() {
         return jwtSecret;
@@ -32,5 +33,13 @@ public class SessionTokenProperties {
 
     public void setRefreshTokenTtlSeconds(long refreshTokenTtlSeconds) {
         this.refreshTokenTtlSeconds = refreshTokenTtlSeconds;
+    }
+
+    public long getRefreshRetrySafetyWindowSeconds() {
+        return refreshRetrySafetyWindowSeconds;
+    }
+
+    public void setRefreshRetrySafetyWindowSeconds(long refreshRetrySafetyWindowSeconds) {
+        this.refreshRetrySafetyWindowSeconds = refreshRetrySafetyWindowSeconds;
     }
 }
