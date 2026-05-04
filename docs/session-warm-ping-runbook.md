@@ -43,7 +43,7 @@ Track these indicators before and after warm ping rollout:
 
 ## Validation Checklist
 
-1. Confirm `GET /healthz` returns HTTP 200 with JSON `{ "status": "ok", ... }`.
+1. Confirm `GET /healthz` returns HTTP 200 with body `true`.
 2. Confirm workflow executes on schedule.
 3. Confirm failed pings are visible in Actions run history.
 4. Compare auth refresh incident frequency before and after deployment.

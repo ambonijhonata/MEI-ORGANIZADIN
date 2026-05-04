@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = {HealthController.class, HealthEndpointSecurityTest.ProtectedTestController.class})
@@ -30,7 +29,7 @@ class HealthEndpointSecurityTest {
         mockMvc.perform(get("/healthz"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.status").value("ok"));
+                .andExpect(content().string("true"));
     }
 
     @Test
