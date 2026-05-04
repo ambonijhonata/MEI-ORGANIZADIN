@@ -109,11 +109,18 @@ public class AuthController {
             }
     )
     public ResponseEntity<RefreshResponse> refresh(@Valid @RequestBody RefreshRequest request) {
-        RefreshTokenService.RotationResult rotation = refreshTokenService.rotate(
-                request.refreshToken(),
-                request.metadataOrEmpty()
-        );
-        if (!rotation.isSuccessful() || rotation.issuedToken() == null) {
+        final RefreshTokenService.RotationResult rotation;
+        try {
+            rotation = refreshTokenService.rotate(
+                    request.refreshToken(),
+                    request.metadataOrEmpty()
+            );
+        } catch (RuntimeException ex) {
+            log.warn("auth_refresh_result status=RETRYABLE_FAILURE message={}", ex.getMessage());
+            throw new RefreshRetryableException("Refresh temporarily unavailable");
+        }
+
+        if (!rotation.isSuccessful() || rotation.issuedToken() == null || rotation.issuedToken().principal() == null) {
             throw RefreshTokenException.fromStatus(rotation.status());
         }
         log.info(
@@ -122,13 +129,7 @@ public class AuthController {
                 rotation.retrySafe()
         );
 
-        User user = rotation.issuedToken().user();
-        AuthenticatedUser principal = new AuthenticatedUser(
-                user.getId(),
-                user.getGoogleSub(),
-                user.getEmail(),
-                user.getName()
-        );
+        AuthenticatedUser principal = rotation.issuedToken().principal();
         AccessTokenService.IssuedAccessToken accessToken = accessTokenService.issue(principal);
         return ResponseEntity.ok(
                 new RefreshResponse(
@@ -283,6 +284,12 @@ public class AuthController {
                 case SUCCESS, RETRY_SAFE_SUCCESS -> new RefreshTokenException("REFRESH_TOKEN_INVALID", "Refresh token is invalid");
                 default -> new RefreshTokenException("REFRESH_TOKEN_INVALID", "Refresh token is invalid");
             };
+        }
+    }
+
+    public static class RefreshRetryableException extends RuntimeException {
+        public RefreshRetryableException(String message) {
+            super(message);
         }
     }
 }

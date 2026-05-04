@@ -47,6 +47,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
     }
 
+    @ExceptionHandler(AuthController.RefreshRetryableException.class)
+    public ResponseEntity<ErrorResponse> handleRefreshRetryable(AuthController.RefreshRetryableException ex) {
+        var error = new ErrorResponse(
+                HttpStatus.SERVICE_UNAVAILABLE.value(),
+                "REFRESH_RETRYABLE",
+                ex.getMessage(),
+                Instant.now()
+        );
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(error);
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException ex) {
         var error = new ErrorResponse(

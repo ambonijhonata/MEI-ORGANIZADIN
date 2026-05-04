@@ -16,10 +16,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -234,6 +237,49 @@ class AuthControllerTest {
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
         verify(refreshTokenService).revoke("refresh-session-token", "LOGOUT");
     }
+
+    @Test
+    void refreshShouldIssueAccessTokenFromDetachedPrincipal() {
+        var request = new AuthController.RefreshRequest("refresh-token", null, null);
+        var principal = new AuthenticatedUser(1L, "g-sub", "user@test.com", "User");
+        var issuedRefresh = new RefreshTokenService.IssuedRefreshToken(
+                "new-refresh",
+                Instant.now().plusSeconds(3600),
+                UUID.randomUUID(),
+                principal
+        );
+        when(refreshTokenService.rotate(eq("refresh-token"), any()))
+                .thenReturn(RefreshTokenService.RotationResult.success(issuedRefresh));
+        when(accessTokenService.issue(principal))
+                .thenReturn(new AccessTokenService.IssuedAccessToken("new-access", Instant.now().plusSeconds(900)));
+
+        var response = authController.refresh(request);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("new-access", response.getBody().accessToken());
+        assertEquals("new-refresh", response.getBody().refreshToken());
+    }
+
+    @Test
+    void refreshShouldTranslateRuntimeFailuresToRetryableException() {
+        var request = new AuthController.RefreshRequest("refresh-token", null, null);
+        when(refreshTokenService.rotate(eq("refresh-token"), any()))
+                .thenThrow(new RuntimeException("database unavailable"));
+
+        var ex = assertThrows(AuthController.RefreshRetryableException.class, () -> authController.refresh(request));
+        assertEquals("Refresh temporarily unavailable", ex.getMessage());
+    }
+
+    @Test
+    void refreshShouldKeepTerminalStatusesAsRefreshTokenException() {
+        var request = new AuthController.RefreshRequest("refresh-token", null, null);
+        when(refreshTokenService.rotate(eq("refresh-token"), any()))
+                .thenReturn(RefreshTokenService.RotationResult.expired());
+
+        var ex = assertThrows(AuthController.RefreshTokenException.class, () -> authController.refresh(request));
+        assertEquals("REFRESH_TOKEN_EXPIRED", ex.getCode());
+    }
+
     private void stubSessionIssuance(User user) {
         when(accessTokenService.issue(any())).thenReturn(
                 new AccessTokenService.IssuedAccessToken("access-session-token", java.time.Instant.now().plusSeconds(900))
@@ -243,7 +289,7 @@ class AuthControllerTest {
                         "refresh-session-token",
                         java.time.Instant.now().plusSeconds(2592000),
                         java.util.UUID.randomUUID(),
-                        user
+                        new AuthenticatedUser(user.getId(), user.getGoogleSub(), user.getEmail(), user.getName())
                 )
         );
     }

@@ -46,7 +46,12 @@ public class RefreshTokenService {
                 metadata != null ? metadata : RefreshTokenMetadata.empty()
         );
         repository.save(entity);
-        return new IssuedRefreshToken(plainToken, expiresAt, entity.getId(), user);
+        return new IssuedRefreshToken(
+                plainToken,
+                expiresAt,
+                entity.getId(),
+                new AuthenticatedUser(user.getId(), user.getGoogleSub(), user.getEmail(), user.getName())
+        );
     }
 
     @Transactional
@@ -146,7 +151,7 @@ public class RefreshTokenService {
                     replacement.getId()
             );
             return RotationResult.retrySafeSuccess(
-                    new IssuedRefreshToken(newRawToken, newExpiresAt, replacement.getId(), activeToken.getUser())
+                    new IssuedRefreshToken(newRawToken, newExpiresAt, replacement.getId(), toPrincipal(activeToken.getUser()))
             );
         }
 
@@ -157,7 +162,16 @@ public class RefreshTokenService {
                 replacement.getId()
         );
         return RotationResult.success(
-                new IssuedRefreshToken(newRawToken, newExpiresAt, replacement.getId(), activeToken.getUser())
+                new IssuedRefreshToken(newRawToken, newExpiresAt, replacement.getId(), toPrincipal(activeToken.getUser()))
+        );
+    }
+
+    private AuthenticatedUser toPrincipal(User user) {
+        return new AuthenticatedUser(
+                user.getId(),
+                user.getGoogleSub(),
+                user.getEmail(),
+                user.getName()
         );
     }
 
@@ -236,7 +250,7 @@ public class RefreshTokenService {
             String token,
             Instant expiresAt,
             UUID tokenId,
-            User user
+            AuthenticatedUser principal
     ) {
     }
 

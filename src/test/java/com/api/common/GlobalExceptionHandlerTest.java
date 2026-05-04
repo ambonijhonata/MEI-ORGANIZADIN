@@ -48,6 +48,16 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void shouldHandleRetryableRefreshWith503() {
+        var ex = new AuthController.RefreshRetryableException("Refresh temporarily unavailable");
+        var response = handler.handleRefreshRetryable(ex);
+
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, response.getStatusCode());
+        assertEquals(503, response.getBody().status());
+        assertEquals("REFRESH_RETRYABLE", response.getBody().code());
+    }
+
+    @Test
     void shouldHandleNotFoundWith404() {
         var ex = new ResourceNotFoundException("Not found");
         var response = handler.handleNotFound(ex);

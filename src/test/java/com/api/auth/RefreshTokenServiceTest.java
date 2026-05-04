@@ -57,6 +57,8 @@ class RefreshTokenServiceTest {
 
         assertEquals(RefreshTokenService.RotationStatus.SUCCESS, rotation.status());
         assertNotNull(rotation.issuedToken());
+        assertNotNull(rotation.issuedToken().principal());
+        assertEquals("sub-1", rotation.issuedToken().principal().googleSub());
         assertNotNull(current.getReplacedByTokenId());
         assertNotNull(current.getRevokedAt());
         assertEquals("ROTATED", current.getRevokedReason());
