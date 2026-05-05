@@ -76,6 +76,10 @@ public class CashFlowReportService {
 
             List<ServiceEntry> services = entry.getValue().entrySet().stream()
                     .map(e -> new ServiceEntry(e.getKey(), e.getValue()))
+                    .sorted(
+                            Comparator.comparing(ServiceEntry::total, Comparator.reverseOrder())
+                                    .thenComparing(ServiceEntry::name)
+                    )
                     .toList();
 
             entries.add(new DailyEntry(entry.getKey(), dayTotal, services));

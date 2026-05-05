@@ -84,10 +84,16 @@ class CashFlowReportServiceTest {
         CashFlowReportService.DailyEntry day1Entry = report.entries().get(0);
         assertEquals(new BigDecimal("130.00"), day1Entry.total());
         assertEquals(2, day1Entry.services().size());
+        assertEquals("Corte", day1Entry.services().get(0).name());
+        assertEquals(new BigDecimal("100.00"), day1Entry.services().get(0).total());
+        assertEquals("Barba", day1Entry.services().get(1).name());
+        assertEquals(new BigDecimal("30.00"), day1Entry.services().get(1).total());
 
         CashFlowReportService.DailyEntry day2Entry = report.entries().get(1);
         assertEquals(new BigDecimal("50.00"), day2Entry.total());
         assertEquals(1, day2Entry.services().size());
+        assertEquals("Corte", day2Entry.services().get(0).name());
+        assertEquals(new BigDecimal("50.00"), day2Entry.services().get(0).total());
 
         CashFlowReportService.DailyEntry day3Entry = report.entries().get(2);
         assertEquals(BigDecimal.ZERO, day3Entry.total());
