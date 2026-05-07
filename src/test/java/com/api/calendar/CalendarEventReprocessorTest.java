@@ -21,6 +21,7 @@ import static org.mockito.Mockito.*;
 class CalendarEventReprocessorTest {
 
     @Mock private CalendarEventRepository calendarEventRepository;
+    @Mock private CalendarEventServiceLinkRepository calendarEventServiceLinkRepository;
     @Mock private CalendarEventServiceMatcher matcher;
     @Mock private EventTitleParser titleParser;
     @Mock private ServiceDescriptionNormalizer normalizer;
@@ -29,7 +30,14 @@ class CalendarEventReprocessorTest {
 
     @BeforeEach
     void setUp() {
-        reprocessor = new CalendarEventReprocessor(calendarEventRepository, matcher, titleParser, normalizer);
+        reprocessor = new CalendarEventReprocessor(
+                calendarEventRepository,
+                calendarEventServiceLinkRepository,
+                matcher,
+                titleParser,
+                normalizer,
+                new UserScopedExecutionLock()
+        );
     }
 
     @Test
@@ -57,6 +65,7 @@ class CalendarEventReprocessorTest {
         assertEquals(new BigDecimal("80.00"), event.getServiceValueSnapshot());
         assertEquals(PaymentType.PIX, event.getPaymentType());
         verify(calendarEventRepository).saveAll(List.of(event));
+        verify(calendarEventServiceLinkRepository, never()).deleteInBulkByCalendarEventIdIn(anySet());
     }
 
     @Test
@@ -75,6 +84,7 @@ class CalendarEventReprocessorTest {
         assertFalse(event.isIdentified());
         assertNull(event.getPaymentType());
         verify(calendarEventRepository).saveAll(List.of(event));
+        verify(calendarEventServiceLinkRepository, never()).deleteInBulkByCalendarEventIdIn(anySet());
     }
 
     @Test
@@ -85,5 +95,42 @@ class CalendarEventReprocessorTest {
         reprocessor.reprocessUnidentifiedEvents(1L);
 
         verify(calendarEventRepository).saveAll(List.of());
+        verify(calendarEventServiceLinkRepository, never()).deleteInBulkByCalendarEventIdIn(anySet());
+    }
+
+    @Test
+    void shouldReplacePersistedServiceLinksBeforeSavingReprocessedEvent() {
+        User user = new User("sub", "email@test.com", "Name");
+        CalendarEvent event = new CalendarEvent(user, "e1", "maria-corte (pix)", "maria-corte (pix)", Instant.now(), Instant.now());
+        setCalendarEventId(event, 77L);
+        Service corte = new Service(user, "Corte", "corte", new BigDecimal("50.00"));
+
+        when(calendarEventRepository.findByUserIdAndIdentifiedFalse(1L)).thenReturn(List.of(event));
+        when(matcher.servicesByNormalizedDescription(1L)).thenReturn(new HashMap<>() {{
+            put("corte", corte);
+        }});
+        when(titleParser.parse("maria-corte (pix)"))
+                .thenReturn(new EventTitleParser.ParsedTitle("maria", List.of("corte"), PaymentType.PIX));
+        when(normalizer.normalize("corte")).thenReturn("corte");
+
+        reprocessor.reprocessUnidentifiedEvents(1L);
+        reprocessor.reprocessUnidentifiedEvents(1L);
+
+        assertEquals(1, event.getServiceLinks().size());
+        var inOrder = inOrder(calendarEventServiceLinkRepository, calendarEventRepository);
+        inOrder.verify(calendarEventServiceLinkRepository)
+                .deleteInBulkByCalendarEventIdIn(argThat(ids -> ids != null && ids.size() == 1 && ids.contains(77L)));
+        inOrder.verify(calendarEventServiceLinkRepository).flush();
+        inOrder.verify(calendarEventRepository).saveAll(List.of(event));
+    }
+
+    private void setCalendarEventId(CalendarEvent event, Long eventId) {
+        try {
+            var idField = CalendarEvent.class.getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(event, eventId);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("Failed to set CalendarEvent id for test setup", e);
+        }
     }
 }

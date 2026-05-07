@@ -9,6 +9,7 @@ import com.api.calendar.PaymentType;
 import com.api.calendar.SyncState;
 import com.api.calendar.SyncStateRepository;
 import com.api.user.User;
+import com.api.servicecatalog.Service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -210,6 +211,63 @@ class CashFlowReportServiceExtendedTest {
         );
 
         assertFalse(report.syncMetadata().dataUpToDate());
+    }
+
+    @Test
+    void shouldKeepSingleServiceTotalAfterRepeatedCanonicalAssociationUpdates() {
+        User user = new User("sub", "email@test.com", "Name");
+        Service sobrancelha = new Service(user, "Sobrancelha", "sobrancelha", new BigDecimal("48.00"));
+        Instant day = LocalDate.of(2026, 4, 11).atStartOfDay(ZoneOffset.UTC).toInstant().plusSeconds(3600);
+        CalendarEvent event = new CalendarEvent(user, "e1", "rodrigo - sobrancelha", "rodrigo - sobrancelha", day, day.plusSeconds(1800));
+        event.associateServices(List.of(sobrancelha));
+        event.associateServices(List.of(sobrancelha));
+
+        when(calendarEventRepository.findIdentifiedWithServiceLinksByUserAndPeriod(eq(1L), any(), any()))
+                .thenReturn(List.of(event));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.empty());
+
+        CashFlowReportService.CashFlowReport report = reportService.generateReport(
+                1L,
+                LocalDate.of(2026, 4, 11),
+                LocalDate.of(2026, 4, 11),
+                PaymentScope.ALL
+        );
+
+        CashFlowReportService.DailyEntry entry = report.entries().get(0);
+        assertEquals(new BigDecimal("48.00"), entry.total());
+        assertEquals(1, entry.services().size());
+        assertEquals("Sobrancelha", entry.services().get(0).name());
+        assertEquals(new BigDecimal("48.00"), entry.services().get(0).total());
+    }
+
+    @Test
+    void shouldKeepMultiServiceTotalAfterRepeatedCanonicalAssociationUpdates() {
+        User user = new User("sub", "email@test.com", "Name");
+        Service sobrancelha = new Service(user, "Sobrancelha", "sobrancelha", new BigDecimal("48.00"));
+        Service buco = new Service(user, "Buco", "buco", new BigDecimal("23.00"));
+        Instant day = LocalDate.of(2026, 4, 11).atStartOfDay(ZoneOffset.UTC).toInstant().plusSeconds(7200);
+        CalendarEvent event = new CalendarEvent(user, "e2", "helena - sobrancelha + buco", "helena - sobrancelha + buco", day, day.plusSeconds(1800));
+        event.associateServices(List.of(sobrancelha, buco));
+        event.associateServices(List.of(sobrancelha, buco));
+
+        when(calendarEventRepository.findIdentifiedWithServiceLinksByUserAndPeriod(eq(1L), any(), any()))
+                .thenReturn(List.of(event));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.empty());
+
+        CashFlowReportService.CashFlowReport report = reportService.generateReport(
+                1L,
+                LocalDate.of(2026, 4, 11),
+                LocalDate.of(2026, 4, 11),
+                PaymentScope.ALL
+        );
+
+        CashFlowReportService.DailyEntry entry = report.entries().get(0);
+        assertEquals(new BigDecimal("71.00"), entry.total());
+        assertEquals(2, entry.services().size());
+        assertEquals("Sobrancelha", entry.services().get(0).name());
+        assertEquals(new BigDecimal("48.00"), entry.services().get(0).total());
+        assertEquals("Buco", entry.services().get(1).name());
+        assertEquals(new BigDecimal("23.00"), entry.services().get(1).total());
     }
 
     private CalendarEvent mockEventWithLinks(Long id,

@@ -54,6 +54,7 @@ class CalendarSyncServiceLoadTest {
                 clientService,
                 calendarEventPaymentRepository,
                 calendarEventServiceLinkRepository,
+                new UserScopedExecutionLock(),
                 500,
                 false,
                 1

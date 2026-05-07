@@ -46,13 +46,23 @@ class CalendarSyncServiceConcurrencyTest {
     @Mock private ClientService clientService;
 
     private CalendarSyncService syncService;
+    private CalendarEventReprocessor reprocessor;
     private ExecutorService executor;
 
     @BeforeEach
     void setUp() {
+        UserScopedExecutionLock userScopedExecutionLock = new UserScopedExecutionLock();
         syncService = new CalendarSyncService(googleCalendarClient, calendarEventRepository,
                 syncStateRepository, matcher, normalizer, userRepository, titleParser, clientService,
-                calendarEventPaymentRepository, calendarEventServiceLinkRepository);
+                calendarEventPaymentRepository, calendarEventServiceLinkRepository, userScopedExecutionLock);
+        reprocessor = new CalendarEventReprocessor(
+                calendarEventRepository,
+                calendarEventServiceLinkRepository,
+                matcher,
+                titleParser,
+                normalizer,
+                userScopedExecutionLock
+        );
         executor = Executors.newFixedThreadPool(2);
 
         lenient().when(calendarEventRepository.findByUserIdAndGoogleEventIdIn(anyLong(), anyCollection()))
@@ -156,5 +166,53 @@ class CalendarSyncServiceConcurrencyTest {
         second.get(5, TimeUnit.SECONDS);
 
         assertTrue(maxConcurrent.get() >= 2);
+    }
+
+    @Test
+    void shouldSerializeSyncAndReprocessingForSameUser() throws Exception {
+        User user = new User("sub-1", "u1@test.com", "User 1");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        when(calendarEventRepository.findByUserIdAndIdentifiedFalse(1L)).thenReturn(List.of());
+
+        AtomicInteger inFlight = new AtomicInteger(0);
+        AtomicInteger maxConcurrent = new AtomicInteger(0);
+        when(googleCalendarClient.fetchEvents(1L, null)).thenAnswer(inv -> {
+            int current = inFlight.incrementAndGet();
+            maxConcurrent.updateAndGet(existing -> Math.max(existing, current));
+            try {
+                Thread.sleep(150);
+            } finally {
+                inFlight.decrementAndGet();
+            }
+            return new GoogleCalendarClient.CalendarSyncResult(List.of(), "token");
+        });
+        when(matcher.servicesByNormalizedDescription(1L)).thenAnswer(inv -> {
+            int current = inFlight.incrementAndGet();
+            maxConcurrent.updateAndGet(existing -> Math.max(existing, current));
+            try {
+                Thread.sleep(150);
+            } finally {
+                inFlight.decrementAndGet();
+            }
+            return new HashMap<>();
+        });
+
+        CountDownLatch startGate = new CountDownLatch(1);
+        Future<CalendarSyncService.SyncResult> syncFuture = executor.submit(() -> {
+            startGate.await(5, TimeUnit.SECONDS);
+            return syncService.synchronize(1L);
+        });
+        Future<?> reprocessFuture = executor.submit(() -> {
+            startGate.await(5, TimeUnit.SECONDS);
+            reprocessor.reprocessUnidentifiedEvents(1L);
+            return null;
+        });
+
+        startGate.countDown();
+        syncFuture.get(5, TimeUnit.SECONDS);
+        reprocessFuture.get(5, TimeUnit.SECONDS);
+
+        assertEquals(1, maxConcurrent.get());
     }
 }

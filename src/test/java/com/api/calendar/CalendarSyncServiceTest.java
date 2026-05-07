@@ -57,7 +57,7 @@ class CalendarSyncServiceTest {
     void setUp() {
         syncService = new CalendarSyncService(googleCalendarClient, calendarEventRepository,
                 syncStateRepository, matcher, normalizer, userRepository, titleParser, clientService,
-                calendarEventPaymentRepository, calendarEventServiceLinkRepository);
+                calendarEventPaymentRepository, calendarEventServiceLinkRepository, new UserScopedExecutionLock());
 
         lenient().when(calendarEventRepository.findByUserIdAndGoogleEventIdIn(anyLong(), anyCollection()))
                 .thenReturn(List.of());

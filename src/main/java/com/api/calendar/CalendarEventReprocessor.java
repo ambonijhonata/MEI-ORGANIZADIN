@@ -7,43 +7,62 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Component
 public class CalendarEventReprocessor {
 
     private final CalendarEventRepository calendarEventRepository;
+    private final CalendarEventServiceLinkRepository calendarEventServiceLinkRepository;
     private final CalendarEventServiceMatcher matcher;
     private final EventTitleParser titleParser;
     private final ServiceDescriptionNormalizer normalizer;
+    private final UserScopedExecutionLock userScopedExecutionLock;
 
     public CalendarEventReprocessor(CalendarEventRepository calendarEventRepository,
+                                    CalendarEventServiceLinkRepository calendarEventServiceLinkRepository,
                                     CalendarEventServiceMatcher matcher,
                                     EventTitleParser titleParser,
-                                    ServiceDescriptionNormalizer normalizer) {
+                                    ServiceDescriptionNormalizer normalizer,
+                                    UserScopedExecutionLock userScopedExecutionLock) {
         this.calendarEventRepository = calendarEventRepository;
+        this.calendarEventServiceLinkRepository = calendarEventServiceLinkRepository;
         this.matcher = matcher;
         this.titleParser = titleParser;
         this.normalizer = normalizer;
+        this.userScopedExecutionLock = userScopedExecutionLock;
     }
 
     @Async
     @Transactional
     public void reprocessUnidentifiedEvents(Long userId) {
-        List<CalendarEvent> unidentified = calendarEventRepository.findByUserIdAndIdentifiedFalse(userId);
-        Map<String, Service> servicesByNormalizedDescription = matcher.servicesByNormalizedDescription(userId);
+        userScopedExecutionLock.execute(userId, () -> {
+            List<CalendarEvent> unidentified = calendarEventRepository.findByUserIdAndIdentifiedFalse(userId);
+            Map<String, Service> servicesByNormalizedDescription = matcher.servicesByNormalizedDescription(userId);
+            Set<Long> replacementEventIds = new HashSet<>();
 
-        for (CalendarEvent event : unidentified) {
-            EventTitleParser.ParsedTitle parsed = titleParser.parse(event.getTitle());
-            List<Service> matchedServices = resolveMatchedServices(parsed, servicesByNormalizedDescription);
-            if (!matchedServices.isEmpty()) {
-                event.associateServices(matchedServices);
+            for (CalendarEvent event : unidentified) {
+                EventTitleParser.ParsedTitle parsed = titleParser.parse(event.getTitle());
+                List<Service> matchedServices = resolveMatchedServices(parsed, servicesByNormalizedDescription);
+                if (!matchedServices.isEmpty()) {
+                    if (event.getId() != null) {
+                        replacementEventIds.add(event.getId());
+                    }
+                    event.associateServices(matchedServices);
+                }
+                event.setPaymentType(parsed.paymentType());
             }
-            event.setPaymentType(parsed.paymentType());
-        }
 
-        calendarEventRepository.saveAll(unidentified);
+            if (!replacementEventIds.isEmpty()) {
+                calendarEventServiceLinkRepository.deleteInBulkByCalendarEventIdIn(replacementEventIds);
+                calendarEventServiceLinkRepository.flush();
+            }
+            calendarEventRepository.saveAll(unidentified);
+            return null;
+        });
     }
 
     private List<Service> resolveMatchedServices(EventTitleParser.ParsedTitle parsed,

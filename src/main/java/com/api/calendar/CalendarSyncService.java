@@ -33,9 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
 @Component
@@ -44,7 +41,7 @@ public class CalendarSyncService {
     private static final Logger log = LoggerFactory.getLogger(CalendarSyncService.class);
     private static final int DEFAULT_BATCH_SIZE = 200;
     private static final int LARGE_INCREMENTAL_LOOKUP_THRESHOLD = 5000;
-    private static final SyncMutations EMPTY_MUTATIONS = new SyncMutations(List.of(), List.of(), 0, 0, 0);
+    private static final SyncMutations EMPTY_MUTATIONS = new SyncMutations(List.of(), List.of(), Set.of(), 0, 0, 0);
 
     private final GoogleCalendarClient googleCalendarClient;
     private final CalendarEventRepository calendarEventRepository;
@@ -56,10 +53,10 @@ public class CalendarSyncService {
     private final UserRepository userRepository;
     private final EventTitleParser titleParser;
     private final ClientService clientService;
+    private final UserScopedExecutionLock userScopedExecutionLock;
     private final int batchSize;
     private final boolean batchClearEnabled;
     private final int batchFlushEveryChunks;
-    private final ConcurrentMap<Long, ReentrantLock> userSyncLocks = new ConcurrentHashMap<>();
     private TransactionTemplate transactionTemplate;
 
     @PersistenceContext
@@ -74,7 +71,7 @@ public class CalendarSyncService {
                         EventTitleParser titleParser,
                         ClientService clientService) {
         this(googleCalendarClient, calendarEventRepository, syncStateRepository, matcher, normalizer,
-                userRepository, titleParser, clientService, null, null);
+                userRepository, titleParser, clientService, null, null, new UserScopedExecutionLock());
     }
 
     CalendarSyncService(GoogleCalendarClient googleCalendarClient,
@@ -89,7 +86,23 @@ public class CalendarSyncService {
                         CalendarEventServiceLinkRepository calendarEventServiceLinkRepository) {
         this(googleCalendarClient, calendarEventRepository, syncStateRepository, matcher, normalizer,
                 userRepository, titleParser, clientService, calendarEventPaymentRepository,
-                calendarEventServiceLinkRepository, DEFAULT_BATCH_SIZE, false, 1);
+                calendarEventServiceLinkRepository, new UserScopedExecutionLock(), DEFAULT_BATCH_SIZE, false, 1);
+    }
+
+    CalendarSyncService(GoogleCalendarClient googleCalendarClient,
+                        CalendarEventRepository calendarEventRepository,
+                        SyncStateRepository syncStateRepository,
+                        CalendarEventServiceMatcher matcher,
+                        ServiceDescriptionNormalizer normalizer,
+                        UserRepository userRepository,
+                        EventTitleParser titleParser,
+                        ClientService clientService,
+                        CalendarEventPaymentRepository calendarEventPaymentRepository,
+                        CalendarEventServiceLinkRepository calendarEventServiceLinkRepository,
+                        UserScopedExecutionLock userScopedExecutionLock) {
+        this(googleCalendarClient, calendarEventRepository, syncStateRepository, matcher, normalizer,
+                userRepository, titleParser, clientService, calendarEventPaymentRepository,
+                calendarEventServiceLinkRepository, userScopedExecutionLock, DEFAULT_BATCH_SIZE, false, 1);
     }
 
     @Autowired
@@ -103,6 +116,7 @@ public class CalendarSyncService {
                                ClientService clientService,
                                CalendarEventPaymentRepository calendarEventPaymentRepository,
                                CalendarEventServiceLinkRepository calendarEventServiceLinkRepository,
+                               UserScopedExecutionLock userScopedExecutionLock,
                                @Value("${calendar.sync.batch-size:" + DEFAULT_BATCH_SIZE + "}") int batchSize,
                                @Value("${calendar.sync.batch-clear-enabled:false}") boolean batchClearEnabled,
                                @Value("${calendar.sync.batch-flush-every-chunks:1}") int batchFlushEveryChunks) {
@@ -116,6 +130,7 @@ public class CalendarSyncService {
         this.userRepository = userRepository;
         this.titleParser = titleParser;
         this.clientService = clientService;
+        this.userScopedExecutionLock = userScopedExecutionLock;
         this.batchSize = batchSize <= 0 ? DEFAULT_BATCH_SIZE : batchSize;
         this.batchClearEnabled = batchClearEnabled;
         this.batchFlushEveryChunks = batchFlushEveryChunks <= 0 ? 1 : batchFlushEveryChunks;
@@ -133,9 +148,7 @@ public class CalendarSyncService {
     }
 
     public SyncResult synchronize(Long userId, LocalDate startDate) {
-        ReentrantLock lock = userSyncLocks.computeIfAbsent(userId, ignored -> new ReentrantLock());
-        lock.lock();
-        try {
+        return userScopedExecutionLock.execute(userId, () -> {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
@@ -171,12 +184,7 @@ public class CalendarSyncService {
                 syncStateRepository.save(syncState);
                 throw e;
             }
-        } finally {
-            lock.unlock();
-            if (!lock.hasQueuedThreads()) {
-                userSyncLocks.remove(userId, lock);
-            }
-        }
+        });
     }
 
     private SyncResult performSync(Long userId, User user, SyncState syncState) throws IOException {
@@ -403,7 +411,7 @@ public class CalendarSyncService {
         long writeStartNs = System.nanoTime();
         executeWithinTransaction(() -> {
             if (!reconciliationDeletions.isEmpty()) {
-                persistMutations(new SyncMutations(List.of(), reconciliationDeletions, 0, 0, reconciliationDeletions.size()));
+                persistMutations(new SyncMutations(List.of(), reconciliationDeletions, Set.of(), 0, 0, reconciliationDeletions.size()));
             }
             applySyncStateAfterSuccessfulSync(syncState, tokenBeforeSync, nextSyncToken, userId, syncMode);
             syncStateRepository.save(syncState);
@@ -442,7 +450,7 @@ public class CalendarSyncService {
                 deletions.addAll(chunkMutation.deletions());
             }
         }
-        return new SyncMutations(List.of(), deletions, created, updated, deleted);
+        return new SyncMutations(List.of(), deletions, Set.of(), created, updated, deleted);
     }
 
     private SyncMutations reconcileScopedMutations(Long userId,
@@ -564,6 +572,7 @@ public class CalendarSyncService {
 
         List<CalendarEvent> upserts = new ArrayList<>(googleEvents.size());
         List<CalendarEvent> deletions = new ArrayList<>();
+        Set<Long> serviceLinkReplacementEventIds = new HashSet<>();
         int created = 0;
         int updated = 0;
         int deleted = 0;
@@ -599,6 +608,9 @@ public class CalendarSyncService {
             if (processedEvent.shouldPersist()) {
                 upserts.add(processedEvent.calendarEvent());
             }
+            if (processedEvent.shouldReplaceServiceLinks()) {
+                serviceLinkReplacementEventIds.add(processedEvent.calendarEvent().getId());
+            }
             if (processedEvent.isNew()) {
                 created++;
             } else if (processedEvent.shouldPersist()) {
@@ -606,7 +618,7 @@ public class CalendarSyncService {
             }
         }
 
-        SyncMutations mutations = new SyncMutations(upserts, deletions, created, updated, deleted);
+        SyncMutations mutations = new SyncMutations(upserts, deletions, serviceLinkReplacementEventIds, created, updated, deleted);
         persistMutations(mutations);
         return mutations;
     }
@@ -646,7 +658,7 @@ public class CalendarSyncService {
             }
             calendarEvent.setPaymentType(parsed.paymentType());
             applyServiceAssociation(calendarEvent, matchedServices);
-            return new ProcessedEvent(calendarEvent, true, true);
+            return new ProcessedEvent(calendarEvent, true, true, false);
         }
 
         boolean coreDataChanged = hasCoreDataChanges(existingEvent, title, normalizedTitle, eventStart, eventEnd);
@@ -660,7 +672,7 @@ public class CalendarSyncService {
         boolean shouldPersist = coreDataChanged || clientChanged || serviceAssociationChanged || paymentTypeChanged;
 
         if (!shouldPersist) {
-            return new ProcessedEvent(existingEvent, false, false);
+            return new ProcessedEvent(existingEvent, false, false, false);
         }
 
         if (coreDataChanged) {
@@ -676,7 +688,8 @@ public class CalendarSyncService {
             existingEvent.setPaymentType(parsed.paymentType());
         }
 
-        return new ProcessedEvent(existingEvent, false, true);
+        boolean shouldReplaceServiceLinks = serviceAssociationChanged && existingEvent.getId() != null;
+        return new ProcessedEvent(existingEvent, false, true, shouldReplaceServiceLinks);
     }
 
     private Client resolveClient(Long userId,
@@ -874,6 +887,10 @@ public class CalendarSyncService {
                 calendarEventPaymentRepository.flush();
             }
             calendarEventRepository.deleteAllInBatch(mutations.deletions());
+        }
+        if (!mutations.serviceLinkReplacementEventIds().isEmpty() && calendarEventServiceLinkRepository != null) {
+            calendarEventServiceLinkRepository.deleteInBulkByCalendarEventIdIn(mutations.serviceLinkReplacementEventIds());
+            calendarEventServiceLinkRepository.flush();
         }
         if (!mutations.upserts().isEmpty()) {
             saveEventsInBatches(mutations.upserts());
@@ -1085,6 +1102,7 @@ public class CalendarSyncService {
         return new SyncMutations(
                 mutations.upserts(),
                 reconciledDeletions,
+                mutations.serviceLinkReplacementEventIds(),
                 mutations.created(),
                 mutations.updated(),
                 reconciledDeleted
@@ -1201,12 +1219,18 @@ public class CalendarSyncService {
     private record SyncMutations(
             List<CalendarEvent> upserts,
             List<CalendarEvent> deletions,
+            Set<Long> serviceLinkReplacementEventIds,
             int created,
             int updated,
             int deleted
     ) {}
 
-    private record ProcessedEvent(CalendarEvent calendarEvent, boolean isNew, boolean shouldPersist) {}
+    private record ProcessedEvent(
+            CalendarEvent calendarEvent,
+            boolean isNew,
+            boolean shouldPersist,
+            boolean shouldReplaceServiceLinks
+    ) {}
 
     public record SyncResult(int created, int updated, int deleted) {}
 }
