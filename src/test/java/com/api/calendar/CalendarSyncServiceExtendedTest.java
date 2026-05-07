@@ -1,4 +1,4 @@
-﻿package com.api.calendar;
+package com.api.calendar;
 
 import com.api.client.Client;
 import com.api.client.ClientService;
