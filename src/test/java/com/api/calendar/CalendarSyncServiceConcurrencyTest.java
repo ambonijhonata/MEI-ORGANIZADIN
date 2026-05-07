@@ -1,4 +1,4 @@
-package com.api.calendar;
+﻿package com.api.calendar;
 
 import com.api.client.ClientService;
 import com.api.google.GoogleCalendarClient;
@@ -37,6 +37,7 @@ class CalendarSyncServiceConcurrencyTest {
     @Mock private GoogleCalendarClient googleCalendarClient;
     @Mock private CalendarEventRepository calendarEventRepository;
     @Mock private CalendarEventPaymentRepository calendarEventPaymentRepository;
+    @Mock private CalendarEventServiceLinkRepository calendarEventServiceLinkRepository;
     @Mock private SyncStateRepository syncStateRepository;
     @Mock private CalendarEventServiceMatcher matcher;
     @Mock private ServiceDescriptionNormalizer normalizer;
@@ -50,12 +51,13 @@ class CalendarSyncServiceConcurrencyTest {
     @BeforeEach
     void setUp() {
         syncService = new CalendarSyncService(googleCalendarClient, calendarEventRepository,
-                syncStateRepository, matcher, normalizer, userRepository, titleParser, clientService, calendarEventPaymentRepository);
+                syncStateRepository, matcher, normalizer, userRepository, titleParser, clientService,
+                calendarEventPaymentRepository, calendarEventServiceLinkRepository);
         executor = Executors.newFixedThreadPool(2);
 
-        lenient().when(calendarEventRepository.findWithAssociationsByUserIdAndGoogleEventIdIn(anyLong(), anyCollection()))
+        lenient().when(calendarEventRepository.findByUserIdAndGoogleEventIdIn(anyLong(), anyCollection()))
                 .thenReturn(List.of());
-        lenient().when(calendarEventRepository.findAllWithAssociationsByUserId(anyLong()))
+        lenient().when(calendarEventRepository.findGoogleBackedByUserId(anyLong()))
                 .thenReturn(List.of());
         lenient().when(calendarEventRepository.findGoogleBackedByUserId(anyLong()))
                 .thenReturn(List.of());
@@ -65,6 +67,8 @@ class CalendarSyncServiceConcurrencyTest {
         lenient().when(matcher.servicesByNormalizedDescription(anyLong())).thenReturn(new HashMap<>());
         lenient().when(calendarEventRepository.saveAll(org.mockito.ArgumentMatchers.anyList()))
                 .thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(calendarEventServiceLinkRepository.findServiceIdentityRowsByCalendarEventIdIn(anyCollection()))
+                .thenReturn(List.of());
         lenient().when(syncStateRepository.save(org.mockito.ArgumentMatchers.any(SyncState.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
         lenient().when(normalizer.normalize(anyString())).thenAnswer(inv -> inv.getArgument(0));

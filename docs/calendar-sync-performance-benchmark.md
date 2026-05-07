@@ -16,6 +16,34 @@ Validate performance gains for high-volume accounts (target scenario around 14k+
 - Repeated `POST /api/calendar/sync` calls in incremental mode.
 - Forced token-expired run to validate full resync fallback path.
 
+## Validation Environment (Low Resource)
+
+- Runtime budget:
+- Memory limit: `512MB`
+- CPU quota: `0.1` vCPU equivalent
+- Baseline command example (Docker):
+```bash
+docker run --rm \
+  --memory=512m \
+  --cpus=0.1 \
+  -e DB_URL=... \
+  -e DB_USERNAME=... \
+  -e DB_PASSWORD=... \
+  -e GOOGLE_OAUTH_CLIENT_ID=... \
+  -e GOOGLE_OAUTH_CLIENT_SECRET=... \
+  -e GOOGLE_CALENDAR_SYNC_MAX_RESULTS=2500 \
+  -e CALENDAR_SYNC_BATCH_SIZE=1000 \
+  -e CALENDAR_SYNC_BATCH_CLEAR_ENABLED=true \
+  -e CALENDAR_SYNC_BATCH_FLUSH_EVERY_CHUNKS=1 \
+  -e POSTGRES_REWRITE_BATCHED_INSERTS=true \
+  <api-image>
+```
+- Mandatory report fields for each run:
+- memory limit and cpu limit used
+- commit SHA
+- dataset identifier (reference account with 14,482 events)
+- p50/p95/p99 for `sync_total_ms`
+
 ## Instrumentation to Collect
 
 - `sync_total_ms`
@@ -33,6 +61,7 @@ Validate performance gains for high-volume accounts (target scenario around 14k+
 2. Run on optimized branch/commit with same dataset and environment.
 3. Compare p50/p95/p99 and stage breakdown.
 4. Validate contract invariants using regression tests.
+5. Record bottleneck stage ranking (`google_fetch_ms`, `db_lookup_ms`, `processing_ms`, `db_write_ms`) for each profile.
 
 ## Result Template
 

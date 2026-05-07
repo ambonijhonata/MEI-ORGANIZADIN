@@ -1,4 +1,4 @@
-package com.api.calendar;
+﻿package com.api.calendar;
 
 import com.api.client.Client;
 import com.api.client.ClientService;
@@ -36,6 +36,7 @@ class CalendarSyncServiceExtendedTest {
     @Mock private GoogleCalendarClient googleCalendarClient;
     @Mock private CalendarEventRepository calendarEventRepository;
     @Mock private CalendarEventPaymentRepository calendarEventPaymentRepository;
+    @Mock private CalendarEventServiceLinkRepository calendarEventServiceLinkRepository;
     @Mock private SyncStateRepository syncStateRepository;
     @Mock private CalendarEventServiceMatcher matcher;
     @Mock private ServiceDescriptionNormalizer normalizer;
@@ -48,11 +49,12 @@ class CalendarSyncServiceExtendedTest {
     @BeforeEach
     void setUp() {
         syncService = new CalendarSyncService(googleCalendarClient, calendarEventRepository,
-                syncStateRepository, matcher, normalizer, userRepository, titleParser, clientService, calendarEventPaymentRepository);
+                syncStateRepository, matcher, normalizer, userRepository, titleParser, clientService,
+                calendarEventPaymentRepository, calendarEventServiceLinkRepository);
 
-        lenient().when(calendarEventRepository.findWithAssociationsByUserIdAndGoogleEventIdIn(anyLong(), anyCollection()))
+        lenient().when(calendarEventRepository.findByUserIdAndGoogleEventIdIn(anyLong(), anyCollection()))
                 .thenReturn(List.of());
-        lenient().when(calendarEventRepository.findAllWithAssociationsByUserId(anyLong()))
+        lenient().when(calendarEventRepository.findGoogleBackedByUserId(anyLong()))
                 .thenReturn(List.of());
         lenient().when(calendarEventRepository.findGoogleBackedByUserId(anyLong()))
                 .thenReturn(List.of());
@@ -61,6 +63,8 @@ class CalendarSyncServiceExtendedTest {
         lenient().when(clientService.clientsByNormalizedName(anyLong())).thenReturn(new HashMap<>());
         lenient().when(matcher.servicesByNormalizedDescription(anyLong())).thenReturn(new HashMap<>());
         lenient().when(calendarEventRepository.saveAll(anyList())).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(calendarEventServiceLinkRepository.findServiceIdentityRowsByCalendarEventIdIn(anyCollection()))
+                .thenReturn(List.of());
     }
 
     @Test
@@ -173,7 +177,7 @@ class CalendarSyncServiceExtendedTest {
 
         CalendarEvent existingEvent = new CalendarEvent(user, "e1", "old", "old",
                 java.time.Instant.now(), java.time.Instant.now());
-        when(calendarEventRepository.findWithAssociationsByUserIdAndGoogleEventIdIn(eq(1L), anyCollection()))
+        when(calendarEventRepository.findByUserIdAndGoogleEventIdIn(eq(1L), anyCollection()))
                 .thenReturn(List.of(existingEvent));
         when(titleParser.parse("corte")).thenReturn(new EventTitleParser.ParsedTitle(null, List.of("corte"), null));
 
@@ -298,7 +302,7 @@ class CalendarSyncServiceExtendedTest {
                 java.time.Instant.ofEpochMilli(event.getEnd().getDateTime().getValue())
         );
 
-        when(calendarEventRepository.findWithAssociationsByUserIdAndGoogleEventIdIn(eq(1L), anyCollection()))
+        when(calendarEventRepository.findByUserIdAndGoogleEventIdIn(eq(1L), anyCollection()))
                 .thenReturn(List.of(existingEvent));
 
         CalendarSyncService.SyncResult result = syncService.synchronize(1L);
@@ -348,7 +352,7 @@ class CalendarSyncServiceExtendedTest {
         existingEvent.setClient(maria);
         existingEvent.associateServices(List.of(corte, barba));
 
-        when(calendarEventRepository.findWithAssociationsByUserIdAndGoogleEventIdIn(eq(1L), anyCollection()))
+        when(calendarEventRepository.findByUserIdAndGoogleEventIdIn(eq(1L), anyCollection()))
                 .thenReturn(List.of(existingEvent));
         when(matcher.servicesByNormalizedDescription(1L)).thenReturn(new HashMap<>() {{
             put("corte", corte);
@@ -484,7 +488,7 @@ class CalendarSyncServiceExtendedTest {
         existingEvent.setClient(client);
         existingEvent.associateServices(List.of(corte));
 
-        when(calendarEventRepository.findWithAssociationsByUserIdAndGoogleEventIdIn(eq(1L), anyCollection()))
+        when(calendarEventRepository.findByUserIdAndGoogleEventIdIn(eq(1L), anyCollection()))
                 .thenReturn(List.of(existingEvent));
         when(matcher.servicesByNormalizedDescription(1L)).thenReturn(new HashMap<>() {{
             put("corte", corte);

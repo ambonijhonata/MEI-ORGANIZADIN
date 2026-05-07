@@ -4,7 +4,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 
 public interface CalendarEventServiceLinkRepository extends JpaRepository<CalendarEventServiceLink, Long> {
@@ -33,4 +35,23 @@ public interface CalendarEventServiceLinkRepository extends JpaRepository<Calend
     List<CalendarEventServiceLink> findByUserAndPeriodPaidOnly(@Param("userId") Long userId,
                                                                 @Param("startDate") Instant startDate,
                                                                 @Param("endDate") Instant endDate);
+
+    @Query("SELECT sl.calendarEvent.id AS calendarEventId, " +
+            "sl.service.id AS serviceId, " +
+            "sl.service.normalizedDescription AS serviceNormalizedDescription, " +
+            "sl.service.description AS serviceDescription, " +
+            "sl.service.value AS serviceValue " +
+            "FROM CalendarEventServiceLink sl " +
+            "WHERE sl.calendarEvent.id IN :calendarEventIds")
+    List<ServiceIdentityRow> findServiceIdentityRowsByCalendarEventIdIn(
+            @Param("calendarEventIds") Collection<Long> calendarEventIds
+    );
+
+    interface ServiceIdentityRow {
+        Long getCalendarEventId();
+        Long getServiceId();
+        String getServiceNormalizedDescription();
+        String getServiceDescription();
+        BigDecimal getServiceValue();
+    }
 }

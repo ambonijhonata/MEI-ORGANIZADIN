@@ -48,6 +48,7 @@ calendar:
   sync:
     batch-size: ${CALENDAR_SYNC_BATCH_SIZE:1000}
     batch-clear-enabled: ${CALENDAR_SYNC_BATCH_CLEAR_ENABLED:true}
+    batch-flush-every-chunks: ${CALENDAR_SYNC_BATCH_FLUSH_EVERY_CHUNKS:1}
 
 server:
   port: ${SERVER_PORT:8080}

@@ -6,6 +6,7 @@ This plan describes how to disable optimization strategies for `POST /api/calend
 
 - Batch write tuning:
 - `CALENDAR_SYNC_BATCH_SIZE`
+- `CALENDAR_SYNC_BATCH_FLUSH_EVERY_CHUNKS`
 - `HIBERNATE_BATCH_SIZE`
 - `HIBERNATE_ORDER_INSERTS`
 - `HIBERNATE_ORDER_UPDATES`
@@ -21,6 +22,7 @@ This plan describes how to disable optimization strategies for `POST /api/calend
 2. Reconfigure environment variables to conservative values:
 - Disable aggressive tuning (for example, smaller batch sizes).
 - Keep `CALENDAR_SYNC_BATCH_CLEAR_ENABLED=false` unless explicitly validated.
+- Keep `CALENDAR_SYNC_BATCH_FLUSH_EVERY_CHUNKS=1` to force immediate flush cadence.
 3. Restart API instances with updated config.
 4. Monitor sync error rate and latency metrics.
 5. If needed, roll back deployment to previous release while preserving database schema.
