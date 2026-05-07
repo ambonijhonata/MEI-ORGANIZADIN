@@ -328,7 +328,7 @@ class CalendarSyncServiceExtendedTest {
         CalendarSyncService.SyncResult result = syncService.synchronize(1L);
 
         assertEquals(0, result.created());
-        assertEquals(1, result.updated());
+        assertEquals(0, result.updated());
         assertEquals(0, result.deleted());
         verify(calendarEventRepository, never()).saveAll(anyList());
         verify(calendarEventRepository, never()).flush();
@@ -381,7 +381,7 @@ class CalendarSyncServiceExtendedTest {
 
         CalendarSyncService.SyncResult result = syncService.synchronize(1L);
 
-        assertEquals(1, result.updated());
+        assertEquals(0, result.updated());
         verify(calendarEventRepository, never()).saveAll(anyList());
         verify(calendarEventRepository, never()).flush();
     }

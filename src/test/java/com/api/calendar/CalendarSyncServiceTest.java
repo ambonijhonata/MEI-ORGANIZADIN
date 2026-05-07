@@ -112,6 +112,26 @@ class CalendarSyncServiceTest {
     }
 
     @Test
+    void shouldPreserveExistingSyncTokenWhenIncrementalSyncReturnsNoNextToken() throws IOException {
+        User user = new User("sub", "email@test.com", "Name");
+        SyncState syncState = new SyncState(user);
+        syncState.markSynced("old-sync-token");
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
+        when(syncStateRepository.save(any(SyncState.class))).thenReturn(syncState);
+        when(googleCalendarClient.fetchEvents(1L, "old-sync-token"))
+                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(), null));
+
+        CalendarSyncService.SyncResult result = syncService.synchronize(1L);
+
+        assertEquals(0, result.created());
+        assertEquals(0, result.updated());
+        assertEquals(0, result.deleted());
+        assertEquals("old-sync-token", syncState.getSyncToken());
+    }
+
+    @Test
     void shouldPreferIncrementalSyncWhenStartDateAndSyncTokenExist() throws IOException {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
@@ -140,6 +160,29 @@ class CalendarSyncServiceTest {
         verify(calendarEventRepository).deleteAllInBatch(argThat(iterable ->
                 StreamSupport.stream(iterable.spliterator(), false).anyMatch(localEvent::equals)
         ));
+    }
+
+    @Test
+    void shouldPreserveExistingTokenWhenStartDateSyncRunsIncrementalWithoutNewToken() throws IOException {
+        User user = new User("sub", "email@test.com", "Name");
+        SyncState syncState = new SyncState(user);
+        syncState.markSynced("persisted-sync-token");
+        LocalDate startDate = LocalDate.of(2026, 4, 1);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
+        when(syncStateRepository.save(any(SyncState.class))).thenReturn(syncState);
+        when(googleCalendarClient.fetchEvents(1L, "persisted-sync-token"))
+                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(), null));
+
+        CalendarSyncService.SyncResult result = syncService.synchronize(1L, startDate);
+
+        assertEquals(0, result.created());
+        assertEquals(0, result.updated());
+        assertEquals(0, result.deleted());
+        assertEquals("persisted-sync-token", syncState.getSyncToken());
+        verify(googleCalendarClient).fetchEvents(1L, "persisted-sync-token");
+        verify(googleCalendarClient, never()).fetchEvents(1L, null, startDate);
     }
 
     @Test
@@ -240,6 +283,29 @@ class CalendarSyncServiceTest {
             List<CalendarEvent> deletions = StreamSupport.stream(iterable.spliterator(), false).toList();
             return deletions.size() == 1 && deletions.contains(staleLocalEvent) && !deletions.contains(retainedLocalEvent);
         }));
+    }
+
+    @Test
+    void shouldNotRestoreExpiredTokenWhenFullResyncReturnsNoNextToken() throws IOException {
+        User user = new User("sub", "email@test.com", "Name");
+        SyncState syncState = new SyncState(user);
+        syncState.markSynced("expired-token");
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
+        when(syncStateRepository.save(any(SyncState.class))).thenReturn(syncState);
+        when(googleCalendarClient.fetchEvents(1L, "expired-token"))
+                .thenThrow(new GoogleCalendarClient.SyncTokenExpiredException("410 Gone"));
+        when(googleCalendarClient.fetchEvents(eq(1L), isNull()))
+                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(), null));
+        when(calendarEventRepository.findGoogleBackedByUserId(1L)).thenReturn(List.of());
+
+        CalendarSyncService.SyncResult result = syncService.synchronize(1L);
+
+        assertNotNull(result);
+        assertNull(syncState.getSyncToken());
+        verify(googleCalendarClient).fetchEvents(1L, "expired-token");
+        verify(googleCalendarClient).fetchEvents(1L, null);
     }
 
     @Test

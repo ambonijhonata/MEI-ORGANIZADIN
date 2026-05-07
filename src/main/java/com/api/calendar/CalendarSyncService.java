@@ -179,6 +179,7 @@ public class CalendarSyncService {
 
     private SyncResult performSync(Long userId, User user, SyncState syncState) throws IOException {
         String existingSyncToken = syncState.getSyncToken();
+        String tokenBeforeSync = existingSyncToken;
         long totalStartNs = System.nanoTime();
         long googleFetchMs = 0L;
         long dbLookupMs = 0L;
@@ -189,6 +190,7 @@ public class CalendarSyncService {
         int deleted = 0;
         int eventsReceived = 0;
         boolean fullSync = existingSyncToken == null || existingSyncToken.isBlank();
+        String syncMode = fullSync ? "full_no_token" : "incremental";
         Map<String, String> normalizationCache = new HashMap<>();
 
         try {
@@ -241,6 +243,7 @@ public class CalendarSyncService {
             deleted = mutations.deleted();
             List<CalendarEvent> reconciliationDeletions = extractAdditionalDeletions(chunkDeletions, mutations.deletions());
 
+            String nextSyncToken = result.nextSyncToken();
             long writeStartNs = System.nanoTime();
             executeWithinTransaction(() -> {
                 for (SyncMutations chunkMutation : chunkMutations) {
@@ -249,14 +252,14 @@ public class CalendarSyncService {
                 if (!reconciliationDeletions.isEmpty()) {
                     persistMutations(new SyncMutations(List.of(), reconciliationDeletions, 0, 0, reconciliationDeletions.size()));
                 }
-                syncState.markSynced(result.nextSyncToken());
+                applySyncStateAfterSuccessfulSync(syncState, tokenBeforeSync, nextSyncToken, userId, syncMode);
                 syncStateRepository.save(syncState);
             });
             dbWriteMs = elapsedMs(writeStartNs);
 
             logSyncSummary(
                     userId,
-                    "incremental_or_initial",
+                    syncMode,
                     eventsReceived,
                     created,
                     updated,
@@ -266,7 +269,9 @@ public class CalendarSyncService {
                     processingMs,
                     dbWriteMs,
                     elapsedMs(totalStartNs),
-                    false
+                    false,
+                    hasToken(tokenBeforeSync),
+                    hasToken(syncState.getSyncToken())
             );
 
             return new SyncResult(created, updated, deleted);
@@ -279,12 +284,14 @@ public class CalendarSyncService {
     }
 
     private SyncResult performFullResync(Long userId, User user, SyncState syncState) throws IOException {
+        String tokenBeforeSync = syncState.getSyncToken();
         long totalStartNs = System.nanoTime();
         long googleFetchMs = 0L;
         long dbLookupMs = 0L;
         long processingMs = 0L;
         long dbWriteMs = 0L;
         syncState.setSyncToken(null);
+        String tokenPreservationCandidate = syncState.getSyncToken();
         int eventsReceived = 0;
         Map<String, String> normalizationCache = new HashMap<>();
 
@@ -331,6 +338,7 @@ public class CalendarSyncService {
         processingMs = elapsedMs(processingStartNs);
         List<CalendarEvent> reconciliationDeletions = extractAdditionalDeletions(chunkDeletions, mutations.deletions());
 
+        String nextSyncToken = result.nextSyncToken();
         long writeStartNs = System.nanoTime();
         executeWithinTransaction(() -> {
             for (SyncMutations chunkMutation : chunkMutations) {
@@ -339,14 +347,14 @@ public class CalendarSyncService {
             if (!reconciliationDeletions.isEmpty()) {
                 persistMutations(new SyncMutations(List.of(), reconciliationDeletions, 0, 0, reconciliationDeletions.size()));
             }
-            syncState.markSynced(result.nextSyncToken());
+            applySyncStateAfterSuccessfulSync(syncState, tokenPreservationCandidate, nextSyncToken, userId, "full_resync_410");
             syncStateRepository.save(syncState);
         });
         dbWriteMs = elapsedMs(writeStartNs);
 
         logSyncSummary(
                 userId,
-                "full_resync",
+                "full_resync_410",
                 eventsReceived,
                 mutations.created(),
                 mutations.updated(),
@@ -356,7 +364,9 @@ public class CalendarSyncService {
                 processingMs,
                 dbWriteMs,
                 elapsedMs(totalStartNs),
-                true
+                true,
+                hasToken(tokenBeforeSync),
+                hasToken(syncState.getSyncToken())
         );
 
         return new SyncResult(mutations.created(), mutations.updated(), mutations.deleted());
@@ -366,6 +376,7 @@ public class CalendarSyncService {
                                             User user,
                                             SyncState syncState,
                                             LocalDate startDate) throws IOException {
+        String tokenBeforeSync = syncState.getSyncToken();
         long totalStartNs = System.nanoTime();
         long googleFetchMs = 0L;
         long dbLookupMs = 0L;
@@ -419,6 +430,7 @@ public class CalendarSyncService {
         processingMs = elapsedMs(processingStartNs);
         List<CalendarEvent> reconciliationDeletions = extractAdditionalDeletions(chunkDeletions, mutations.deletions());
 
+        String nextSyncToken = result.nextSyncToken();
         long writeStartNs = System.nanoTime();
         executeWithinTransaction(() -> {
             for (SyncMutations chunkMutation : chunkMutations) {
@@ -427,7 +439,7 @@ public class CalendarSyncService {
             if (!reconciliationDeletions.isEmpty()) {
                 persistMutations(new SyncMutations(List.of(), reconciliationDeletions, 0, 0, reconciliationDeletions.size()));
             }
-            syncState.markSynced(result.nextSyncToken());
+            applySyncStateAfterSuccessfulSync(syncState, tokenBeforeSync, nextSyncToken, userId, "start_date_sync");
             syncStateRepository.save(syncState);
         });
         dbWriteMs = elapsedMs(writeStartNs);
@@ -444,7 +456,9 @@ public class CalendarSyncService {
                 processingMs,
                 dbWriteMs,
                 elapsedMs(totalStartNs),
-                false
+                false,
+                hasToken(tokenBeforeSync),
+                hasToken(syncState.getSyncToken())
         );
 
         return new SyncResult(mutations.created(), mutations.updated(), mutations.deleted());
@@ -576,7 +590,7 @@ public class CalendarSyncService {
             }
             if (processedEvent.isNew()) {
                 created++;
-            } else {
+            } else if (processedEvent.shouldPersist()) {
                 updated++;
             }
         }
@@ -1079,9 +1093,11 @@ public class CalendarSyncService {
                                 long processingMs,
                                 long dbWriteMs,
                                 long totalMs,
-                                boolean fallbackFromExpiredToken) {
+                                boolean fallbackFromExpiredToken,
+                                boolean tokenBeforePresent,
+                                boolean tokenAfterPresent) {
         log.info(
-                "calendar_sync_summary userId={} mode={} events_received={} created={} updated={} deleted={} google_fetch_ms={} db_lookup_ms={} processing_ms={} db_write_ms={} sync_total_ms={} fallback_from_expired_token={}",
+                "calendar_sync_summary userId={} mode={} events_received={} created={} updated={} deleted={} google_fetch_ms={} db_lookup_ms={} processing_ms={} db_write_ms={} sync_total_ms={} fallback_from_expired_token={} token_before_present={} token_after_present={}",
                 userId,
                 mode,
                 eventsReceived,
@@ -1093,7 +1109,9 @@ public class CalendarSyncService {
                 processingMs,
                 dbWriteMs,
                 totalMs,
-                fallbackFromExpiredToken
+                fallbackFromExpiredToken,
+                tokenBeforePresent,
+                tokenAfterPresent
         );
     }
 
@@ -1106,6 +1124,39 @@ public class CalendarSyncService {
         syncState.setStatus(SyncStatus.SYNCED);
         syncState.setErrorCategory(null);
         syncState.setErrorMessage(null);
+    }
+
+    private void applySyncStateAfterSuccessfulSync(SyncState syncState,
+                                                   String tokenBeforeSync,
+                                                   String nextSyncToken,
+                                                   Long userId,
+                                                   String mode) {
+        if (hasToken(nextSyncToken)) {
+            syncState.markSynced(nextSyncToken);
+            return;
+        }
+
+        if (hasToken(tokenBeforeSync)) {
+            markSyncedWithoutTouchingToken(syncState);
+            syncState.setSyncToken(tokenBeforeSync);
+            log.warn(
+                    "calendar_sync_token_missing userId={} mode={} action=preserve_existing_token token_before_present=true",
+                    userId,
+                    mode
+            );
+            return;
+        }
+
+        syncState.markSynced(null);
+        log.warn(
+                "calendar_sync_token_missing userId={} mode={} action=keep_token_empty token_before_present=false",
+                userId,
+                mode
+        );
+    }
+
+    private boolean hasToken(String token) {
+        return token != null && !token.isBlank();
     }
 
     private <K, V> Map<K, V> copyMap(Map<K, V> source) {

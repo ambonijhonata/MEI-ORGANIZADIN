@@ -68,7 +68,6 @@ public class GoogleCalendarClient {
                     request.setSyncToken(syncToken);
                     request.setShowDeleted(true);
                 } else {
-                    request.setOrderBy("startTime");
                     request.setPageToken(pageToken);
                     if (startDate != null) {
                         Instant startDateUtc = startDate.atStartOfDay(ZoneOffset.UTC).toInstant();

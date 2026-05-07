@@ -122,7 +122,6 @@ class GoogleCalendarClientTest {
         client.fetchEvents(1L, null, LocalDate.of(2026, 4, 1));
 
         long expectedEpochMillis = Instant.parse("2026-04-01T00:00:00Z").toEpochMilli();
-        verify(listRequest).setOrderBy("startTime");
         verify(listRequest).setTimeMin(argThat(value -> value != null && value.getValue() == expectedEpochMillis));
     }
 
@@ -138,12 +137,12 @@ class GoogleCalendarClientTest {
     }
 
     @Test
-    void shouldApplyOrderByWhenSyncTokenIsMissing() throws IOException {
+    void shouldNotApplyOrderByWhenSyncTokenIsMissing() throws IOException {
         when(listRequest.execute()).thenReturn(new Events().setItems(List.of()).setNextSyncToken("token"));
 
         client.fetchEvents(1L, null);
 
-        verify(listRequest).setOrderBy("startTime");
+        verify(listRequest, never()).setOrderBy(anyString());
         verify(listRequest, never()).setSyncToken(anyString());
         verify(listRequest, never()).setShowDeleted(true);
     }
