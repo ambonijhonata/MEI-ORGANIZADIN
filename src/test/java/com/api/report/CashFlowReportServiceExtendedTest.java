@@ -79,8 +79,10 @@ class CashFlowReportServiceExtendedTest {
         assertEquals(new BigDecimal("20.00"), entry.total());
         assertEquals(2, entry.services().size());
         assertEquals("Buco", entry.services().get(0).name());
+        assertEquals(1, entry.services().get(0).quantity());
         assertEquals(new BigDecimal("11.30"), entry.services().get(0).total());
         assertEquals("Sobrancelha", entry.services().get(1).name());
+        assertEquals(1, entry.services().get(1).quantity());
         assertEquals(new BigDecimal("8.70"), entry.services().get(1).total());
     }
 
@@ -112,6 +114,7 @@ class CashFlowReportServiceExtendedTest {
         assertEquals(new BigDecimal("23.00"), entry.total());
         assertEquals(1, entry.services().size());
         assertEquals("Sobrancelha", entry.services().get(0).name());
+        assertEquals(1, entry.services().get(0).quantity());
         assertEquals(new BigDecimal("23.00"), entry.services().get(0).total());
     }
 
@@ -169,8 +172,10 @@ class CashFlowReportServiceExtendedTest {
         assertEquals(new BigDecimal("20.00"), entry.total());
         assertEquals(2, entry.services().size());
         assertEquals("Alfa", entry.services().get(0).name());
+        assertEquals(1, entry.services().get(0).quantity());
         assertEquals(new BigDecimal("10.00"), entry.services().get(0).total());
         assertEquals("Zeta", entry.services().get(1).name());
+        assertEquals(1, entry.services().get(1).quantity());
         assertEquals(new BigDecimal("10.00"), entry.services().get(1).total());
     }
 
@@ -237,6 +242,7 @@ class CashFlowReportServiceExtendedTest {
         assertEquals(new BigDecimal("48.00"), entry.total());
         assertEquals(1, entry.services().size());
         assertEquals("Sobrancelha", entry.services().get(0).name());
+        assertEquals(1, entry.services().get(0).quantity());
         assertEquals(new BigDecimal("48.00"), entry.services().get(0).total());
     }
 
@@ -265,9 +271,48 @@ class CashFlowReportServiceExtendedTest {
         assertEquals(new BigDecimal("71.00"), entry.total());
         assertEquals(2, entry.services().size());
         assertEquals("Sobrancelha", entry.services().get(0).name());
+        assertEquals(1, entry.services().get(0).quantity());
         assertEquals(new BigDecimal("48.00"), entry.services().get(0).total());
         assertEquals("Buco", entry.services().get(1).name());
+        assertEquals(1, entry.services().get(1).quantity());
         assertEquals(new BigDecimal("23.00"), entry.services().get(1).total());
+    }
+
+    @Test
+    void shouldCountOnlyContributionsReturnedInPaidOnlyScope() {
+        Instant day = LocalDate.of(2026, 3, 10).atStartOfDay(ZoneOffset.UTC).toInstant().plusSeconds(3600);
+        CalendarEvent paidEvent = mockEventWithLinks(
+                30L,
+                day,
+                null,
+                List.of(serviceLink("Sobrancelha", new BigDecimal("23.00")))
+        );
+        CalendarEvent unpaidEvent = mockEventWithLinks(
+                31L,
+                day.plusSeconds(3600),
+                null,
+                List.of(serviceLink("Sobrancelha", new BigDecimal("25.00")))
+        );
+
+        when(calendarEventRepository.findIdentifiedWithServiceLinksByUserAndPeriod(eq(1L), any(), any()))
+                .thenReturn(List.of(paidEvent, unpaidEvent));
+        when(calendarEventPaymentRepository.summarizePaidAmountsByEventIdIn(any()))
+                .thenReturn(List.of(new CalendarEventPaymentTotal(30L, new BigDecimal("23.00"))));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.empty());
+
+        CashFlowReportService.CashFlowReport report = reportService.generateReport(
+                1L,
+                LocalDate.of(2026, 3, 10),
+                LocalDate.of(2026, 3, 10),
+                PaymentScope.PAID_ONLY
+        );
+
+        CashFlowReportService.DailyEntry entry = report.entries().get(0);
+        assertEquals(new BigDecimal("23.00"), entry.total());
+        assertEquals(1, entry.services().size());
+        assertEquals("Sobrancelha", entry.services().get(0).name());
+        assertEquals(1, entry.services().get(0).quantity());
+        assertEquals(new BigDecimal("23.00"), entry.services().get(0).total());
     }
 
     private CalendarEvent mockEventWithLinks(Long id,

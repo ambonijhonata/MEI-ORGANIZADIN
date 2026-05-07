@@ -47,35 +47,40 @@ public class CashFlowReportService {
                 ? reportPaidAmountService.loadPaidAmountsByEventId(events.stream().map(CalendarEvent::getId).toList())
                 : Map.of();
 
-        Map<LocalDate, Map<String, BigDecimal>> dailyServiceTotals = new LinkedHashMap<>();
+        Map<LocalDate, Map<String, ServiceAggregate>> dailyServiceTotals = new LinkedHashMap<>();
         for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
             dailyServiceTotals.put(date, new TreeMap<>());
         }
 
         for (CalendarEvent event : events) {
             LocalDate eventDate = event.getEventStart().atZone(ZoneOffset.UTC).toLocalDate();
-            Map<String, BigDecimal> serviceMap = dailyServiceTotals.get(eventDate);
+            Map<String, ServiceAggregate> serviceMap = dailyServiceTotals.get(eventDate);
             if (serviceMap == null) {
                 continue;
             }
 
-            Map<String, BigDecimal> eventContributions = resolveEventServiceContributions(
+            Map<String, ServiceContribution> eventContributions = resolveEventServiceContributions(
                     event,
                     paymentScope,
                     paidAmountsByEventId
             );
             for (var contribution : eventContributions.entrySet()) {
-                serviceMap.merge(contribution.getKey(), contribution.getValue(), BigDecimal::add);
+                serviceMap.merge(
+                        contribution.getKey(),
+                        ServiceAggregate.from(contribution.getValue()),
+                        ServiceAggregate::merge
+                );
             }
         }
 
         List<DailyEntry> entries = new ArrayList<>();
         for (var entry : dailyServiceTotals.entrySet()) {
             BigDecimal dayTotal = entry.getValue().values().stream()
+                    .map(ServiceAggregate::total)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
             List<ServiceEntry> services = entry.getValue().entrySet().stream()
-                    .map(e -> new ServiceEntry(e.getKey(), e.getValue()))
+                    .map(e -> new ServiceEntry(e.getKey(), e.getValue().quantity(), e.getValue().total()))
                     .sorted(
                             Comparator.comparing(ServiceEntry::total, Comparator.reverseOrder())
                                     .thenComparing(ServiceEntry::name)
@@ -90,16 +95,20 @@ public class CashFlowReportService {
         return new CashFlowReport(entries, startDate, endDate, metadata);
     }
 
-    private Map<String, BigDecimal> resolveEventServiceContributions(CalendarEvent event,
-                                                                     PaymentScope paymentScope,
-                                                                     Map<Long, BigDecimal> paidAmountsByEventId) {
+    private Map<String, ServiceContribution> resolveEventServiceContributions(CalendarEvent event,
+                                                                              PaymentScope paymentScope,
+                                                                              Map<Long, BigDecimal> paidAmountsByEventId) {
         Map<String, BigDecimal> serviceValues = extractEventServiceValues(event);
         if (serviceValues.isEmpty()) {
             return Map.of();
         }
 
         if (paymentScope == PaymentScope.ALL) {
-            return serviceValues;
+            Map<String, ServiceContribution> contributions = new TreeMap<>();
+            for (var serviceValue : serviceValues.entrySet()) {
+                contributions.put(serviceValue.getKey(), new ServiceContribution(serviceValue.getValue(), 1));
+            }
+            return contributions;
         }
 
         BigDecimal eventServiceTotal = serviceValues.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -114,7 +123,7 @@ public class CashFlowReportService {
 
         if (serviceValues.size() == 1) {
             String serviceName = serviceValues.keySet().iterator().next();
-            return Map.of(serviceName, paidOnlyAmount);
+            return Map.of(serviceName, new ServiceContribution(paidOnlyAmount, 1));
         }
 
         List<String> serviceNames = new ArrayList<>(serviceValues.keySet());
@@ -124,9 +133,9 @@ public class CashFlowReportService {
                 weights
         );
 
-        Map<String, BigDecimal> distributedByService = new TreeMap<>();
+        Map<String, ServiceContribution> distributedByService = new TreeMap<>();
         for (int i = 0; i < serviceNames.size(); i++) {
-            distributedByService.put(serviceNames.get(i), distributedAmounts.get(i));
+            distributedByService.put(serviceNames.get(i), new ServiceContribution(distributedAmounts.get(i), 1));
         }
         return distributedByService;
     }
@@ -186,5 +195,20 @@ public class CashFlowReportService {
 
     public record DailyEntry(LocalDate date, BigDecimal total, List<ServiceEntry> services) {}
 
-    public record ServiceEntry(String name, BigDecimal total) {}
+    public record ServiceEntry(String name, int quantity, BigDecimal total) {}
+
+    private record ServiceContribution(BigDecimal total, int quantity) {}
+
+    private record ServiceAggregate(BigDecimal total, int quantity) {
+        private static ServiceAggregate from(ServiceContribution contribution) {
+            return new ServiceAggregate(contribution.total(), contribution.quantity());
+        }
+
+        private ServiceAggregate merge(ServiceAggregate other) {
+            return new ServiceAggregate(
+                    total.add(other.total()),
+                    quantity + other.quantity()
+            );
+        }
+    }
 }

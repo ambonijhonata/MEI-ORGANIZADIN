@@ -85,14 +85,17 @@ class CashFlowReportServiceTest {
         assertEquals(new BigDecimal("130.00"), day1Entry.total());
         assertEquals(2, day1Entry.services().size());
         assertEquals("Corte", day1Entry.services().get(0).name());
+        assertEquals(1, day1Entry.services().get(0).quantity());
         assertEquals(new BigDecimal("100.00"), day1Entry.services().get(0).total());
         assertEquals("Barba", day1Entry.services().get(1).name());
+        assertEquals(1, day1Entry.services().get(1).quantity());
         assertEquals(new BigDecimal("30.00"), day1Entry.services().get(1).total());
 
         CashFlowReportService.DailyEntry day2Entry = report.entries().get(1);
         assertEquals(new BigDecimal("50.00"), day2Entry.total());
         assertEquals(1, day2Entry.services().size());
         assertEquals("Corte", day2Entry.services().get(0).name());
+        assertEquals(1, day2Entry.services().get(0).quantity());
         assertEquals(new BigDecimal("50.00"), day2Entry.services().get(0).total());
 
         CashFlowReportService.DailyEntry day3Entry = report.entries().get(2);
@@ -127,7 +130,43 @@ class CashFlowReportServiceTest {
         assertEquals(new BigDecimal("20.00"), dayEntry.total());
         assertEquals(1, dayEntry.services().size());
         assertEquals("Sobrancelha", dayEntry.services().get(0).name());
+        assertEquals(1, dayEntry.services().get(0).quantity());
         assertEquals(new BigDecimal("20.00"), dayEntry.services().get(0).total());
+    }
+
+    @Test
+    void shouldAggregateRepeatedServiceOccurrencesOnSameDay() {
+        Instant day = LocalDate.of(2026, 3, 10).atStartOfDay(ZoneOffset.UTC).toInstant().plusSeconds(3600);
+        CalendarEvent firstEvent = mockEventWithLinks(
+                null,
+                day,
+                null,
+                orderedServices(Map.of("Sobrancelha", new BigDecimal("23.00")))
+        );
+        CalendarEvent secondEvent = mockEventWithLinks(
+                null,
+                day.plusSeconds(7200),
+                null,
+                orderedServices(Map.of("Sobrancelha", new BigDecimal("25.00")))
+        );
+
+        when(calendarEventRepository.findIdentifiedWithServiceLinksByUserAndPeriod(eq(1L), any(), any()))
+                .thenReturn(List.of(firstEvent, secondEvent));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.empty());
+
+        CashFlowReportService.CashFlowReport report = reportService.generateReport(
+                1L,
+                LocalDate.of(2026, 3, 10),
+                LocalDate.of(2026, 3, 10),
+                PaymentScope.ALL
+        );
+
+        CashFlowReportService.DailyEntry dayEntry = report.entries().get(0);
+        assertEquals(new BigDecimal("48.00"), dayEntry.total());
+        assertEquals(1, dayEntry.services().size());
+        assertEquals("Sobrancelha", dayEntry.services().get(0).name());
+        assertEquals(2, dayEntry.services().get(0).quantity());
+        assertEquals(new BigDecimal("48.00"), dayEntry.services().get(0).total());
     }
 
     @Test
