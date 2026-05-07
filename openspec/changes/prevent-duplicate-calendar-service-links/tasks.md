@@ -33,7 +33,7 @@ COMMIT;
 
 - [x] 2.1 Criar uma migracao Flyway para adicionar um indice unico parcial em `calendar_event_services(calendar_event_id, service_id)` quando `service_id IS NOT NULL`.
 - [x] 2.2 Criar uma migracao Flyway para adicionar um indice unico parcial em `calendar_event_services(calendar_event_id, service_description_snapshot, service_value_snapshot)` quando `service_id IS NULL`.
-- [ ] 2.3 Validar que a migracao falha de forma segura se ainda houver duplicidades residuais e documentar a ordem correta de execucao: saneamento antes da restricao.
+- [x] 2.3 Atualizar a migracao para executar o saneamento transacional antes de criar os indices e manter o script manual apenas como fallback operacional.
 
 ## 3. Serialize Service-Association Mutations
 

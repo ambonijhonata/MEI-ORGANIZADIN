@@ -59,50 +59,66 @@ O cenario real mais provavel e:
 - um unico indice com `coalesce(service_id, -1)`: simples, mas mistura regra de FK ativa com sentinela artificial.
 - unicidade completa em `calendar_event_id, service_id, service_description_snapshot, service_value_snapshot`: protege, mas fica mais permissiva do que o desejado para o caso com `service_id` conhecido.
 
-### 4. Remediar os dados antes de ativar a restricao
-**Decision:** Executar saneamento SQL em producao para manter apenas a menor `id` de cada grupo duplicado antes de criar os indices unicos.
+### 4. Remediar os dados de forma transacional antes de ativar a restricao
+**Decision:** Executar o saneamento SQL na propria migracao Flyway antes de criar os indices unicos, preservando o script manual apenas como fallback operacional.
 
-**Why:** Se a restricao for aplicada antes da limpeza, a migracao falhara.
+**Why:** O deploy falhou quando a restricao tentou subir sobre dados ainda duplicados. Embutir a limpeza na migracao elimina a dependencia de um passo manual previo e garante que a restricao seja criada sobre um estado canonico no mesmo rollout.
 
-**Operational SQL for remediation:**
+**Migration SQL for remediation:**
 
 ```sql
-BEGIN;
-
-WITH ranked AS (
-    SELECT
-        id,
-        ROW_NUMBER() OVER (
-            PARTITION BY
-                calendar_event_id,
-                COALESCE(service_id, -1),
-                service_description_snapshot,
-                service_value_snapshot
-            ORDER BY id
-        ) AS rn
-    FROM calendar_event_services
+WITH duplicate_service_rows AS (
+    SELECT id
+    FROM (
+        SELECT
+            id,
+            ROW_NUMBER() OVER (
+                PARTITION BY calendar_event_id, service_id
+                ORDER BY id
+            ) AS rn
+        FROM calendar_event_services
+        WHERE service_id IS NOT NULL
+    ) ranked
+    WHERE rn > 1
+),
+duplicate_snapshot_rows AS (
+    SELECT id
+    FROM (
+        SELECT
+            id,
+            ROW_NUMBER() OVER (
+                PARTITION BY calendar_event_id, service_description_snapshot, service_value_snapshot
+                ORDER BY id
+            ) AS rn
+        FROM calendar_event_services
+        WHERE service_id IS NULL
+    ) ranked
+    WHERE rn > 1
+),
+rows_to_delete AS (
+    SELECT id FROM duplicate_service_rows
+    UNION
+    SELECT id FROM duplicate_snapshot_rows
 )
-DELETE FROM calendar_event_services ces
-USING ranked r
-WHERE ces.id = r.id
-  AND r.rn > 1;
-
-COMMIT;
+DELETE FROM calendar_event_services
+WHERE id IN (SELECT id FROM rows_to_delete);
 ```
+
+**Operational fallback script:** manter um script separado para diagnostico e limpeza controlada quando quisermos medir impacto antes do deploy ou atuar manualmente em um ambiente especifico.
 
 **Verification query after cleanup:**
 
 ```sql
 SELECT
     calendar_event_id,
-    COALESCE(service_id, -1) AS service_key,
+    service_id,
     service_description_snapshot,
     service_value_snapshot,
     COUNT(*) AS occurrences
 FROM calendar_event_services
 GROUP BY
     calendar_event_id,
-    COALESCE(service_id, -1),
+    service_id,
     service_description_snapshot,
     service_value_snapshot
 HAVING COUNT(*) > 1;
@@ -117,18 +133,17 @@ HAVING COUNT(*) > 1;
 
 - [Lock por usuario reduzir paralelismo] -> Mitigacao: o lock sera restrito apenas a fluxos que mutam associacao de servicos; leitura de relatorios e listagem seguem independentes.
 - [Delete-and-reinsert pode alterar ids dos links restantes] -> Mitigacao: os ids de `calendar_event_services` nao sao parte de contrato externo; preservar o snapshot semantico e mais importante que preservar ids tecnicos.
-- [Criacao de indice unico falhar por dados residuais] -> Mitigacao: rodar a query de verificacao apos o saneamento e antes da migracao final.
+- [Criacao de indice unico falhar por dados residuais] -> Mitigacao: a migracao limpa duplicidades no mesmo criterio dos indices antes de cria-los; manter query de verificacao e script manual como fallback.
 - [Reprocessamento assincrono ainda competir entre multiplas instancias da aplicacao] -> Mitigacao: no escopo atual, usar lock compartilhado na JVM e unicidade no banco; se houver horizontal scaling depois, evoluir para lock distribuido/advisory lock.
 
 ## Migration Plan
 
 1. Rodar a query de diagnostico em producao para medir grupos duplicados e registrar baseline.
-2. Executar o SQL de remediacao para remover duplicidades existentes em `calendar_event_services`.
+2. Publicar migracao Flyway com o saneamento transacional e os indices unicos parciais.
 3. Validar com a query de verificacao que nao restaram grupos duplicados.
-4. Publicar migracao Flyway com os indices unicos parciais.
-5. Publicar a mudanca de codigo que serializa sync e reprocessamento e substitui links por replace explicito.
-6. Executar testes de regressao e smoke test manual no fluxo: usuario sem servicos, sync, cadastro, reprocessamento, relatorio de fluxo de caixa.
-7. Monitorar logs e consultar amostras do banco nas primeiras execucoes para confirmar ausencia de novas duplicidades.
+4. Publicar a mudanca de codigo que serializa sync e reprocessamento e substitui links por replace explicito.
+5. Executar testes de regressao e smoke test manual no fluxo: usuario sem servicos, sync, cadastro, reprocessamento, relatorio de fluxo de caixa.
+6. Monitorar logs e consultar amostras do banco nas primeiras execucoes para confirmar ausencia de novas duplicidades.
 
 **Rollback strategy:**
 - Se a mudanca de codigo falhar, reverter deploy mantendo os dados ja saneados.
