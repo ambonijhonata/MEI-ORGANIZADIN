@@ -6,9 +6,6 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.anyString;
@@ -18,7 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(controllers = AuthVerificationAvailabilityTest.ProtectedTestController.class)
+@WebMvcTest(controllers = TestProtectedController.class)
 @Import({SecurityConfig.class, GoogleIdTokenAuthenticationFilter.class})
 class AuthVerificationAvailabilityTest {
 
@@ -47,12 +44,20 @@ class AuthVerificationAvailabilityTest {
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
     }
 
-    @RestController
-    @RequestMapping("/api/test")
-    static class ProtectedTestController {
-        @GetMapping("/protected")
-        String protectedEndpoint() {
-            return "ok";
-        }
+    @Test
+    void authenticatedInternalFailureShouldReturn500AndNotUnauthorized() throws Exception {
+        when(accessTokenService.validate(anyString()))
+                .thenReturn(AccessTokenService.AccessTokenValidationResult.valid(
+                        new AuthenticatedUser(1L, "sub", "test@example.com", "Test")
+                ));
+
+        mockMvc.perform(get("/api/test/protected")
+                        .param("fail", "true")
+                        .header("Authorization", "Bearer valid-token"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(500))
+                .andExpect(jsonPath("$.code").value("INTERNAL_SERVER_ERROR"));
     }
+
 }

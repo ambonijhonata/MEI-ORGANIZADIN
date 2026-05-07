@@ -65,6 +65,8 @@ class CalendarSyncServiceExtendedTest {
         lenient().when(calendarEventRepository.saveAll(anyList())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(calendarEventServiceLinkRepository.findServiceIdentityRowsByCalendarEventIdIn(anyCollection()))
                 .thenReturn(List.of());
+        lenient().when(calendarEventRepository.findLegacyServiceIdentityRowsByCalendarEventIdIn(anyCollection()))
+                .thenReturn(List.of());
     }
 
     @Test
@@ -104,6 +106,24 @@ class CalendarSyncServiceExtendedTest {
         assertThrows(RuntimeException.class, () -> syncService.synchronize(1L));
         assertEquals(SyncStatus.SYNC_FAILED, syncState.getStatus());
         assertEquals("IO_ERROR", syncState.getErrorCategory());
+    }
+
+    @Test
+    void shouldMarkFailedOnRuntimeException() throws IOException {
+        User user = new User("sub", "email@test.com", "Name");
+        SyncState syncState = new SyncState(user);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        when(syncStateRepository.save(any(SyncState.class))).thenReturn(syncState);
+        when(googleCalendarClient.fetchEvents(eq(1L), isNull()))
+                .thenThrow(new RuntimeException("Unexpected processing failure"));
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> syncService.synchronize(1L));
+        assertEquals("Unexpected processing failure", ex.getMessage());
+        assertEquals(SyncStatus.SYNC_FAILED, syncState.getStatus());
+        assertEquals("INTERNAL_SYNC_ERROR", syncState.getErrorCategory());
+        assertEquals("Unexpected processing failure", syncState.getErrorMessage());
     }
 
     @Test

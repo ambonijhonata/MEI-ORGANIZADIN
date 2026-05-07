@@ -79,6 +79,8 @@ class CalendarSyncServiceLoadTest {
                 .thenAnswer(inv -> inv.getArgument(0));
         lenient().when(calendarEventServiceLinkRepository.findServiceIdentityRowsByCalendarEventIdIn(anyCollection()))
                 .thenReturn(List.of());
+        lenient().when(calendarEventRepository.findLegacyServiceIdentityRowsByCalendarEventIdIn(anyCollection()))
+                .thenReturn(List.of());
         lenient().when(normalizer.normalize(anyString())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(titleParser.parse(anyString())).thenReturn(new EventTitleParser.ParsedTitle(null, List.of(), null));
 

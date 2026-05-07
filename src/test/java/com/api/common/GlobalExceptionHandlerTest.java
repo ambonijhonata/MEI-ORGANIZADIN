@@ -134,4 +134,14 @@ class GlobalExceptionHandlerTest {
         assertEquals("GOOGLE_API_FORBIDDEN", response.getBody().code());
         assertEquals("Calendar API is not enabled", response.getBody().message());
     }
+
+    @Test
+    void shouldHandleRuntimeWith500() {
+        var response = handler.handleRuntime(new RuntimeException("boom"));
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        assertEquals(500, response.getBody().status());
+        assertEquals("INTERNAL_SERVER_ERROR", response.getBody().code());
+        assertEquals("Unexpected internal error while processing request.", response.getBody().message());
+    }
 }

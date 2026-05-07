@@ -74,3 +74,9 @@ docker run --rm \
 
 - Unit harness (manual): `CalendarSyncServiceLoadTest` (disabled by default).
 - For production-like evaluation, prefer running against real API + PostgreSQL + real Google test account in staging.
+
+## Current Validation Status
+
+- Automated regression validation completed for sync and security contracts.
+- Real benchmark with production-like Google account (`14,482` events) must be executed in staging before closing the 10-second target.
+- If p95 remains above 10 seconds after this fix, prioritize optimization by highest stage contribution in this order: `google_fetch_ms`, `db_lookup_ms`, `processing_ms`, `db_write_ms`.

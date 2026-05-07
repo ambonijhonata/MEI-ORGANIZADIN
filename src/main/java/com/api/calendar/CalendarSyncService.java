@@ -154,6 +154,10 @@ public class CalendarSyncService {
                 syncState.markFailed("IO_ERROR", e.getMessage());
                 syncStateRepository.save(syncState);
                 throw new RuntimeException("Sync failed: " + e.getMessage(), e);
+            } catch (RuntimeException e) {
+                syncState.markFailed("INTERNAL_SYNC_ERROR", safeErrorMessage(e));
+                syncStateRepository.save(syncState);
+                throw e;
             }
         } finally {
             lock.unlock();
@@ -695,8 +699,12 @@ public class CalendarSyncService {
     private boolean hasServiceAssociationChanges(CalendarEvent existingEvent,
                                                  List<Service> matchedServices,
                                                  Set<String> existingServiceIdentities) {
+        Set<String> persistedServiceIdentities = existingServiceIdentities != null
+                ? existingServiceIdentities
+                : Set.of();
+
         if (matchedServices.isEmpty()) {
-            return hasPersistedAssociation(existingEvent);
+            return hasPersistedAssociation(existingEvent, persistedServiceIdentities);
         }
 
         if (!existingEvent.isIdentified()) {
@@ -704,9 +712,6 @@ public class CalendarSyncService {
         }
 
         Service firstMatched = matchedServices.get(0);
-        if (!Objects.equals(serviceIdentity(existingEvent.getService()), serviceIdentity(firstMatched))) {
-            return true;
-        }
 
         if (!Objects.equals(existingEvent.getServiceDescriptionSnapshot(), firstMatched.getDescription())) {
             return true;
@@ -716,16 +721,17 @@ public class CalendarSyncService {
             return true;
         }
 
-        if (existingServiceIdentities.isEmpty()) {
+        if (persistedServiceIdentities.isEmpty()) {
             return false;
         }
 
-        return !existingServiceIdentities.equals(serviceIdentitySet(matchedServices));
+        return !persistedServiceIdentities.equals(serviceIdentitySet(matchedServices));
     }
 
-    private boolean hasPersistedAssociation(CalendarEvent existingEvent) {
+    private boolean hasPersistedAssociation(CalendarEvent existingEvent,
+                                            Set<String> existingServiceIdentities) {
         return existingEvent.isIdentified()
-                || existingEvent.getService() != null
+                || (existingServiceIdentities != null && !existingServiceIdentities.isEmpty())
                 || existingEvent.getServiceDescriptionSnapshot() != null
                 || existingEvent.getServiceValueSnapshot() != null;
     }
@@ -859,46 +865,66 @@ public class CalendarSyncService {
         }
 
         List<Long> eventIds = new ArrayList<>();
-        Map<Long, Service> fallbackServiceByEventId = new HashMap<>();
         for (CalendarEvent event : events) {
             if (event == null || event.getId() == null) {
                 continue;
             }
             eventIds.add(event.getId());
-            if (event.getService() != null) {
-                fallbackServiceByEventId.put(event.getId(), event.getService());
-            }
         }
 
         if (eventIds.isEmpty()) {
             return identitiesByEventId;
         }
 
-        for (CalendarEventServiceLinkRepository.ServiceIdentityRow row :
-                calendarEventServiceLinkRepository.findServiceIdentityRowsByCalendarEventIdIn(eventIds)) {
-            if (row == null || row.getCalendarEventId() == null) {
-                continue;
+        List<CalendarEventServiceLinkRepository.ServiceIdentityRow> linkedRows =
+                calendarEventServiceLinkRepository.findServiceIdentityRowsByCalendarEventIdIn(eventIds);
+        if (linkedRows != null) {
+            for (CalendarEventServiceLinkRepository.ServiceIdentityRow row : linkedRows) {
+                if (row == null || row.getCalendarEventId() == null) {
+                    continue;
+                }
+                identitiesByEventId.computeIfAbsent(row.getCalendarEventId(), ignored -> new HashSet<>())
+                        .add(serviceIdentity(
+                                row.getServiceId(),
+                                row.getServiceNormalizedDescription(),
+                                row.getServiceDescription(),
+                                row.getServiceValue()
+                        ));
             }
-            identitiesByEventId.computeIfAbsent(row.getCalendarEventId(), ignored -> new HashSet<>())
-                    .add(serviceIdentity(
-                            row.getServiceId(),
-                            row.getServiceNormalizedDescription(),
-                            row.getServiceDescription(),
-                            row.getServiceValue()
-                    ));
+        }
+
+        List<CalendarEventRepository.ServiceIdentityRow> legacyRows =
+                calendarEventRepository.findLegacyServiceIdentityRowsByCalendarEventIdIn(eventIds);
+        if (legacyRows != null) {
+            for (CalendarEventRepository.ServiceIdentityRow row : legacyRows) {
+                if (row == null || row.getCalendarEventId() == null) {
+                    continue;
+                }
+                identitiesByEventId.computeIfAbsent(row.getCalendarEventId(), ignored -> new HashSet<>())
+                        .add(serviceIdentity(
+                                row.getServiceId(),
+                                row.getServiceNormalizedDescription(),
+                                row.getServiceDescription(),
+                                row.getServiceValue()
+                        ));
+            }
         }
 
         for (Long eventId : eventIds) {
-            identitiesByEventId.computeIfAbsent(eventId, ignored -> {
-                Set<String> fallback = new HashSet<>();
-                Service service = fallbackServiceByEventId.get(eventId);
-                if (service != null) {
-                    fallback.add(serviceIdentity(service));
-                }
-                return fallback;
-            });
+            identitiesByEventId.computeIfAbsent(eventId, ignored -> new HashSet<>());
         }
         return identitiesByEventId;
+    }
+
+    private String safeErrorMessage(Throwable throwable) {
+        if (throwable == null) {
+            return "Unexpected internal error during calendar synchronization";
+        }
+        String message = throwable.getMessage();
+        if (message == null || message.isBlank()) {
+            return throwable.getClass().getSimpleName();
+        }
+        return message;
     }
 
     private List<CalendarEvent> extractAdditionalDeletions(List<CalendarEvent> baseDeletions,

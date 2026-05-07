@@ -2,6 +2,8 @@ package com.api.common;
 
 import com.api.auth.AuthController;
 import jakarta.validation.ConstraintViolationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -13,6 +15,8 @@ import java.util.List;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(AuthController.InvalidTokenException.class)
     public ResponseEntity<ErrorResponse> handleInvalidToken(AuthController.InvalidTokenException ex) {
@@ -137,6 +141,18 @@ public class GlobalExceptionHandler {
                 Instant.now()
         );
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    }
+
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<ErrorResponse> handleRuntime(RuntimeException ex) {
+        log.error("Unhandled runtime exception in API request", ex);
+        var error = new ErrorResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                "INTERNAL_SERVER_ERROR",
+                "Unexpected internal error while processing request.",
+                Instant.now()
+        );
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
 
     public record ErrorResponse(int status, String code, String message, Instant timestamp) {}

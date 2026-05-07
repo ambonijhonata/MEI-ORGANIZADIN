@@ -15,6 +15,8 @@ This plan describes how to disable optimization strategies for `POST /api/calend
 - Google fetch tuning:
 - `GOOGLE_CALENDAR_SYNC_MAX_RESULTS`
 - `GOOGLE_CALENDAR_SYNC_FIELDS`
+- Error surface safeguard:
+- keep security rule that permits `DispatcherType.ERROR` so internal failures do not get masked as `401`.
 
 ## Safe Rollback Procedure
 
@@ -26,6 +28,16 @@ This plan describes how to disable optimization strategies for `POST /api/calend
 3. Restart API instances with updated config.
 4. Monitor sync error rate and latency metrics.
 5. If needed, roll back deployment to previous release while preserving database schema.
+
+## Monitoring Signals During Rollback
+
+- Validate internal sync failures:
+- API response should be `500` with code `INTERNAL_SERVER_ERROR`.
+- Sync state should persist `SYNC_FAILED` with `errorCategory=INTERNAL_SYNC_ERROR`.
+- Validate auth failures:
+- API response should be `401` with code `UNAUTHORIZED` only for missing/invalid tokens.
+- Watch latency budget:
+- Monitor `sync_total_ms` p95 for high-volume users and keep the target under 10 seconds.
 
 ## Contract Safety
 

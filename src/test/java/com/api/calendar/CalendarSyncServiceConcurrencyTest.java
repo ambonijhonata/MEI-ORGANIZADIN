@@ -69,6 +69,8 @@ class CalendarSyncServiceConcurrencyTest {
                 .thenAnswer(inv -> inv.getArgument(0));
         lenient().when(calendarEventServiceLinkRepository.findServiceIdentityRowsByCalendarEventIdIn(anyCollection()))
                 .thenReturn(List.of());
+        lenient().when(calendarEventRepository.findLegacyServiceIdentityRowsByCalendarEventIdIn(anyCollection()))
+                .thenReturn(List.of());
         lenient().when(syncStateRepository.save(org.mockito.ArgumentMatchers.any(SyncState.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
         lenient().when(normalizer.normalize(anyString())).thenAnswer(inv -> inv.getArgument(0));

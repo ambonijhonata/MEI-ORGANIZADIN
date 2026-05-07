@@ -14,6 +14,14 @@ import java.util.Optional;
 
 public interface CalendarEventRepository extends JpaRepository<CalendarEvent, Long> {
 
+    interface ServiceIdentityRow {
+        Long getCalendarEventId();
+        Long getServiceId();
+        String getServiceNormalizedDescription();
+        String getServiceDescription();
+        BigDecimal getServiceValue();
+    }
+
     Optional<CalendarEvent> findByUserIdAndGoogleEventId(Long userId, String googleEventId);
 
     List<CalendarEvent> findByUserIdAndGoogleEventIdIn(Long userId, Collection<String> googleEventIds);
@@ -65,6 +73,18 @@ public interface CalendarEventRepository extends JpaRepository<CalendarEvent, Lo
     boolean existsByServiceId(Long serviceId);
 
     boolean existsByClientId(Long clientId);
+
+    @Query("SELECT e.id AS calendarEventId, " +
+            "s.id AS serviceId, " +
+            "s.normalizedDescription AS serviceNormalizedDescription, " +
+            "s.description AS serviceDescription, " +
+            "s.value AS serviceValue " +
+            "FROM CalendarEvent e " +
+            "JOIN e.service s " +
+            "WHERE e.id IN :calendarEventIds")
+    List<ServiceIdentityRow> findLegacyServiceIdentityRowsByCalendarEventIdIn(
+            @Param("calendarEventIds") Collection<Long> calendarEventIds
+    );
 
     void deleteByUserIdAndGoogleEventId(Long userId, String googleEventId);
 

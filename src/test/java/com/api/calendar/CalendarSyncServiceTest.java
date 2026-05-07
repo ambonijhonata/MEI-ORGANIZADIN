@@ -65,6 +65,8 @@ class CalendarSyncServiceTest {
         lenient().when(calendarEventRepository.saveAll(anyList())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(calendarEventServiceLinkRepository.findServiceIdentityRowsByCalendarEventIdIn(anyCollection()))
                 .thenReturn(List.of());
+        lenient().when(calendarEventRepository.findLegacyServiceIdentityRowsByCalendarEventIdIn(anyCollection()))
+                .thenReturn(List.of());
     }
 
     @Test
@@ -429,6 +431,45 @@ class CalendarSyncServiceTest {
                     && deletions.contains(staleLocalEvent)
                     && !deletions.contains(withoutGoogleEventId);
         }));
+    }
+
+    @Test
+    void shouldAvoidDereferencingLegacyServiceProxyDuringServiceComparison() throws IOException {
+        User user = new User("sub", "email@test.com", "Name");
+        SyncState syncState = new SyncState(user);
+        syncState.markSynced("sync-token");
+
+        Instant start = Instant.now();
+        Instant end = start.plusSeconds(1800);
+        Service matchedService = new Service(user, "Corte", "corte", new BigDecimal("50.00"));
+        CalendarEvent existingEvent = new CalendarEvent(user, "event-1", "maria - corte", "maria - corte", start, end);
+        existingEvent.associateServices(List.of(matchedService));
+        setCalendarEventId(existingEvent, 901L);
+        CalendarEvent existingSpy = spy(existingEvent);
+        lenient().doThrow(new IllegalStateException("Legacy lazy proxy should not be touched"))
+                .when(existingSpy).getService();
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
+        when(syncStateRepository.save(any(SyncState.class))).thenReturn(syncState);
+        when(calendarEventRepository.findByUserIdAndGoogleEventIdIn(eq(1L), anyCollection()))
+                .thenReturn(List.of(existingSpy));
+        when(matcher.servicesByNormalizedDescription(1L))
+                .thenReturn(new HashMap<>() {{
+                    put("corte", matchedService);
+                }});
+        lenient().when(normalizer.normalize(anyString())).thenAnswer(inv -> inv.getArgument(0));
+        when(titleParser.parse("maria - corte"))
+                .thenReturn(new EventTitleParser.ParsedTitle("maria", List.of("corte"), null));
+
+        Event incoming = createTestEvent("event-1", "maria - corte");
+        incoming.setStart(new EventDateTime().setDateTime(new DateTime(start.toEpochMilli())));
+        incoming.setEnd(new EventDateTime().setDateTime(new DateTime(end.toEpochMilli())));
+        when(googleCalendarClient.fetchEvents(1L, "sync-token"))
+                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(incoming), "next-token"));
+
+        assertDoesNotThrow(() -> syncService.synchronize(1L));
+        verify(existingSpy, never()).getService();
     }
 
     private Event createTestEvent(String id, String summary) {

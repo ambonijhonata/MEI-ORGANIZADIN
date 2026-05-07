@@ -27,6 +27,14 @@ This document captures the current expected behavior of `POST /api/calendar/sync
 - Error code: `GOOGLE_API_FORBIDDEN`
 - Generic I/O failure:
 - Sync state is marked failed (`IO_ERROR`) and runtime failure is propagated.
+- Generic internal sync failure (runtime):
+- HTTP: `500`
+- Error code: `INTERNAL_SERVER_ERROR`
+- Sync state is marked failed (`INTERNAL_SYNC_ERROR`).
+- Auth failures remain isolated:
+- HTTP: `401`
+- Error code: `UNAUTHORIZED`
+- Returned only when access token is missing/invalid.
 
 ## Behavioral Invariants
 
@@ -47,5 +55,7 @@ This document captures the current expected behavior of `POST /api/calendar/sync
 - Cleanup reconciliation ignores local rows without `googleEventId`.
 - Matching semantics:
 - Event title parsing and client/service resolution behavior remains unchanged.
+- Lazy-safe service association comparison:
+- Sync comparison path must not dereference `CalendarEvent.service` lazy proxy outside an active Hibernate session.
 - Existing HTTP payload shapes and status codes must remain unchanged.
 - Android Home requires no UI changes: it continues to read `GET /api/calendar/events` after sync against the reconciled backend state.
