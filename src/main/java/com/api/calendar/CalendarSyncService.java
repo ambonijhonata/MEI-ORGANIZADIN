@@ -18,6 +18,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -56,6 +58,7 @@ public class CalendarSyncService {
     private final boolean batchClearEnabled;
     private final int batchFlushEveryChunks;
     private final ConcurrentMap<Long, ReentrantLock> userSyncLocks = new ConcurrentHashMap<>();
+    private TransactionTemplate transactionTemplate;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -114,6 +117,13 @@ public class CalendarSyncService {
         this.batchSize = batchSize <= 0 ? DEFAULT_BATCH_SIZE : batchSize;
         this.batchClearEnabled = batchClearEnabled;
         this.batchFlushEveryChunks = batchFlushEveryChunks <= 0 ? 1 : batchFlushEveryChunks;
+    }
+
+    @Autowired(required = false)
+    void configureTransactionTemplate(PlatformTransactionManager platformTransactionManager) {
+        if (platformTransactionManager != null) {
+            this.transactionTemplate = new TransactionTemplate(platformTransactionManager);
+        }
     }
 
     public SyncResult synchronize(Long userId) {
@@ -229,19 +239,20 @@ public class CalendarSyncService {
             created = mutations.created();
             updated = mutations.updated();
             deleted = mutations.deleted();
+            List<CalendarEvent> reconciliationDeletions = extractAdditionalDeletions(chunkDeletions, mutations.deletions());
 
             long writeStartNs = System.nanoTime();
-            for (SyncMutations chunkMutation : chunkMutations) {
-                persistMutations(chunkMutation);
-            }
-            List<CalendarEvent> reconciliationDeletions = extractAdditionalDeletions(chunkDeletions, mutations.deletions());
-            if (!reconciliationDeletions.isEmpty()) {
-                persistMutations(new SyncMutations(List.of(), reconciliationDeletions, 0, 0, reconciliationDeletions.size()));
-            }
+            executeWithinTransaction(() -> {
+                for (SyncMutations chunkMutation : chunkMutations) {
+                    persistMutations(chunkMutation);
+                }
+                if (!reconciliationDeletions.isEmpty()) {
+                    persistMutations(new SyncMutations(List.of(), reconciliationDeletions, 0, 0, reconciliationDeletions.size()));
+                }
+                syncState.markSynced(result.nextSyncToken());
+                syncStateRepository.save(syncState);
+            });
             dbWriteMs = elapsedMs(writeStartNs);
-
-            syncState.markSynced(result.nextSyncToken());
-            syncStateRepository.save(syncState);
 
             logSyncSummary(
                     userId,
@@ -318,19 +329,20 @@ public class CalendarSyncService {
         List<CalendarEvent> localGoogleBackedEvents = calendarEventRepository.findGoogleBackedByUserId(userId);
         mutations = withScopeReconciliation(mutations, result.events(), localGoogleBackedEvents, "full_resync");
         processingMs = elapsedMs(processingStartNs);
+        List<CalendarEvent> reconciliationDeletions = extractAdditionalDeletions(chunkDeletions, mutations.deletions());
 
         long writeStartNs = System.nanoTime();
-        for (SyncMutations chunkMutation : chunkMutations) {
-            persistMutations(chunkMutation);
-        }
-        List<CalendarEvent> reconciliationDeletions = extractAdditionalDeletions(chunkDeletions, mutations.deletions());
-        if (!reconciliationDeletions.isEmpty()) {
-            persistMutations(new SyncMutations(List.of(), reconciliationDeletions, 0, 0, reconciliationDeletions.size()));
-        }
+        executeWithinTransaction(() -> {
+            for (SyncMutations chunkMutation : chunkMutations) {
+                persistMutations(chunkMutation);
+            }
+            if (!reconciliationDeletions.isEmpty()) {
+                persistMutations(new SyncMutations(List.of(), reconciliationDeletions, 0, 0, reconciliationDeletions.size()));
+            }
+            syncState.markSynced(result.nextSyncToken());
+            syncStateRepository.save(syncState);
+        });
         dbWriteMs = elapsedMs(writeStartNs);
-
-        syncState.markSynced(result.nextSyncToken());
-        syncStateRepository.save(syncState);
 
         logSyncSummary(
                 userId,
@@ -405,19 +417,20 @@ public class CalendarSyncService {
                 .findGoogleBackedByUserIdAndEventStartGreaterThanEqual(userId, startDateBoundary);
         mutations = withScopeReconciliation(mutations, result.events(), localGoogleBackedEvents, "start_date_sync");
         processingMs = elapsedMs(processingStartNs);
+        List<CalendarEvent> reconciliationDeletions = extractAdditionalDeletions(chunkDeletions, mutations.deletions());
 
         long writeStartNs = System.nanoTime();
-        for (SyncMutations chunkMutation : chunkMutations) {
-            persistMutations(chunkMutation);
-        }
-        List<CalendarEvent> reconciliationDeletions = extractAdditionalDeletions(chunkDeletions, mutations.deletions());
-        if (!reconciliationDeletions.isEmpty()) {
-            persistMutations(new SyncMutations(List.of(), reconciliationDeletions, 0, 0, reconciliationDeletions.size()));
-        }
+        executeWithinTransaction(() -> {
+            for (SyncMutations chunkMutation : chunkMutations) {
+                persistMutations(chunkMutation);
+            }
+            if (!reconciliationDeletions.isEmpty()) {
+                persistMutations(new SyncMutations(List.of(), reconciliationDeletions, 0, 0, reconciliationDeletions.size()));
+            }
+            syncState.markSynced(result.nextSyncToken());
+            syncStateRepository.save(syncState);
+        });
         dbWriteMs = elapsedMs(writeStartNs);
-
-        syncState.markSynced(result.nextSyncToken());
-        syncStateRepository.save(syncState);
 
         logSyncSummary(
                 userId,
@@ -838,6 +851,14 @@ public class CalendarSyncService {
         if (!mutations.upserts().isEmpty()) {
             saveEventsInBatches(mutations.upserts());
         }
+    }
+
+    private void executeWithinTransaction(Runnable work) {
+        if (transactionTemplate == null) {
+            work.run();
+            return;
+        }
+        transactionTemplate.executeWithoutResult(status -> work.run());
     }
 
     private void saveEventsInBatches(List<CalendarEvent> eventsToPersist) {
