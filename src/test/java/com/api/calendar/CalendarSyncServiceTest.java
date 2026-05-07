@@ -10,12 +10,19 @@ import com.api.user.UserRepository;
 import com.google.api.client.util.DateTime;
 import com.google.api.services.calendar.model.Event;
 import com.google.api.services.calendar.model.EventDateTime;
+import org.hibernate.LazyInitializationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.AbstractPlatformTransactionManager;
+import org.springframework.transaction.support.DefaultTransactionStatus;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.util.AbstractList;
+import java.util.ArrayList;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -53,6 +60,10 @@ class CalendarSyncServiceTest {
                 calendarEventPaymentRepository, calendarEventServiceLinkRepository);
 
         lenient().when(calendarEventRepository.findByUserIdAndGoogleEventIdIn(anyLong(), anyCollection()))
+                .thenReturn(List.of());
+        lenient().when(calendarEventRepository.findWithAssociationsByUserIdAndGoogleEventIdIn(anyLong(), anyCollection()))
+                .thenReturn(List.of());
+        lenient().when(calendarEventRepository.findAllWithAssociationsByUserId(anyLong()))
                 .thenReturn(List.of());
         lenient().when(calendarEventRepository.findGoogleBackedByUserId(anyLong()))
                 .thenReturn(List.of());
@@ -518,7 +529,7 @@ class CalendarSyncServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
         when(syncStateRepository.save(any(SyncState.class))).thenReturn(syncState);
-        when(calendarEventRepository.findByUserIdAndGoogleEventIdIn(eq(1L), anyCollection()))
+        when(calendarEventRepository.findWithAssociationsByUserIdAndGoogleEventIdIn(eq(1L), anyCollection()))
                 .thenReturn(List.of(existingSpy));
         when(matcher.servicesByNormalizedDescription(1L))
                 .thenReturn(new HashMap<>() {{
@@ -538,6 +549,67 @@ class CalendarSyncServiceTest {
         verify(existingSpy, never()).getService();
     }
 
+    @Test
+    void shouldUpdateLazyServiceLinksInsideActiveTransaction() throws Exception {
+        syncService.configureTransactionTemplate(new AbstractPlatformTransactionManager() {
+            @Override
+            protected Object doGetTransaction() {
+                return new Object();
+            }
+
+            @Override
+            protected void doBegin(Object transaction, TransactionDefinition definition) {
+            }
+
+            @Override
+            protected void doCommit(DefaultTransactionStatus status) {
+            }
+
+            @Override
+            protected void doRollback(DefaultTransactionStatus status) {
+            }
+        });
+
+        User user = new User("sub", "email@test.com", "Name");
+        SyncState syncState = new SyncState(user);
+        syncState.markSynced("sync-token");
+
+        Instant start = Instant.now();
+        Instant end = start.plusSeconds(1800);
+        Service oldService = new Service(user, "Corte", "corte", new BigDecimal("50.00"));
+        Service newService = new Service(user, "Barba", "barba", new BigDecimal("30.00"));
+        CalendarEvent existingEvent = new CalendarEvent(user, "event-1", "maria - corte", "maria - corte", start, end);
+        existingEvent.associateServices(List.of(oldService));
+        setCalendarEventId(existingEvent, 902L);
+        LazyAwareServiceLinkList lazyServiceLinks = new LazyAwareServiceLinkList(new ArrayList<>(existingEvent.getServiceLinks()));
+        setServiceLinks(existingEvent, lazyServiceLinks);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
+        when(syncStateRepository.save(any(SyncState.class))).thenReturn(syncState);
+        when(calendarEventRepository.findWithAssociationsByUserIdAndGoogleEventIdIn(eq(1L), anyCollection()))
+                .thenReturn(List.of(existingEvent));
+        when(matcher.servicesByNormalizedDescription(1L))
+                .thenReturn(new HashMap<>() {{
+                    put("barba", newService);
+                }});
+        lenient().when(normalizer.normalize(anyString())).thenAnswer(inv -> inv.getArgument(0));
+        when(titleParser.parse("maria - barba"))
+                .thenReturn(new EventTitleParser.ParsedTitle("maria", List.of("barba"), null));
+
+        Event incoming = createTestEvent("event-1", "maria - barba");
+        incoming.setStart(new EventDateTime().setDateTime(new DateTime(start.toEpochMilli())));
+        incoming.setEnd(new EventDateTime().setDateTime(new DateTime(end.toEpochMilli())));
+        when(googleCalendarClient.fetchEvents(1L, "sync-token"))
+                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(incoming), "next-token"));
+
+        CalendarSyncService.SyncResult result = assertDoesNotThrow(() -> syncService.synchronize(1L));
+
+        assertEquals(1, result.updated());
+        assertEquals("Barba", existingEvent.getServiceDescriptionSnapshot());
+        assertEquals(1, lazyServiceLinks.rawSize());
+    }
+
     private Event createTestEvent(String id, String summary) {
         return new Event()
                 .setId(id)
@@ -554,6 +626,70 @@ class CalendarSyncServiceTest {
             idField.set(event, eventId);
         } catch (ReflectiveOperationException e) {
             throw new AssertionError("Failed to set CalendarEvent id for test setup", e);
+        }
+    }
+
+    private void setServiceLinks(CalendarEvent event, List<CalendarEventServiceLink> serviceLinks) {
+        try {
+            var field = CalendarEvent.class.getDeclaredField("serviceLinks");
+            field.setAccessible(true);
+            field.set(event, serviceLinks);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("Failed to override CalendarEvent serviceLinks for test setup", e);
+        }
+    }
+
+    private static final class LazyAwareServiceLinkList extends AbstractList<CalendarEventServiceLink> {
+        private final List<CalendarEventServiceLink> delegate;
+
+        private LazyAwareServiceLinkList(List<CalendarEventServiceLink> delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public CalendarEventServiceLink get(int index) {
+            ensureTransactionActive();
+            return delegate.get(index);
+        }
+
+        @Override
+        public int size() {
+            ensureTransactionActive();
+            return delegate.size();
+        }
+
+        @Override
+        public void clear() {
+            ensureTransactionActive();
+            delegate.clear();
+        }
+
+        @Override
+        public void add(int index, CalendarEventServiceLink element) {
+            ensureTransactionActive();
+            delegate.add(index, element);
+        }
+
+        @Override
+        public CalendarEventServiceLink set(int index, CalendarEventServiceLink element) {
+            ensureTransactionActive();
+            return delegate.set(index, element);
+        }
+
+        @Override
+        public CalendarEventServiceLink remove(int index) {
+            ensureTransactionActive();
+            return delegate.remove(index);
+        }
+
+        private void ensureTransactionActive() {
+            if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+                throw new LazyInitializationException("Service links accessed outside transaction");
+            }
+        }
+
+        private int rawSize() {
+            return delegate.size();
         }
     }
 }
