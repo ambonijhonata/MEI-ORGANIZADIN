@@ -131,9 +131,25 @@ class CashFlowReportServiceTest {
     }
 
     @Test
-    void shouldRejectPeriodExceeding7Days() {
+    void shouldRejectPeriodExceedingOneMonth() {
         assertThrows(InvalidPeriodException.class, () ->
-                reportService.generateReport(1L, LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 15)));
+                reportService.generateReport(1L, LocalDate.of(2026, 3, 1), LocalDate.of(2026, 4, 2)));
+    }
+
+    @Test
+    void shouldAllowPeriodUpToOneMonth() {
+        when(calendarEventRepository.findIdentifiedWithServiceLinksByUserAndPeriod(eq(1L), any(), any()))
+                .thenReturn(List.of());
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.empty());
+
+        CashFlowReportService.CashFlowReport report = reportService.generateReport(
+                1L,
+                LocalDate.of(2026, 3, 1),
+                LocalDate.of(2026, 4, 1),
+                PaymentScope.ALL
+        );
+
+        assertEquals(32, report.entries().size());
     }
 
     @Test

@@ -46,10 +46,10 @@ public class ReportController {
     }
 
     @GetMapping("/cashflow")
-    @Operation(summary = "Relatório de fluxo de caixa", description = "Retorna série temporal de faturamento por dia. Máximo 7 dias.",
+    @Operation(summary = "Relatório de fluxo de caixa", description = "Retorna série temporal de faturamento por dia. Máximo 1 mês.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Relatório gerado"),
-                    @ApiResponse(responseCode = "400", description = "Período inválido (excede 7 dias ou datas invertidas)")
+                    @ApiResponse(responseCode = "400", description = "Período inválido (excede 1 mês ou datas invertidas)")
             })
     public ResponseEntity<CashFlowReportService.CashFlowReport> getCashFlowReport(
             @AuthenticationPrincipal AuthenticatedUser user,

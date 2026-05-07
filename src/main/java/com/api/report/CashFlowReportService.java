@@ -160,9 +160,8 @@ public class CashFlowReportService {
         if (startDate.isAfter(endDate)) {
             throw new InvalidPeriodException("Start date must be before or equal to end date");
         }
-        long daysBetween = ChronoUnit.DAYS.between(startDate, endDate);
-        if (daysBetween > 7) {
-            throw new InvalidPeriodException("Period must not exceed 7 days");
+        if (endDate.isAfter(startDate.plusMonths(1))) {
+            throw new InvalidPeriodException("Period must not exceed 1 month");
         }
     }
 
