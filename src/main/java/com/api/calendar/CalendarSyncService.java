@@ -884,13 +884,12 @@ public class CalendarSyncService {
     }
 
     private void persistMutations(SyncMutations mutations) {
+        if (!mutations.serviceLinkReplacementEventIds().isEmpty() && calendarEventServiceLinkRepository != null) {
+            calendarEventServiceLinkRepository.deleteInBulkByCalendarEventIdIn(mutations.serviceLinkReplacementEventIds());
+            calendarEventServiceLinkRepository.flush();
+        }
         if (!mutations.deletions().isEmpty()) {
-            Set<Long> deletionEventIds = new HashSet<>();
-            for (CalendarEvent deletion : mutations.deletions()) {
-                if (deletion != null && deletion.getId() != null) {
-                    deletionEventIds.add(deletion.getId());
-                }
-            }
+            Set<Long> deletionEventIds = extractEventIds(mutations.deletions());
             if (!deletionEventIds.isEmpty() && calendarEventPaymentRepository != null) {
                 calendarEventPaymentRepository.deleteInBulkByCalendarEventIdIn(deletionEventIds);
                 // Explicitly flush between payment cleanup and event deletion to keep batched statements isolated.
@@ -898,13 +897,22 @@ public class CalendarSyncService {
             }
             calendarEventRepository.deleteAllInBatch(mutations.deletions());
         }
-        if (!mutations.serviceLinkReplacementEventIds().isEmpty() && calendarEventServiceLinkRepository != null) {
-            calendarEventServiceLinkRepository.deleteInBulkByCalendarEventIdIn(mutations.serviceLinkReplacementEventIds());
-            calendarEventServiceLinkRepository.flush();
-        }
         if (!mutations.upserts().isEmpty()) {
             saveEventsInBatches(mutations.upserts());
         }
+    }
+
+    private Set<Long> extractEventIds(List<CalendarEvent> events) {
+        Set<Long> eventIds = new HashSet<>();
+        if (events == null || events.isEmpty()) {
+            return eventIds;
+        }
+        for (CalendarEvent event : events) {
+            if (event != null && event.getId() != null) {
+                eventIds.add(event.getId());
+            }
+        }
+        return eventIds;
     }
 
     private void executeWithinTransaction(Runnable work) {

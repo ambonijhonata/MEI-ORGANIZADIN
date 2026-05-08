@@ -49,6 +49,9 @@ class CalendarEventServiceLinkReplacePersistenceIntegrationTest {
     private CalendarEventServiceLinkRepository calendarEventServiceLinkRepository;
 
     @Autowired
+    private CalendarEventPaymentRepository calendarEventPaymentRepository;
+
+    @Autowired
     private EntityManager entityManager;
 
     @Autowired
@@ -140,6 +143,67 @@ class CalendarEventServiceLinkReplacePersistenceIntegrationTest {
         assertNull(reloaded.getService());
         assertNull(reloaded.getServiceDescriptionSnapshot());
         assertNull(reloaded.getServiceValueSnapshot());
+    }
+
+    @Test
+    void shouldHandleReplacementAndDeletionCleanupInSamePersistenceFlowWithoutDuplicateKey() {
+        User user = userRepository.saveAndFlush(new User("sub-mixed", "mixed@test.com", "Mixed Test"));
+        Service corte = serviceRepository.saveAndFlush(new Service(user, "Corte", "corte", new BigDecimal("50.00")));
+        Service barba = serviceRepository.saveAndFlush(new Service(user, "Barba", "barba", new BigDecimal("30.00")));
+
+        CalendarEvent updatedPersisted = new CalendarEvent(
+                user,
+                "google-event-3",
+                "maria - corte",
+                "maria - corte",
+                Instant.parse("2026-05-08T06:00:00Z"),
+                Instant.parse("2026-05-08T07:00:00Z")
+        );
+        updatedPersisted.associateServices(List.of(corte));
+        updatedPersisted = calendarEventRepository.saveAndFlush(updatedPersisted);
+
+        CalendarEvent deletedPersisted = new CalendarEvent(
+                user,
+                "google-event-4",
+                "evento removido",
+                "evento removido",
+                Instant.parse("2026-05-08T08:00:00Z"),
+                Instant.parse("2026-05-08T09:00:00Z")
+        );
+        deletedPersisted = calendarEventRepository.saveAndFlush(deletedPersisted);
+        calendarEventPaymentRepository.saveAndFlush(new CalendarEventPayment(
+                deletedPersisted,
+                PaymentType.PIX,
+                new BigDecimal("40.00"),
+                true,
+                Instant.parse("2026-05-08T08:30:00Z")
+        ));
+
+        entityManager.clear();
+
+        CalendarEvent managedUpdated = loadWithAssociations(user.getId(), "google-event-3");
+        managedUpdated.associateServices(List.of(barba));
+        CalendarEvent managedDeleted = calendarEventRepository.findById(deletedPersisted.getId())
+                .orElseThrow(() -> new AssertionError("Expected deleted event to be present"));
+
+        assertDoesNotThrow(() -> {
+            calendarEventServiceLinkRepository.deleteInBulkByCalendarEventIdIn(Set.of(managedUpdated.getId()));
+            calendarEventServiceLinkRepository.flush();
+            calendarEventPaymentRepository.deleteInBulkByCalendarEventIdIn(Set.of(managedDeleted.getId()));
+            calendarEventPaymentRepository.flush();
+            calendarEventRepository.deleteAllInBatch(List.of(managedDeleted));
+            calendarEventRepository.saveAll(List.of(managedUpdated));
+            calendarEventRepository.flush();
+        });
+
+        entityManager.clear();
+
+        CalendarEvent reloadedUpdated = loadWithAssociations(user.getId(), "google-event-3");
+        assertEquals("Barba", reloadedUpdated.getServiceDescriptionSnapshot());
+        assertEquals(0, new BigDecimal("30.00").compareTo(reloadedUpdated.getServiceValueSnapshot()));
+        assertEquals(1, reloadedUpdated.getServiceLinks().size());
+        assertFalse(calendarEventRepository.findById(deletedPersisted.getId()).isPresent());
+        assertTrue(calendarEventPaymentRepository.findByCalendarEventIdOrderByIdAsc(deletedPersisted.getId()).isEmpty());
     }
 
     private CalendarEvent loadWithAssociations(Long userId, String googleEventId) {

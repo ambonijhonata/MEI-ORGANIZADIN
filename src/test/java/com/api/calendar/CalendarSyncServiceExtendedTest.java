@@ -593,6 +593,83 @@ class CalendarSyncServiceExtendedTest {
     }
 
     @Test
+    void shouldReplaceServiceLinksBeforeDeletionCleanupWhenChunkMixesUpdatedAndDeletedEvents() throws IOException {
+        User user = new User("sub", "email@test.com", "Name");
+        SyncState syncState = new SyncState(user);
+        syncState.markSynced("sync-token");
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
+        when(syncStateRepository.save(any(SyncState.class))).thenReturn(syncState);
+
+        Event updatedGoogleEvent = createTestEvent("keep-1", "maria - barba");
+        Event deletedGoogleEvent = new Event().setId("deleted-1").setStatus("cancelled");
+        when(googleCalendarClient.fetchEvents(1L, "sync-token"))
+                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(
+                        List.of(updatedGoogleEvent, deletedGoogleEvent),
+                        "next-token"
+                ));
+        when(normalizer.normalize(anyString())).thenAnswer(inv -> inv.getArgument(0));
+        when(titleParser.parse("maria - barba"))
+                .thenReturn(new EventTitleParser.ParsedTitle("maria", List.of("barba"), null));
+
+        Client maria = new Client(user, "Maria", "maria");
+        when(clientService.findOrCreateByName(1L, user, "maria")).thenReturn(maria);
+
+        Service corte = new Service(user, "Corte", "corte", new BigDecimal("50.00"));
+        Service barba = new Service(user, "Barba", "barba", new BigDecimal("30.00"));
+        CalendarEvent existingUpdatedEvent = new CalendarEvent(
+                user,
+                "keep-1",
+                "maria - corte",
+                "maria - corte",
+                Instant.ofEpochMilli(updatedGoogleEvent.getStart().getDateTime().getValue()),
+                Instant.ofEpochMilli(updatedGoogleEvent.getEnd().getDateTime().getValue())
+        );
+        existingUpdatedEvent.setClient(maria);
+        existingUpdatedEvent.associateServices(List.of(corte));
+        setCalendarEventId(existingUpdatedEvent, 701L);
+
+        CalendarEvent existingDeletedEvent = new CalendarEvent(
+                user,
+                "deleted-1",
+                "to delete",
+                "to delete",
+                Instant.now(),
+                Instant.now()
+        );
+        setCalendarEventId(existingDeletedEvent, 702L);
+
+        when(calendarEventRepository.findWithAssociationsByUserIdAndGoogleEventIdIn(eq(1L), anyCollection()))
+                .thenReturn(List.of(existingUpdatedEvent, existingDeletedEvent));
+        when(matcher.servicesByNormalizedDescription(1L)).thenReturn(new HashMap<>() {{
+            put("barba", barba);
+        }});
+
+        CalendarSyncService.SyncResult result = assertDoesNotThrow(() -> syncService.synchronize(1L));
+
+        assertEquals(1, result.updated());
+        assertEquals(1, result.deleted());
+
+        var inOrder = inOrder(calendarEventServiceLinkRepository, calendarEventPaymentRepository, calendarEventRepository);
+        inOrder.verify(calendarEventServiceLinkRepository)
+                .deleteInBulkByCalendarEventIdIn(argThat(ids -> ids != null && ids.size() == 1 && ids.contains(701L)));
+        inOrder.verify(calendarEventServiceLinkRepository).flush();
+        inOrder.verify(calendarEventPaymentRepository)
+                .deleteInBulkByCalendarEventIdIn(argThat(ids -> ids != null && ids.size() == 1 && ids.contains(702L)));
+        inOrder.verify(calendarEventPaymentRepository).flush();
+        inOrder.verify(calendarEventRepository).deleteAllInBatch(argThat(iterable -> {
+            List<CalendarEvent> deletions = StreamSupport.stream(iterable.spliterator(), false).toList();
+            return deletions.size() == 1 && deletions.contains(existingDeletedEvent);
+        }));
+        inOrder.verify(calendarEventRepository).saveAll(anyList());
+
+        assertEquals(1, existingUpdatedEvent.getServiceLinks().size());
+        assertEquals("Barba", existingUpdatedEvent.getServiceDescriptionSnapshot());
+        assertEquals(new BigDecimal("30.00"), existingUpdatedEvent.getServiceValueSnapshot());
+    }
+
+    @Test
     void shouldKeepCanonicalLinksAfterInitialSyncReprocessingAndFollowupSync() throws IOException {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);

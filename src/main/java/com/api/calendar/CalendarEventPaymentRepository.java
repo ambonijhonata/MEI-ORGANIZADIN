@@ -13,7 +13,7 @@ public interface CalendarEventPaymentRepository extends JpaRepository<CalendarEv
     List<CalendarEventPayment> findByCalendarEventIdOrderByIdAsc(Long calendarEventId);
     void deleteByCalendarEventId(Long calendarEventId);
 
-    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Modifying
     @Query("DELETE FROM CalendarEventPayment p WHERE p.calendarEvent.id IN :calendarEventIds")
     int deleteInBulkByCalendarEventIdIn(@Param("calendarEventIds") Collection<Long> calendarEventIds);
 
