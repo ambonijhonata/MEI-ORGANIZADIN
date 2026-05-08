@@ -53,6 +53,7 @@ public class CalendarSyncService {
     private final UserRepository userRepository;
     private final EventTitleParser titleParser;
     private final ClientService clientService;
+    private final CalendarEventReprocessor calendarEventReprocessor;
     private final UserScopedExecutionLock userScopedExecutionLock;
     private final int batchSize;
     private final boolean batchClearEnabled;
@@ -69,9 +70,11 @@ public class CalendarSyncService {
                         ServiceDescriptionNormalizer normalizer,
                         UserRepository userRepository,
                         EventTitleParser titleParser,
-                        ClientService clientService) {
+                        ClientService clientService,
+                        CalendarEventReprocessor calendarEventReprocessor) {
         this(googleCalendarClient, calendarEventRepository, syncStateRepository, matcher, normalizer,
-                userRepository, titleParser, clientService, null, null, new UserScopedExecutionLock());
+                userRepository, titleParser, clientService, calendarEventReprocessor,
+                null, null, new UserScopedExecutionLock());
     }
 
     CalendarSyncService(GoogleCalendarClient googleCalendarClient,
@@ -82,10 +85,11 @@ public class CalendarSyncService {
                         UserRepository userRepository,
                         EventTitleParser titleParser,
                         ClientService clientService,
+                        CalendarEventReprocessor calendarEventReprocessor,
                         CalendarEventPaymentRepository calendarEventPaymentRepository,
                         CalendarEventServiceLinkRepository calendarEventServiceLinkRepository) {
         this(googleCalendarClient, calendarEventRepository, syncStateRepository, matcher, normalizer,
-                userRepository, titleParser, clientService, calendarEventPaymentRepository,
+                userRepository, titleParser, clientService, calendarEventReprocessor, calendarEventPaymentRepository,
                 calendarEventServiceLinkRepository, new UserScopedExecutionLock(), DEFAULT_BATCH_SIZE, false, 1);
     }
 
@@ -97,11 +101,12 @@ public class CalendarSyncService {
                         UserRepository userRepository,
                         EventTitleParser titleParser,
                         ClientService clientService,
+                        CalendarEventReprocessor calendarEventReprocessor,
                         CalendarEventPaymentRepository calendarEventPaymentRepository,
                         CalendarEventServiceLinkRepository calendarEventServiceLinkRepository,
                         UserScopedExecutionLock userScopedExecutionLock) {
         this(googleCalendarClient, calendarEventRepository, syncStateRepository, matcher, normalizer,
-                userRepository, titleParser, clientService, calendarEventPaymentRepository,
+                userRepository, titleParser, clientService, calendarEventReprocessor, calendarEventPaymentRepository,
                 calendarEventServiceLinkRepository, userScopedExecutionLock, DEFAULT_BATCH_SIZE, false, 1);
     }
 
@@ -114,6 +119,7 @@ public class CalendarSyncService {
                                UserRepository userRepository,
                                EventTitleParser titleParser,
                                ClientService clientService,
+                               CalendarEventReprocessor calendarEventReprocessor,
                                CalendarEventPaymentRepository calendarEventPaymentRepository,
                                CalendarEventServiceLinkRepository calendarEventServiceLinkRepository,
                                UserScopedExecutionLock userScopedExecutionLock,
@@ -130,6 +136,7 @@ public class CalendarSyncService {
         this.userRepository = userRepository;
         this.titleParser = titleParser;
         this.clientService = clientService;
+        this.calendarEventReprocessor = calendarEventReprocessor;
         this.userScopedExecutionLock = userScopedExecutionLock;
         this.batchSize = batchSize <= 0 ? DEFAULT_BATCH_SIZE : batchSize;
         this.batchClearEnabled = batchClearEnabled;
@@ -412,6 +419,9 @@ public class CalendarSyncService {
         executeWithinTransaction(() -> {
             if (!reconciliationDeletions.isEmpty()) {
                 persistMutations(new SyncMutations(List.of(), reconciliationDeletions, Set.of(), 0, 0, reconciliationDeletions.size()));
+            }
+            if (calendarEventReprocessor != null && syncState.hasPendingCatalogEnrichment()) {
+                calendarEventReprocessor.enrichPendingSynchronizedAppointments(userId, syncState);
             }
             applySyncStateAfterSuccessfulSync(syncState, tokenBeforeSync, nextSyncToken, userId, syncMode);
             syncStateRepository.save(syncState);

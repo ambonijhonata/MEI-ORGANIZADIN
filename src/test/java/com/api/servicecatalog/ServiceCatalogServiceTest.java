@@ -3,6 +3,8 @@ package com.api.servicecatalog;
 import com.api.calendar.CalendarEventRepository;
 import com.api.calendar.CalendarEventReprocessor;
 import com.api.calendar.CalendarEventServiceLinkRepository;
+import com.api.calendar.SyncState;
+import com.api.calendar.SyncStateRepository;
 import com.api.common.BusinessException;
 import com.api.common.ResourceNotFoundException;
 import com.api.user.User;
@@ -36,13 +38,14 @@ class ServiceCatalogServiceTest {
     @Mock private CalendarEventServiceLinkRepository serviceLinkRepository;
     @Mock private ServiceDescriptionNormalizer normalizer;
     @Mock private CalendarEventReprocessor reprocessor;
+    @Mock private SyncStateRepository syncStateRepository;
 
     private ServiceCatalogService service;
 
     @BeforeEach
     void setUp() {
         service = new ServiceCatalogService(serviceRepository, userRepository,
-                calendarEventRepository, serviceLinkRepository, normalizer, reprocessor);
+                calendarEventRepository, serviceLinkRepository, normalizer, reprocessor, syncStateRepository);
     }
 
     @Test
@@ -52,12 +55,16 @@ class ServiceCatalogServiceTest {
         when(normalizer.normalize("Corte de Cabelo")).thenReturn("corte de cabelo");
         when(serviceRepository.existsByUserIdAndNormalizedDescription(1L, "corte de cabelo")).thenReturn(false);
         when(serviceRepository.save(any(Service.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.empty());
 
         Service result = service.createService(1L, "Corte de Cabelo", new BigDecimal("50.00"));
 
         assertNotNull(result);
         assertEquals("Corte de Cabelo", result.getDescription());
         assertEquals("corte de cabelo", result.getNormalizedDescription());
+        verify(syncStateRepository).save(argThat(syncState ->
+                syncState != null && syncState.hasPendingCatalogEnrichment()
+                        && syncState.getCatalogEnrichmentRevisionRequested() == 1L));
         verify(reprocessor).enrichSynchronizedAppointments(1L);
     }
 
@@ -98,6 +105,7 @@ class ServiceCatalogServiceTest {
         when(normalizer.normalize("New")).thenReturn("new");
         when(serviceRepository.findByUserIdAndNormalizedDescription(1L, "new")).thenReturn(Optional.of(existing));
         when(serviceRepository.save(existing)).thenReturn(existing);
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(new SyncState(user)));
 
         Service result = service.updateService(1L, 1L, "New", new BigDecimal("60.00"));
 
@@ -123,6 +131,7 @@ class ServiceCatalogServiceTest {
         when(normalizer.normalize("New")).thenReturn("new");
         when(serviceRepository.findByUserIdAndNormalizedDescription(1L, "new")).thenReturn(Optional.empty());
         when(serviceRepository.save(existing)).thenReturn(existing);
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(new SyncState(user)));
 
         Service result = service.updateService(1L, 1L, "New", new BigDecimal("60.00"));
 

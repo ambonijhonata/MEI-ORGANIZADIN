@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -25,6 +26,7 @@ class CalendarEventReprocessorTest {
     @Mock private CalendarEventServiceMatcher matcher;
     @Mock private EventTitleParser titleParser;
     @Mock private ServiceDescriptionNormalizer normalizer;
+    @Mock private SyncStateRepository syncStateRepository;
 
     private CalendarEventReprocessor reprocessor;
 
@@ -36,6 +38,7 @@ class CalendarEventReprocessorTest {
                 matcher,
                 titleParser,
                 normalizer,
+                syncStateRepository,
                 new UserScopedExecutionLock()
         );
     }
@@ -152,6 +155,7 @@ class CalendarEventReprocessorTest {
         when(normalizer.normalize("sobrancelha")).thenReturn("sobrancelha");
         when(normalizer.normalize("buco")).thenReturn("buco");
         when(normalizer.normalize("tintura")).thenReturn("tintura");
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(new SyncState(user)));
 
         reprocessor.enrichSynchronizedAppointments(1L);
 
@@ -177,10 +181,39 @@ class CalendarEventReprocessorTest {
         when(titleParser.parse("fulano - sobrancelha"))
                 .thenReturn(new EventTitleParser.ParsedTitle("fulano", List.of("sobrancelha"), null));
         when(normalizer.normalize("sobrancelha")).thenReturn("sobrancelha");
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(new SyncState(user)));
 
         reprocessor.enrichSynchronizedAppointments(1L);
 
         verify(calendarEventRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    void shouldMarkPendingCatalogEnrichmentAsAppliedAfterSuccessfulEnrichment() {
+        User user = new User("sub", "email@test.com", "Name");
+        CalendarEvent event = new CalendarEvent(user, "e1", "fulano - sobrancelha + buco", "fulano - sobrancelha + buco", Instant.now(), Instant.now());
+        Service sobrancelha = serviceWithId(user, 1L, "Sobrancelha", "sobrancelha", "48.00");
+        Service buco = serviceWithId(user, 2L, "Buco", "buco", "23.00");
+        event.associateServices(List.of(sobrancelha));
+        SyncState syncState = new SyncState(user);
+        syncState.requestCatalogEnrichment();
+
+        when(calendarEventRepository.findAllWithAssociationsByUserId(1L)).thenReturn(List.of(event));
+        when(matcher.servicesByNormalizedDescription(1L)).thenReturn(new HashMap<>() {{
+            put("sobrancelha", sobrancelha);
+            put("buco", buco);
+        }});
+        when(titleParser.parse("fulano - sobrancelha + buco"))
+                .thenReturn(new EventTitleParser.ParsedTitle("fulano", List.of("sobrancelha", "buco"), null));
+        when(normalizer.normalize("sobrancelha")).thenReturn("sobrancelha");
+        when(normalizer.normalize("buco")).thenReturn("buco");
+
+        boolean enriched = reprocessor.enrichPendingSynchronizedAppointments(1L, syncState);
+
+        assertTrue(enriched);
+        assertFalse(syncState.hasPendingCatalogEnrichment());
+        assertEquals(1L, syncState.getCatalogEnrichmentRevisionApplied());
+        verify(syncStateRepository).save(syncState);
     }
 
     private Service serviceWithId(User user, Long id, String description, String normalized, String value) {

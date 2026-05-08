@@ -53,7 +53,7 @@ class CalendarSyncServiceConcurrencyTest {
     void setUp() {
         UserScopedExecutionLock userScopedExecutionLock = new UserScopedExecutionLock();
         syncService = new CalendarSyncService(googleCalendarClient, calendarEventRepository,
-                syncStateRepository, matcher, normalizer, userRepository, titleParser, clientService,
+                syncStateRepository, matcher, normalizer, userRepository, titleParser, clientService, null,
                 calendarEventPaymentRepository, calendarEventServiceLinkRepository, userScopedExecutionLock);
         reprocessor = new CalendarEventReprocessor(
                 calendarEventRepository,
@@ -61,6 +61,7 @@ class CalendarSyncServiceConcurrencyTest {
                 matcher,
                 titleParser,
                 normalizer,
+                syncStateRepository,
                 userScopedExecutionLock
         );
         executor = Executors.newFixedThreadPool(2);

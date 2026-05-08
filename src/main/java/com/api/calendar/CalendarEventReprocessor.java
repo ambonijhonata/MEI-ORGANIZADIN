@@ -20,6 +20,7 @@ public class CalendarEventReprocessor {
     private final CalendarEventServiceMatcher matcher;
     private final EventTitleParser titleParser;
     private final ServiceDescriptionNormalizer normalizer;
+    private final SyncStateRepository syncStateRepository;
     private final UserScopedExecutionLock userScopedExecutionLock;
 
     public CalendarEventReprocessor(CalendarEventRepository calendarEventRepository,
@@ -27,12 +28,14 @@ public class CalendarEventReprocessor {
                                     CalendarEventServiceMatcher matcher,
                                     EventTitleParser titleParser,
                                     ServiceDescriptionNormalizer normalizer,
+                                    SyncStateRepository syncStateRepository,
                                     UserScopedExecutionLock userScopedExecutionLock) {
         this.calendarEventRepository = calendarEventRepository;
         this.calendarEventServiceLinkRepository = calendarEventServiceLinkRepository;
         this.matcher = matcher;
         this.titleParser = titleParser;
         this.normalizer = normalizer;
+        this.syncStateRepository = syncStateRepository;
         this.userScopedExecutionLock = userScopedExecutionLock;
     }
 
@@ -69,37 +72,15 @@ public class CalendarEventReprocessor {
     @Transactional
     public void enrichSynchronizedAppointments(Long userId) {
         userScopedExecutionLock.execute(userId, () -> {
-            List<CalendarEvent> synchronizedEvents = calendarEventRepository.findAllWithAssociationsByUserId(userId);
-            Map<String, Service> servicesByNormalizedDescription = matcher.servicesByNormalizedDescription(userId);
-            List<CalendarEvent> changedEvents = new ArrayList<>();
-
-            for (CalendarEvent event : synchronizedEvents) {
-                if (event.getGoogleEventId() == null || event.getGoogleEventId().isBlank()) {
-                    continue;
-                }
-
-                EventTitleParser.ParsedTitle parsed = titleParser.parse(event.getTitle());
-                List<Service> matchedServices = resolveMatchedServices(parsed, servicesByNormalizedDescription);
-                boolean changed = false;
-                if (!matchedServices.isEmpty()) {
-                    changed = event.enrichServices(matchedServices);
-                }
-
-                if (event.getPaymentType() != parsed.paymentType()) {
-                    event.setPaymentType(parsed.paymentType());
-                    changed = true;
-                }
-
-                if (changed) {
-                    changedEvents.add(event);
-                }
-            }
-
-            if (!changedEvents.isEmpty()) {
-                calendarEventRepository.saveAll(changedEvents);
-            }
+            SyncState syncState = syncStateRepository.findByUserId(userId).orElse(null);
+            enrichSynchronizedAppointmentsInternal(userId, syncState, true);
             return null;
         });
+    }
+
+    @Transactional
+    public boolean enrichPendingSynchronizedAppointments(Long userId, SyncState syncState) {
+        return enrichSynchronizedAppointmentsInternal(userId, syncState, false);
     }
 
     private List<Service> resolveMatchedServices(EventTitleParser.ParsedTitle parsed,
@@ -117,5 +98,60 @@ public class CalendarEventReprocessor {
             }
         }
         return matchedServices;
+    }
+
+    private boolean enrichSynchronizedAppointmentsInternal(Long userId,
+                                                           SyncState syncState,
+                                                           boolean allowUntrackedBackfill) {
+        long targetRevision = resolveTargetRevision(syncState, allowUntrackedBackfill);
+        if (targetRevision == 0L) {
+            return false;
+        }
+
+        List<CalendarEvent> synchronizedEvents = calendarEventRepository.findAllWithAssociationsByUserId(userId);
+        Map<String, Service> servicesByNormalizedDescription = matcher.servicesByNormalizedDescription(userId);
+        List<CalendarEvent> changedEvents = new ArrayList<>();
+
+        for (CalendarEvent event : synchronizedEvents) {
+            if (event.getGoogleEventId() == null || event.getGoogleEventId().isBlank()) {
+                continue;
+            }
+
+            EventTitleParser.ParsedTitle parsed = titleParser.parse(event.getTitle());
+            List<Service> matchedServices = resolveMatchedServices(parsed, servicesByNormalizedDescription);
+            boolean changed = false;
+            if (!matchedServices.isEmpty()) {
+                changed = event.enrichServices(matchedServices);
+            }
+
+            if (event.getPaymentType() != parsed.paymentType()) {
+                event.setPaymentType(parsed.paymentType());
+                changed = true;
+            }
+
+            if (changed) {
+                changedEvents.add(event);
+            }
+        }
+
+        if (!changedEvents.isEmpty()) {
+            calendarEventRepository.saveAll(changedEvents);
+        }
+
+        if (syncState != null && targetRevision > 0L) {
+            syncState.markCatalogEnrichmentApplied(targetRevision);
+            syncStateRepository.save(syncState);
+        }
+        return true;
+    }
+
+    private long resolveTargetRevision(SyncState syncState, boolean allowUntrackedBackfill) {
+        if (syncState == null) {
+            return allowUntrackedBackfill ? 1L : 0L;
+        }
+        if (syncState.hasPendingCatalogEnrichment()) {
+            return syncState.getCatalogEnrichmentRevisionRequested();
+        }
+        return allowUntrackedBackfill && syncState.getCatalogEnrichmentRevisionRequested() == 0L ? 1L : 0L;
     }
 }

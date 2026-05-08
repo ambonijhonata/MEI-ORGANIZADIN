@@ -32,6 +32,12 @@ public class SyncState {
     @Column(name = "error_message")
     private String errorMessage;
 
+    @Column(name = "catalog_enrichment_revision_requested", nullable = false)
+    private long catalogEnrichmentRevisionRequested;
+
+    @Column(name = "catalog_enrichment_revision_applied", nullable = false)
+    private long catalogEnrichmentRevisionApplied;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -64,6 +70,8 @@ public class SyncState {
     public SyncStatus getStatus() { return status; }
     public String getErrorCategory() { return errorCategory; }
     public String getErrorMessage() { return errorMessage; }
+    public long getCatalogEnrichmentRevisionRequested() { return catalogEnrichmentRevisionRequested; }
+    public long getCatalogEnrichmentRevisionApplied() { return catalogEnrichmentRevisionApplied; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 
@@ -72,6 +80,12 @@ public class SyncState {
     public void setStatus(SyncStatus status) { this.status = status; }
     public void setErrorCategory(String errorCategory) { this.errorCategory = errorCategory; }
     public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
+    public void setCatalogEnrichmentRevisionRequested(long catalogEnrichmentRevisionRequested) {
+        this.catalogEnrichmentRevisionRequested = Math.max(0L, catalogEnrichmentRevisionRequested);
+    }
+    public void setCatalogEnrichmentRevisionApplied(long catalogEnrichmentRevisionApplied) {
+        this.catalogEnrichmentRevisionApplied = Math.max(0L, catalogEnrichmentRevisionApplied);
+    }
 
     public void markSynced(String syncToken) {
         this.syncToken = syncToken;
@@ -91,5 +105,33 @@ public class SyncState {
         this.status = SyncStatus.REAUTH_REQUIRED;
         this.errorCategory = "REVOKED";
         this.errorMessage = reason;
+    }
+
+    public long requestCatalogEnrichment() {
+        this.catalogEnrichmentRevisionRequested = Math.max(
+                this.catalogEnrichmentRevisionRequested + 1,
+                this.catalogEnrichmentRevisionApplied + 1
+        );
+        return this.catalogEnrichmentRevisionRequested;
+    }
+
+    public boolean hasPendingCatalogEnrichment() {
+        return this.catalogEnrichmentRevisionApplied < this.catalogEnrichmentRevisionRequested;
+    }
+
+    public void markCatalogEnrichmentApplied(long appliedRevision) {
+        if (appliedRevision <= 0) {
+            return;
+        }
+        this.catalogEnrichmentRevisionApplied = Math.max(
+                this.catalogEnrichmentRevisionApplied,
+                Math.min(appliedRevision, this.catalogEnrichmentRevisionRequested)
+        );
+    }
+
+    public void ensureCatalogEnrichmentBackfillPending() {
+        if (this.catalogEnrichmentRevisionRequested == 0) {
+            this.catalogEnrichmentRevisionRequested = Math.max(1L, this.catalogEnrichmentRevisionApplied + 1);
+        }
     }
 }

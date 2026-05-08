@@ -18,6 +18,9 @@ class SyncStateTest {
         assertNull(syncState.getLastSyncAt());
         assertNull(syncState.getErrorCategory());
         assertNull(syncState.getErrorMessage());
+        assertEquals(0L, syncState.getCatalogEnrichmentRevisionRequested());
+        assertEquals(0L, syncState.getCatalogEnrichmentRevisionApplied());
+        assertFalse(syncState.hasPendingCatalogEnrichment());
     }
 
     @Test
@@ -80,5 +83,45 @@ class SyncStateTest {
         assertEquals("manual-token", syncState.getSyncToken());
         assertEquals("CUSTOM", syncState.getErrorCategory());
         assertEquals("Custom error", syncState.getErrorMessage());
+    }
+
+    @Test
+    void shouldTrackPendingCatalogEnrichmentRevisions() {
+        SyncState syncState = new SyncState(user);
+
+        long requestedRevision = syncState.requestCatalogEnrichment();
+
+        assertEquals(1L, requestedRevision);
+        assertTrue(syncState.hasPendingCatalogEnrichment());
+        assertEquals(1L, syncState.getCatalogEnrichmentRevisionRequested());
+        assertEquals(0L, syncState.getCatalogEnrichmentRevisionApplied());
+
+        syncState.markCatalogEnrichmentApplied(requestedRevision);
+
+        assertFalse(syncState.hasPendingCatalogEnrichment());
+        assertEquals(1L, syncState.getCatalogEnrichmentRevisionApplied());
+    }
+
+    @Test
+    void shouldKeepNewerPendingRevisionWhenOlderOneIsApplied() {
+        SyncState syncState = new SyncState(user);
+
+        syncState.requestCatalogEnrichment();
+        syncState.requestCatalogEnrichment();
+        syncState.markCatalogEnrichmentApplied(1L);
+
+        assertTrue(syncState.hasPendingCatalogEnrichment());
+        assertEquals(2L, syncState.getCatalogEnrichmentRevisionRequested());
+        assertEquals(1L, syncState.getCatalogEnrichmentRevisionApplied());
+    }
+
+    @Test
+    void shouldSeedBackfillRevisionWhenNoneWasRequestedYet() {
+        SyncState syncState = new SyncState(user);
+
+        syncState.ensureCatalogEnrichmentBackfillPending();
+
+        assertTrue(syncState.hasPendingCatalogEnrichment());
+        assertEquals(1L, syncState.getCatalogEnrichmentRevisionRequested());
     }
 }

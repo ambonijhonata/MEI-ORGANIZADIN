@@ -50,13 +50,14 @@ class CalendarSyncServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private EventTitleParser titleParser;
     @Mock private ClientService clientService;
+    @Mock private CalendarEventReprocessor reprocessor;
 
     private CalendarSyncService syncService;
 
     @BeforeEach
     void setUp() {
         syncService = new CalendarSyncService(googleCalendarClient, calendarEventRepository,
-                syncStateRepository, matcher, normalizer, userRepository, titleParser, clientService,
+                syncStateRepository, matcher, normalizer, userRepository, titleParser, clientService, reprocessor,
                 calendarEventPaymentRepository, calendarEventServiceLinkRepository, new UserScopedExecutionLock());
 
         lenient().when(calendarEventRepository.findByUserIdAndGoogleEventIdIn(anyLong(), anyCollection()))

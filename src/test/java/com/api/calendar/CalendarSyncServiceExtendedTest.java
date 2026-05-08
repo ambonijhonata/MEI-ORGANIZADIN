@@ -45,12 +45,23 @@ class CalendarSyncServiceExtendedTest {
     @Mock private ClientService clientService;
 
     private CalendarSyncService syncService;
+    private CalendarEventReprocessor reprocessor;
 
     @BeforeEach
     void setUp() {
+        UserScopedExecutionLock userScopedExecutionLock = new UserScopedExecutionLock();
+        reprocessor = new CalendarEventReprocessor(
+                calendarEventRepository,
+                calendarEventServiceLinkRepository,
+                matcher,
+                titleParser,
+                normalizer,
+                syncStateRepository,
+                userScopedExecutionLock
+        );
         syncService = new CalendarSyncService(googleCalendarClient, calendarEventRepository,
                 syncStateRepository, matcher, normalizer, userRepository, titleParser, clientService,
-                calendarEventPaymentRepository, calendarEventServiceLinkRepository, new UserScopedExecutionLock());
+                reprocessor, calendarEventPaymentRepository, calendarEventServiceLinkRepository, userScopedExecutionLock);
 
         lenient().when(calendarEventRepository.findByUserIdAndGoogleEventIdIn(anyLong(), anyCollection()))
                 .thenReturn(List.of());
@@ -629,14 +640,6 @@ class CalendarSyncServiceExtendedTest {
         assertFalse(persistedHolder[0].isIdentified());
         assertEquals(0, persistedHolder[0].getServiceLinks().size());
 
-        CalendarEventReprocessor reprocessor = new CalendarEventReprocessor(
-                calendarEventRepository,
-                calendarEventServiceLinkRepository,
-                matcher,
-                titleParser,
-                normalizer,
-                new UserScopedExecutionLock()
-        );
         when(calendarEventRepository.findByUserIdAndIdentifiedFalse(1L)).thenReturn(List.of(persistedHolder[0]));
 
         reprocessor.reprocessUnidentifiedEvents(1L);
@@ -714,14 +717,6 @@ class CalendarSyncServiceExtendedTest {
         assertEquals(1, persistedHolder[0].getServiceLinks().size());
         assertEquals(new BigDecimal("48.00"), persistedHolder[0].getServiceValueSnapshot());
 
-        CalendarEventReprocessor reprocessor = new CalendarEventReprocessor(
-                calendarEventRepository,
-                calendarEventServiceLinkRepository,
-                matcher,
-                titleParser,
-                normalizer,
-                new UserScopedExecutionLock()
-        );
         when(calendarEventRepository.findAllWithAssociationsByUserId(1L)).thenReturn(List.of(persistedHolder[0]));
 
         reprocessor.enrichSynchronizedAppointments(1L);
@@ -738,6 +733,94 @@ class CalendarSyncServiceExtendedTest {
         assertEquals(0, followupSync.updated());
         assertEquals(3, persistedHolder[0].getServiceLinks().size());
         verify(calendarEventServiceLinkRepository, never()).deleteInBulkByCalendarEventIdIn(argThat(ids -> ids != null && ids.contains(601L)));
+    }
+
+    @Test
+    void shouldConsumePendingCatalogEnrichmentDuringSyncWithoutGoogleDelta() throws IOException {
+        User user = new User("sub", "email@test.com", "Name");
+        SyncState syncState = new SyncState(user);
+        syncState.requestCatalogEnrichment();
+        Service sobrancelha = serviceWithId(user, 1L, "Sobrancelha", "sobrancelha", "48.00");
+        Service buco = serviceWithId(user, 2L, "Buco", "buco", "23.00");
+
+        CalendarEvent existingEvent = new CalendarEvent(
+                user,
+                "e1",
+                "sofia - sobrancelha + buco",
+                "sofia - sobrancelha + buco",
+                Instant.now(),
+                Instant.now()
+        );
+        existingEvent.associateServices(List.of(sobrancelha));
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
+        when(syncStateRepository.save(any(SyncState.class))).thenReturn(syncState);
+        when(googleCalendarClient.fetchEvents(1L, null))
+                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(), "token-1"));
+        when(calendarEventRepository.findAllWithAssociationsByUserId(1L)).thenReturn(List.of(existingEvent));
+        when(matcher.servicesByNormalizedDescription(1L)).thenReturn(new HashMap<>() {{
+            put("sobrancelha", sobrancelha);
+            put("buco", buco);
+        }});
+        when(titleParser.parse("sofia - sobrancelha + buco"))
+                .thenReturn(new EventTitleParser.ParsedTitle("sofia", List.of("sobrancelha", "buco"), null));
+        when(normalizer.normalize("sobrancelha")).thenReturn("sobrancelha");
+        when(normalizer.normalize("buco")).thenReturn("buco");
+
+        CalendarSyncService.SyncResult result = syncService.synchronize(1L);
+
+        assertEquals(0, result.created());
+        assertEquals(0, result.updated());
+        assertEquals(2, existingEvent.getServiceLinks().size());
+        assertFalse(syncState.hasPendingCatalogEnrichment());
+        verify(calendarEventRepository).saveAll(argThat(events -> {
+            if (events == null) {
+                return false;
+            }
+            List<CalendarEvent> persistedEvents = StreamSupport.stream(events.spliterator(), false).toList();
+            return persistedEvents.size() == 1 && persistedEvents.contains(existingEvent);
+        }));
+    }
+
+    @Test
+    void shouldRecoverLateServiceEnrichmentOnSyncAfterAsyncAttemptDidNotRun() throws IOException {
+        User user = new User("sub", "email@test.com", "Name");
+        SyncState syncState = new SyncState(user);
+        syncState.requestCatalogEnrichment();
+        Service sobrancelha = serviceWithId(user, 1L, "Sobrancelha", "sobrancelha", "48.00");
+        Service tintura = serviceWithId(user, 2L, "Tintura", "tintura", "25.00");
+
+        CalendarEvent existingEvent = new CalendarEvent(
+                user,
+                "e2",
+                "talita - sobrancelha + tintura",
+                "talita - sobrancelha + tintura",
+                Instant.now(),
+                Instant.now()
+        );
+        existingEvent.associateServices(List.of(sobrancelha));
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
+        when(syncStateRepository.save(any(SyncState.class))).thenReturn(syncState);
+        when(googleCalendarClient.fetchEvents(1L, null))
+                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(), "token-1"));
+        when(calendarEventRepository.findAllWithAssociationsByUserId(1L)).thenReturn(List.of(existingEvent));
+        when(matcher.servicesByNormalizedDescription(1L)).thenReturn(new HashMap<>() {{
+            put("sobrancelha", sobrancelha);
+            put("tintura", tintura);
+        }});
+        when(titleParser.parse("talita - sobrancelha + tintura"))
+                .thenReturn(new EventTitleParser.ParsedTitle("talita", List.of("sobrancelha", "tintura"), null));
+        when(normalizer.normalize("sobrancelha")).thenReturn("sobrancelha");
+        when(normalizer.normalize("tintura")).thenReturn("tintura");
+
+        syncService.synchronize(1L);
+
+        assertEquals(2, existingEvent.getServiceLinks().size());
+        assertFalse(syncState.hasPendingCatalogEnrichment());
+        assertEquals(new BigDecimal("73.00"), existingEvent.getServiceValueSnapshot());
     }
 
     private Service serviceWithId(User user, Long id, String description, String normalized, String value) {

@@ -3,6 +3,8 @@ package com.api.servicecatalog;
 import com.api.calendar.CalendarEventRepository;
 import com.api.calendar.CalendarEventReprocessor;
 import com.api.calendar.CalendarEventServiceLinkRepository;
+import com.api.calendar.SyncState;
+import com.api.calendar.SyncStateRepository;
 import com.api.common.BusinessException;
 import com.api.common.ResourceNotFoundException;
 import com.api.user.User;
@@ -29,19 +31,22 @@ public class ServiceCatalogService {
     private final CalendarEventServiceLinkRepository serviceLinkRepository;
     private final ServiceDescriptionNormalizer normalizer;
     private final CalendarEventReprocessor reprocessor;
+    private final SyncStateRepository syncStateRepository;
 
     public ServiceCatalogService(ServiceRepository serviceRepository,
                                   UserRepository userRepository,
                                   CalendarEventRepository calendarEventRepository,
                                   CalendarEventServiceLinkRepository serviceLinkRepository,
                                   ServiceDescriptionNormalizer normalizer,
-                                  CalendarEventReprocessor reprocessor) {
+                                  CalendarEventReprocessor reprocessor,
+                                  SyncStateRepository syncStateRepository) {
         this.serviceRepository = serviceRepository;
         this.userRepository = userRepository;
         this.calendarEventRepository = calendarEventRepository;
         this.serviceLinkRepository = serviceLinkRepository;
         this.normalizer = normalizer;
         this.reprocessor = reprocessor;
+        this.syncStateRepository = syncStateRepository;
     }
 
     @Transactional
@@ -58,6 +63,7 @@ public class ServiceCatalogService {
         Service service = new Service(user, description, normalized, value);
         Service saved = serviceRepository.save(service);
 
+        requestCatalogEnrichment(userId, user);
         reprocessor.enrichSynchronizedAppointments(userId);
 
         return saved;
@@ -98,6 +104,7 @@ public class ServiceCatalogService {
         Service saved = serviceRepository.save(service);
 
         if (!normalized.equals(previousNormalizedDescription)) {
+            requestCatalogEnrichment(userId, service.getUser());
             reprocessor.enrichSynchronizedAppointments(userId);
         }
 
@@ -159,6 +166,13 @@ public class ServiceCatalogService {
         return trimmedDescription.isBlank()
                 ? "Serviço já cadastrado"
                 : trimmedDescription + " já cadastrado";
+    }
+
+    private void requestCatalogEnrichment(Long userId, User user) {
+        SyncState syncState = syncStateRepository.findByUserId(userId)
+                .orElseGet(() -> new SyncState(user));
+        syncState.requestCatalogEnrichment();
+        syncStateRepository.save(syncState);
     }
 
     public record BulkDeleteResult(int deleted, int hasLink) {}
