@@ -59,7 +59,10 @@ public class CalendarEvent {
     @Column(name = "service_value_snapshot", precision = 12, scale = 2)
     private BigDecimal serviceValueSnapshot;
 
-    @OneToMany(mappedBy = "calendarEvent", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    // Service-link replacement for persisted events is repository-driven during sync/reprocessing.
+    // Avoid orphanRemoval here so Hibernate does not schedule a second delete for rows already
+    // removed through the explicit bulk-delete path.
+    @OneToMany(mappedBy = "calendarEvent", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<CalendarEventServiceLink> serviceLinks = new ArrayList<>();
 
     @OneToMany(mappedBy = "calendarEvent", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
