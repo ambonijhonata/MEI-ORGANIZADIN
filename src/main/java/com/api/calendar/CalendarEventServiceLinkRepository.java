@@ -1,7 +1,6 @@
 package com.api.calendar;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -10,15 +9,12 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 
-public interface CalendarEventServiceLinkRepository extends JpaRepository<CalendarEventServiceLink, Long> {
+public interface CalendarEventServiceLinkRepository extends JpaRepository<CalendarEventServiceLink, Long>,
+        CalendarEventServiceLinkBulkRepository {
 
     List<CalendarEventServiceLink> findByCalendarEventId(Long calendarEventId);
 
     void deleteByCalendarEventId(Long calendarEventId);
-
-    @Modifying
-    @Query("DELETE FROM CalendarEventServiceLink sl WHERE sl.calendarEvent.id IN :calendarEventIds")
-    void deleteInBulkByCalendarEventIdIn(@Param("calendarEventIds") Collection<Long> calendarEventIds);
 
     boolean existsByServiceId(Long serviceId);
 
