@@ -58,7 +58,7 @@ class ServiceCatalogServiceTest {
         assertNotNull(result);
         assertEquals("Corte de Cabelo", result.getDescription());
         assertEquals("corte de cabelo", result.getNormalizedDescription());
-        verify(reprocessor).reprocessUnidentifiedEvents(1L);
+        verify(reprocessor).enrichSynchronizedAppointments(1L);
     }
 
     @Test
@@ -103,7 +103,7 @@ class ServiceCatalogServiceTest {
 
         assertSame(existing, result);
         verify(serviceRepository).save(existing);
-        verify(reprocessor).reprocessUnidentifiedEvents(1L);
+        verify(reprocessor).enrichSynchronizedAppointments(1L);
     }
 
     @Test
@@ -128,7 +128,23 @@ class ServiceCatalogServiceTest {
 
         assertEquals("New", result.getDescription());
         assertEquals(new BigDecimal("60.00"), result.getValue());
-        verify(reprocessor).reprocessUnidentifiedEvents(1L);
+        verify(reprocessor).enrichSynchronizedAppointments(1L);
+    }
+
+    @Test
+    void shouldNotTriggerEnrichmentWhenOnlyValueChanges() {
+        User user = new User("sub", "email@test.com", "Name");
+        Service existing = serviceWithId(1L, user, "Old", "old", "30.00");
+        when(serviceRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(existing));
+        when(normalizer.normalize("Old")).thenReturn("old");
+        when(serviceRepository.findByUserIdAndNormalizedDescription(1L, "old")).thenReturn(Optional.of(existing));
+        when(serviceRepository.save(existing)).thenReturn(existing);
+
+        Service result = service.updateService(1L, 1L, "Old", new BigDecimal("60.00"));
+
+        assertEquals("Old", result.getDescription());
+        assertEquals(new BigDecimal("60.00"), result.getValue());
+        verify(reprocessor, never()).enrichSynchronizedAppointments(anyLong());
     }
 
     @Test
@@ -221,6 +237,18 @@ class ServiceCatalogServiceTest {
     private Service serviceWithId(Long id) {
         Service service = mock(Service.class);
         when(service.getId()).thenReturn(id);
+        return service;
+    }
+
+    private Service serviceWithId(Long id, User user, String description, String normalized, String value) {
+        Service service = new Service(user, description, normalized, new BigDecimal(value));
+        try {
+            var idField = Service.class.getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(service, id);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("Failed to set Service id for test setup", e);
+        }
         return service;
     }
 }

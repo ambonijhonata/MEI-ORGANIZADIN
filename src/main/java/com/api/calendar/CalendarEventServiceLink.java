@@ -39,6 +39,16 @@ public class CalendarEventServiceLink {
         this.serviceValueSnapshot = service.getValue();
     }
 
+    public CalendarEventServiceLink(CalendarEvent calendarEvent,
+                                    Service service,
+                                    String serviceDescriptionSnapshot,
+                                    BigDecimal serviceValueSnapshot) {
+        this.calendarEvent = calendarEvent;
+        this.service = service;
+        this.serviceDescriptionSnapshot = serviceDescriptionSnapshot;
+        this.serviceValueSnapshot = serviceValueSnapshot;
+    }
+
     @PrePersist
     void prePersist() {
         this.createdAt = Instant.now();

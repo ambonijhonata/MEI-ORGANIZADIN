@@ -7,7 +7,9 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "calendar_events", uniqueConstraints = {
@@ -118,6 +120,54 @@ public class CalendarEvent {
         }
     }
 
+    public boolean enrichServices(List<Service> services) {
+        if (services == null || services.isEmpty()) {
+            return false;
+        }
+
+        if (!this.identified || (this.service == null && this.serviceLinks.isEmpty())) {
+            associateServices(services);
+            return true;
+        }
+
+        ensureLegacyAssociationBackfilledIntoLinks();
+
+        Set<String> existingServiceIdentities = new HashSet<>();
+        for (CalendarEventServiceLink serviceLink : this.serviceLinks) {
+            String identity = serviceIdentity(serviceLink.getService());
+            if (identity != null) {
+                existingServiceIdentities.add(identity);
+            }
+        }
+
+        boolean changed = false;
+        for (Service service : services) {
+            String identity = serviceIdentity(service);
+            if (identity == null) {
+                continue;
+            }
+            if (existingServiceIdentities.add(identity)) {
+                this.serviceLinks.add(new CalendarEventServiceLink(this, service));
+                changed = true;
+            }
+        }
+
+        if (!changed) {
+            return false;
+        }
+
+        if (this.service == null) {
+            this.service = services.get(0);
+        }
+        if (this.serviceDescriptionSnapshot == null || this.serviceDescriptionSnapshot.isBlank()) {
+            this.serviceDescriptionSnapshot = this.service != null ? this.service.getDescription() : services.get(0).getDescription();
+        }
+
+        this.serviceValueSnapshot = totalLinkedSnapshotValue();
+        this.identified = true;
+        return true;
+    }
+
     public void clearServiceAssociation() {
         this.service = null;
         this.serviceDescriptionSnapshot = null;
@@ -152,6 +202,49 @@ public class CalendarEvent {
 
     public void markIdentified(boolean identified) {
         this.identified = identified;
+    }
+
+    private void ensureLegacyAssociationBackfilledIntoLinks() {
+        if (!this.serviceLinks.isEmpty() || this.service == null) {
+            return;
+        }
+
+        String descriptionSnapshot = this.serviceDescriptionSnapshot != null
+                ? this.serviceDescriptionSnapshot
+                : this.service.getDescription();
+        BigDecimal valueSnapshot = this.serviceValueSnapshot != null
+                ? this.serviceValueSnapshot
+                : this.service.getValue();
+        this.serviceLinks.add(new CalendarEventServiceLink(this, this.service, descriptionSnapshot, valueSnapshot));
+    }
+
+    private BigDecimal totalLinkedSnapshotValue() {
+        BigDecimal total = BigDecimal.ZERO;
+        for (CalendarEventServiceLink serviceLink : this.serviceLinks) {
+            if (serviceLink.getServiceValueSnapshot() != null) {
+                total = total.add(serviceLink.getServiceValueSnapshot());
+            }
+        }
+        return total;
+    }
+
+    private String serviceIdentity(Service service) {
+        if (service == null) {
+            return null;
+        }
+        if (service.getId() != null) {
+            return "id:" + service.getId();
+        }
+        if (service.getNormalizedDescription() != null && !service.getNormalizedDescription().isBlank()) {
+            return "normalized:" + service.getNormalizedDescription();
+        }
+        if (service.getDescription() != null && !service.getDescription().isBlank()) {
+            return "description:" + service.getDescription();
+        }
+        if (service.getValue() != null) {
+            return "value:" + service.getValue().stripTrailingZeros().toPlainString();
+        }
+        return null;
     }
 
     public Long getId() { return id; }

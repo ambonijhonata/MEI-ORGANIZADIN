@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -57,7 +58,7 @@ public class ServiceCatalogService {
         Service service = new Service(user, description, normalized, value);
         Service saved = serviceRepository.save(service);
 
-        reprocessor.reprocessUnidentifiedEvents(userId);
+        reprocessor.enrichSynchronizedAppointments(userId);
 
         return saved;
     }
@@ -81,10 +82,11 @@ public class ServiceCatalogService {
         Service service = serviceRepository.findByIdAndUserId(serviceId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Service not found"));
 
+        String previousNormalizedDescription = service.getNormalizedDescription();
         String normalized = normalizer.normalize(description);
 
         serviceRepository.findByUserIdAndNormalizedDescription(userId, normalized)
-                .filter(existing -> !existing.getId().equals(serviceId))
+                .filter(existing -> !Objects.equals(existing.getId(), serviceId))
                 .ifPresent(existing -> {
                     throw new BusinessException(duplicateDescriptionMessage(description));
                 });
@@ -95,7 +97,9 @@ public class ServiceCatalogService {
 
         Service saved = serviceRepository.save(service);
 
-        reprocessor.reprocessUnidentifiedEvents(userId);
+        if (!normalized.equals(previousNormalizedDescription)) {
+            reprocessor.enrichSynchronizedAppointments(userId);
+        }
 
         return saved;
     }

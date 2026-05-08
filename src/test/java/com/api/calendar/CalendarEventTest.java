@@ -54,6 +54,44 @@ class CalendarEventTest {
     }
 
     @Test
+    void shouldEnrichExistingServicesWithoutOverwritingOriginalSnapshot() {
+        CalendarEvent event = new CalendarEvent(user, "e1", "helena - sobrancelha + buÃ§o + tintura",
+                "helena - sobrancelha + buco + tintura", Instant.now(), Instant.now());
+        Service sobrancelha = new Service(user, "Sobrancelha", "sobrancelha", new BigDecimal("48.00"));
+        Service buco = new Service(user, "BuÃ§o", "buco", new BigDecimal("23.00"));
+        Service tintura = new Service(user, "Tintura", "tintura", new BigDecimal("35.00"));
+
+        event.associateServices(List.of(sobrancelha));
+        boolean changed = event.enrichServices(List.of(sobrancelha, buco, tintura));
+
+        assertTrue(changed);
+        assertTrue(event.isIdentified());
+        assertEquals("Sobrancelha", event.getServiceDescriptionSnapshot());
+        assertEquals(new BigDecimal("106.00"), event.getServiceValueSnapshot());
+        assertEquals(3, event.getServiceLinks().size());
+        assertEquals("Sobrancelha", event.getServiceLinks().get(0).getServiceDescriptionSnapshot());
+        assertEquals(new BigDecimal("48.00"), event.getServiceLinks().get(0).getServiceValueSnapshot());
+        assertEquals("BuÃ§o", event.getServiceLinks().get(1).getServiceDescriptionSnapshot());
+        assertEquals(new BigDecimal("23.00"), event.getServiceLinks().get(1).getServiceValueSnapshot());
+        assertEquals("Tintura", event.getServiceLinks().get(2).getServiceDescriptionSnapshot());
+        assertEquals(new BigDecimal("35.00"), event.getServiceLinks().get(2).getServiceValueSnapshot());
+    }
+
+    @Test
+    void shouldNotChangeWhenEnrichingWithEquivalentServices() {
+        CalendarEvent event = new CalendarEvent(user, "e1", "rodrigo - sobrancelha",
+                "rodrigo - sobrancelha", Instant.now(), Instant.now());
+        Service sobrancelha = new Service(user, "Sobrancelha", "sobrancelha", new BigDecimal("48.00"));
+
+        event.associateServices(List.of(sobrancelha));
+        boolean changed = event.enrichServices(List.of(sobrancelha));
+
+        assertFalse(changed);
+        assertEquals(1, event.getServiceLinks().size());
+        assertEquals(new BigDecimal("48.00"), event.getServiceValueSnapshot());
+    }
+
+    @Test
     void shouldClearServiceAssociation() {
         CalendarEvent event = new CalendarEvent(user, "e1", "corte", "corte", Instant.now(), Instant.now());
         Service service = new Service(user, "Corte", "corte", new BigDecimal("50.00"));

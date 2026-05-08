@@ -279,6 +279,40 @@ class CashFlowReportServiceExtendedTest {
     }
 
     @Test
+    void shouldKeepEnrichedAppointmentTotalAlignedWithLateCreatedServices() {
+        User user = new User("sub", "email@test.com", "Name");
+        Service sobrancelha = serviceWithId(user, 1L, "Sobrancelha", "sobrancelha", "48.00");
+        Service buco = serviceWithId(user, 2L, "Buco", "buco", "23.00");
+        Service tintura = serviceWithId(user, 3L, "Tintura", "tintura", "35.00");
+        Instant day = LocalDate.of(2026, 4, 12).atStartOfDay(ZoneOffset.UTC).toInstant().plusSeconds(5400);
+        CalendarEvent event = new CalendarEvent(user, "e3", "fulano - sobrancelha + buco + tintura",
+                "fulano - sobrancelha + buco + tintura", day, day.plusSeconds(1800));
+        event.associateServices(List.of(sobrancelha));
+        event.enrichServices(List.of(sobrancelha, buco, tintura));
+
+        when(calendarEventRepository.findIdentifiedWithServiceLinksByUserAndPeriod(eq(1L), any(), any()))
+                .thenReturn(List.of(event));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.empty());
+
+        CashFlowReportService.CashFlowReport report = reportService.generateReport(
+                1L,
+                LocalDate.of(2026, 4, 12),
+                LocalDate.of(2026, 4, 12),
+                PaymentScope.ALL
+        );
+
+        CashFlowReportService.DailyEntry entry = report.entries().get(0);
+        assertEquals(new BigDecimal("106.00"), entry.total());
+        assertEquals(3, entry.services().size());
+        assertEquals("Sobrancelha", entry.services().get(0).name());
+        assertEquals(new BigDecimal("48.00"), entry.services().get(0).total());
+        assertEquals("Tintura", entry.services().get(1).name());
+        assertEquals(new BigDecimal("35.00"), entry.services().get(1).total());
+        assertEquals("Buco", entry.services().get(2).name());
+        assertEquals(new BigDecimal("23.00"), entry.services().get(2).total());
+    }
+
+    @Test
     void shouldCountOnlyContributionsReturnedInPaidOnlyScope() {
         Instant day = LocalDate.of(2026, 3, 10).atStartOfDay(ZoneOffset.UTC).toInstant().plusSeconds(3600);
         CalendarEvent paidEvent = mockEventWithLinks(
@@ -336,5 +370,17 @@ class CashFlowReportServiceExtendedTest {
         when(link.getServiceDescriptionSnapshot()).thenReturn(description);
         when(link.getServiceValueSnapshot()).thenReturn(value);
         return link;
+    }
+
+    private Service serviceWithId(User user, Long id, String description, String normalized, String value) {
+        Service service = new Service(user, description, normalized, new BigDecimal(value));
+        try {
+            var idField = Service.class.getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(service, id);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("Failed to set Service id for test setup", e);
+        }
+        return service;
     }
 }

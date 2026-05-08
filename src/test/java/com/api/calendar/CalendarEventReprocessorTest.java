@@ -124,6 +124,77 @@ class CalendarEventReprocessorTest {
         inOrder.verify(calendarEventRepository).saveAll(List.of(event));
     }
 
+    @Test
+    void shouldEnrichPartiallyIdentifiedSynchronizedAppointments() {
+        User user = new User("sub", "email@test.com", "Name");
+        CalendarEvent event = new CalendarEvent(
+                user,
+                "e1",
+                "fulano - sobrancelha + buco + tintura",
+                "fulano - sobrancelha + buco + tintura",
+                Instant.now(),
+                Instant.now()
+        );
+        setCalendarEventId(event, 88L);
+        Service sobrancelha = serviceWithId(user, 1L, "Sobrancelha", "sobrancelha", "48.00");
+        Service buco = serviceWithId(user, 2L, "Buco", "buco", "23.00");
+        Service tintura = serviceWithId(user, 3L, "Tintura", "tintura", "35.00");
+        event.associateServices(List.of(sobrancelha));
+
+        when(calendarEventRepository.findAllWithAssociationsByUserId(1L)).thenReturn(List.of(event));
+        when(matcher.servicesByNormalizedDescription(1L)).thenReturn(new HashMap<>() {{
+            put("sobrancelha", sobrancelha);
+            put("buco", buco);
+            put("tintura", tintura);
+        }});
+        when(titleParser.parse("fulano - sobrancelha + buco + tintura"))
+                .thenReturn(new EventTitleParser.ParsedTitle("fulano", List.of("sobrancelha", "buco", "tintura"), null));
+        when(normalizer.normalize("sobrancelha")).thenReturn("sobrancelha");
+        when(normalizer.normalize("buco")).thenReturn("buco");
+        when(normalizer.normalize("tintura")).thenReturn("tintura");
+
+        reprocessor.enrichSynchronizedAppointments(1L);
+
+        assertTrue(event.isIdentified());
+        assertEquals(3, event.getServiceLinks().size());
+        assertEquals("Sobrancelha", event.getServiceDescriptionSnapshot());
+        assertEquals(new BigDecimal("106.00"), event.getServiceValueSnapshot());
+        verify(calendarEventRepository).saveAll(List.of(event));
+        verify(calendarEventServiceLinkRepository, never()).deleteInBulkByCalendarEventIdIn(anySet());
+    }
+
+    @Test
+    void shouldSkipPersistWhenCatalogChangeAddsNoNewService() {
+        User user = new User("sub", "email@test.com", "Name");
+        CalendarEvent event = new CalendarEvent(user, "e1", "fulano - sobrancelha", "fulano - sobrancelha", Instant.now(), Instant.now());
+        Service sobrancelha = serviceWithId(user, 1L, "Sobrancelha", "sobrancelha", "48.00");
+        event.associateServices(List.of(sobrancelha));
+
+        when(calendarEventRepository.findAllWithAssociationsByUserId(1L)).thenReturn(List.of(event));
+        when(matcher.servicesByNormalizedDescription(1L)).thenReturn(new HashMap<>() {{
+            put("sobrancelha", sobrancelha);
+        }});
+        when(titleParser.parse("fulano - sobrancelha"))
+                .thenReturn(new EventTitleParser.ParsedTitle("fulano", List.of("sobrancelha"), null));
+        when(normalizer.normalize("sobrancelha")).thenReturn("sobrancelha");
+
+        reprocessor.enrichSynchronizedAppointments(1L);
+
+        verify(calendarEventRepository, never()).saveAll(anyList());
+    }
+
+    private Service serviceWithId(User user, Long id, String description, String normalized, String value) {
+        Service service = new Service(user, description, normalized, new BigDecimal(value));
+        try {
+            var idField = Service.class.getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(service, id);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("Failed to set Service id for test setup", e);
+        }
+        return service;
+    }
+
     private void setCalendarEventId(CalendarEvent event, Long eventId) {
         try {
             var idField = CalendarEvent.class.getDeclaredField("id");
