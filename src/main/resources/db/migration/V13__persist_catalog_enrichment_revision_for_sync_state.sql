@@ -16,15 +16,15 @@ INSERT INTO sync_state (
 )
 SELECT DISTINCT
     ce.user_id,
-    NULL,
-    NULL,
-    'NEVER_SYNCED',
-    NULL,
-    NULL,
-    1,
-    0,
-    NOW(),
-    NOW()
+    CAST(NULL AS TEXT),
+    CAST(NULL AS TIMESTAMP WITH TIME ZONE),
+    CAST('NEVER_SYNCED' AS VARCHAR(50)),
+    CAST(NULL AS VARCHAR(100)),
+    CAST(NULL AS TEXT),
+    CAST(1 AS BIGINT),
+    CAST(0 AS BIGINT),
+    CAST(NOW() AS TIMESTAMP WITH TIME ZONE),
+    CAST(NOW() AS TIMESTAMP WITH TIME ZONE)
 FROM calendar_events ce
 LEFT JOIN sync_state ss ON ss.user_id = ce.user_id
 WHERE ce.google_event_id IS NOT NULL
