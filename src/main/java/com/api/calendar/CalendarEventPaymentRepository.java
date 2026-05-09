@@ -23,4 +23,13 @@ public interface CalendarEventPaymentRepository extends JpaRepository<CalendarEv
             "WHERE p.calendarEvent.id IN :eventIds " +
             "GROUP BY p.calendarEvent.id")
     List<CalendarEventPaymentTotal> summarizePaidAmountsByEventIdIn(@Param("eventIds") Collection<Long> eventIds);
+
+    @Query("SELECT new com.api.calendar.CalendarEventPaymentMethodTotal(" +
+            "p.paymentType, COALESCE(SUM(p.amount), 0)) " +
+            "FROM CalendarEventPayment p " +
+            "WHERE p.calendarEvent.id IN :eventIds " +
+            "GROUP BY p.paymentType")
+    List<CalendarEventPaymentMethodTotal> summarizePaidAmountsByPaymentTypeForEventIdIn(
+            @Param("eventIds") Collection<Long> eventIds
+    );
 }

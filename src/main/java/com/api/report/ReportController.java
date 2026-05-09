@@ -22,11 +22,14 @@ public class ReportController {
 
     private final RevenueReportService revenueReportService;
     private final CashFlowReportService cashFlowReportService;
+    private final PaymentMethodRevenueReportService paymentMethodRevenueReportService;
 
     public ReportController(RevenueReportService revenueReportService,
-                             CashFlowReportService cashFlowReportService) {
+                             CashFlowReportService cashFlowReportService,
+                             PaymentMethodRevenueReportService paymentMethodRevenueReportService) {
         this.revenueReportService = revenueReportService;
         this.cashFlowReportService = cashFlowReportService;
+        this.paymentMethodRevenueReportService = paymentMethodRevenueReportService;
     }
 
     @GetMapping("/revenue")
@@ -58,6 +61,24 @@ public class ReportController {
             @RequestParam(defaultValue = "ALL") PaymentScope paymentScope) {
         CashFlowReportService.CashFlowReport report = cashFlowReportService.generateReport(
                 user.userId(), startDate, endDate, paymentScope);
+        return ResponseEntity.ok(report);
+    }
+
+    @GetMapping("/revenue-by-payment-method")
+    @Operation(
+            summary = "Relatório de faturamento por método de pagamento",
+            description = "Retorna o total consolidado por método de pagamento no período. Considera somente pagamentos persistidos em calendar_event_payments. Máximo 12 meses.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Relatório gerado"),
+                    @ApiResponse(responseCode = "400", description = "Período inválido (excede 12 meses ou datas invertidas)")
+            }
+    )
+    public ResponseEntity<PaymentMethodRevenueReportService.PaymentMethodRevenueReport> getRevenueByPaymentMethodReport(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) @Parameter(example = "2026-01-01") LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) @Parameter(example = "2026-03-01") LocalDate endDate) {
+        PaymentMethodRevenueReportService.PaymentMethodRevenueReport report =
+                paymentMethodRevenueReportService.generateReport(user.userId(), startDate, endDate);
         return ResponseEntity.ok(report);
     }
 }
