@@ -152,6 +152,18 @@ class CalendarPaymentServiceTest {
         assertTrue(event.getPayments().isEmpty());
     }
 
+    @Test
+    void shouldKeepPaymentsEmptyWhenPayloadIsEmptyAndEventHasNoPayments() {
+        CalendarEvent event = createEventWithTotal(BigDecimal.valueOf(90));
+        when(calendarEventRepository.findByIdAndUserId(14L, 1L)).thenReturn(Optional.of(event));
+        when(calendarEventRepository.save(any(CalendarEvent.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        List<CalendarEventPayment> saved = calendarPaymentService.upsertPayments(1L, 14L, List.of());
+
+        assertTrue(saved.isEmpty());
+        assertTrue(event.getPayments().isEmpty());
+    }
+
     private CalendarEvent createEventWithTotal(BigDecimal totalValue) {
         User user = new User("sub", "user@test.com", "User");
         CalendarEvent event = new CalendarEvent(

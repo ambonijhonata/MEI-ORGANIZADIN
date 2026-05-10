@@ -175,6 +175,39 @@ class CalendarPaymentsIntegrationTest {
                 .andExpect(jsonPath("$.payments[1].valueTotal").value(false));
     }
 
+    @Test
+    void shouldReturnEmptyPaymentsAfterClearingPersistedComposition() throws Exception {
+        CalendarEvent event = mock(CalendarEvent.class);
+        List<CalendarEventPayment> storedPayments = new ArrayList<>(List.of(
+                new CalendarEventPayment(
+                        event,
+                        PaymentType.DINHEIRO,
+                        new BigDecimal("88.00"),
+                        true,
+                        Instant.parse("2026-04-16T14:00:00Z")
+                )
+        ));
+        LazyAwarePaymentList lazyPayments = new LazyAwarePaymentList(storedPayments);
+
+        when(event.getPayments()).thenReturn(lazyPayments);
+        doAnswer(invocation -> {
+            storedPayments.clear();
+            return null;
+        }).when(event).clearPayments();
+        when(calendarEventRepository.findByIdAndUserId(19902L, 1L)).thenReturn(Optional.of(event));
+        when(calendarEventRepository.save(any(CalendarEvent.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        mockMvc.perform(patch("/api/calendar/events/{eventId}/payments", 19902L)
+                        .with(authenticatedUser())
+                        .contentType("application/json")
+                        .content("""
+                                {"payments":[]}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.eventId").value(19902))
+                .andExpect(jsonPath("$.payments.length()").value(0));
+    }
+
     private RequestPostProcessor authenticatedUser() {
         AuthenticatedUser principal = new AuthenticatedUser(1L, "sub", "test@example.com", "Test");
         Authentication authentication = new UsernamePasswordAuthenticationToken(principal, null, List.of());
