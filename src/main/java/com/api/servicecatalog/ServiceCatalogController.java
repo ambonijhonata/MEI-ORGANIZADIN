@@ -1,6 +1,7 @@
 package com.api.servicecatalog;
 
 import com.api.auth.AuthenticatedUser;
+import com.api.common.PageRequestSanitizer;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -10,9 +11,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -20,11 +19,19 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/services")
 @Tag(name = "Catálogo de Serviços", description = "CRUD de serviços do usuário (descrição + valor)")
 public class ServiceCatalogController {
+    private static final int MAX_PAGE_SIZE = 100;
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
+            "id",
+            "description",
+            "value",
+            "createdAt"
+    );
 
     private final ServiceCatalogService serviceCatalogService;
 
@@ -56,7 +63,14 @@ public class ServiceCatalogController {
             @RequestParam(defaultValue = "asc") @Parameter(description = "Direção: asc ou desc") String direction,
             @RequestParam(defaultValue = "0") @Parameter(description = "Página (0-based)") int page,
             @RequestParam(defaultValue = "25") @Parameter(description = "Itens por página") int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.fromString(direction), sortBy));
+        Pageable pageable = PageRequestSanitizer.sanitizeZeroBased(
+                page,
+                size,
+                sortBy,
+                direction,
+                ALLOWED_SORT_FIELDS,
+                MAX_PAGE_SIZE
+        );
         Page<Service> servicePage = serviceCatalogService.listServices(user.userId(), description, pageable);
         List<ServiceResponse> items = servicePage.getContent().stream()
                 .map(ServiceResponse::from)

@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -108,6 +109,55 @@ public class GlobalExceptionHandler {
                 Instant.now()
         );
         return ResponseEntity.badRequest().body(error);
+    }
+
+    @ExceptionHandler(InvalidRequestParameterException.class)
+    public ResponseEntity<ValidationErrorResponse> handleInvalidRequestParameter(InvalidRequestParameterException ex) {
+        var error = new ValidationErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                "VALIDATION_ERROR",
+                "Validation failed",
+                List.of(new FieldError(ex.getField(), ex.getMessage())),
+                Instant.now()
+        );
+        return ResponseEntity.badRequest().body(error);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ValidationErrorResponse> handleArgumentTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        String field = ex.getName() != null ? ex.getName() : "request";
+        var error = new ValidationErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                "VALIDATION_ERROR",
+                "Validation failed",
+                List.of(new FieldError(field, field + " has an invalid value")),
+                Instant.now()
+        );
+        return ResponseEntity.badRequest().body(error);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ValidationErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
+        String message = ex.getMessage() != null ? ex.getMessage() : "request has an invalid value";
+        if (message.contains("Page index")) {
+            return ResponseEntity.badRequest().body(new ValidationErrorResponse(
+                    HttpStatus.BAD_REQUEST.value(),
+                    "VALIDATION_ERROR",
+                    "Validation failed",
+                    List.of(new FieldError("page", "page must be greater than or equal to 0")),
+                    Instant.now()
+            ));
+        }
+        if (message.contains("Page size")) {
+            return ResponseEntity.badRequest().body(new ValidationErrorResponse(
+                    HttpStatus.BAD_REQUEST.value(),
+                    "VALIDATION_ERROR",
+                    "Validation failed",
+                    List.of(new FieldError("size", "size must be greater than or equal to 1")),
+                    Instant.now()
+            ));
+        }
+        throw ex;
     }
 
     @ExceptionHandler(InvalidPeriodException.class)

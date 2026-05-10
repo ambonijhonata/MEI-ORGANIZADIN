@@ -1,6 +1,7 @@
 package com.api.client;
 
 import com.api.auth.AuthenticatedUser;
+import com.api.common.PageRequestSanitizer;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -18,11 +19,22 @@ import com.api.servicecatalog.ServiceDescriptionNormalizer;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/clients")
 @Tag(name = "Clientes", description = "CRUD de clientes do usuário")
 public class ClientController {
+    private static final int MAX_ITEMS_PER_PAGE = 100;
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
+            "id",
+            "name",
+            "cpf",
+            "dateOfBirth",
+            "email",
+            "phone",
+            "createdAt"
+    );
 
     private final ClientService clientService;
     private final CalendarEventRepository calendarEventRepository;
@@ -60,16 +72,32 @@ public class ClientController {
             @RequestParam(defaultValue = "asc") @Parameter(description = "Direção: asc ou desc") String direction,
             @RequestParam(defaultValue = "1") @Parameter(description = "Página (começa em 1)") int pageIndex,
             @RequestParam(defaultValue = "25") @Parameter(description = "Itens por página") int itemsPerPage) {
-        Sort sort = Sort.by(Sort.Direction.fromString(direction), sortBy);
-        var page = clientService.listClientsPaginated(user.userId(), name, pageIndex, itemsPerPage, sort);
+        var sanitizedPageRequest = PageRequestSanitizer.sanitizeOneBased(
+                pageIndex,
+                itemsPerPage,
+                sortBy,
+                direction,
+                ALLOWED_SORT_FIELDS,
+                MAX_ITEMS_PER_PAGE
+        );
+        Sort sort = sanitizedPageRequest.getSort();
+        int sanitizedPageIndex = sanitizedPageRequest.getPageNumber() + 1;
+        int sanitizedItemsPerPage = sanitizedPageRequest.getPageSize();
+        var page = clientService.listClientsPaginated(
+                user.userId(),
+                name,
+                sanitizedPageIndex,
+                sanitizedItemsPerPage,
+                sort
+        );
         List<ClientResponse> items = page.getContent().stream().map(ClientResponse::from).toList();
-        int totalPages = (int) Math.ceil((double) page.getTotalElements() / itemsPerPage);
+        int totalPages = (int) Math.ceil((double) page.getTotalElements() / sanitizedItemsPerPage);
         return ResponseEntity.ok(new PaginatedResponse<>(
                 items,
                 page.getTotalElements(),
                 totalPages,
-                itemsPerPage,
-                pageIndex
+                sanitizedItemsPerPage,
+                sanitizedPageIndex
         ));
     }
 

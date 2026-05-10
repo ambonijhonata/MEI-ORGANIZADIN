@@ -2,6 +2,7 @@ package com.api.calendar;
 
 import com.api.auth.AuthenticatedUser;
 import com.api.common.BusinessException;
+import com.api.common.PageRequestSanitizer;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -21,8 +22,9 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/calendar")
@@ -30,6 +32,20 @@ import java.util.List;
 public class CalendarController {
 
     private static final Logger log = LoggerFactory.getLogger(CalendarController.class);
+    private static final int DEFAULT_PAGE = 0;
+    private static final int DEFAULT_PAGE_SIZE = 50;
+    private static final int MAX_PAGE_SIZE = 100;
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
+            "id",
+            "googleEventId",
+            "title",
+            "eventStart",
+            "eventEnd",
+            "identified",
+            "serviceDescriptionSnapshot",
+            "serviceValueSnapshot",
+            "paymentType"
+    );
 
     private final CalendarSyncService calendarSyncService;
     private final CalendarPaymentService calendarPaymentService;
@@ -85,26 +101,33 @@ public class CalendarController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate eventEnd,
             Pageable pageable
     ) {
+        Pageable sanitizedPageable = PageRequestSanitizer.sanitizePageable(
+                pageable,
+                ALLOWED_SORT_FIELDS,
+                DEFAULT_PAGE,
+                DEFAULT_PAGE_SIZE,
+                MAX_PAGE_SIZE
+        );
         try {
             Page<CalendarEvent> page;
             if (eventStart != null && eventEnd != null) {
                 Instant start = eventStart.atStartOfDay(ZoneOffset.UTC).toInstant();
                 Instant end = eventEnd.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
                 page = calendarEventRepository.findByUserIdAndEventStartGreaterThanEqualAndEventStartLessThan(
-                        user.userId(), start, end, pageable
+                        user.userId(), start, end, sanitizedPageable
                 );
             } else if (eventStart != null) {
                 Instant start = eventStart.atStartOfDay(ZoneOffset.UTC).toInstant();
                 page = calendarEventRepository.findByUserIdAndEventStartGreaterThanEqual(
-                        user.userId(), start, pageable
+                        user.userId(), start, sanitizedPageable
                 );
             } else if (eventEnd != null) {
                 Instant end = eventEnd.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
                 page = calendarEventRepository.findByUserIdAndEventStartLessThan(
-                        user.userId(), end, pageable
+                        user.userId(), end, sanitizedPageable
                 );
             } else {
-                page = calendarEventRepository.findByUserId(user.userId(), pageable);
+                page = calendarEventRepository.findByUserId(user.userId(), sanitizedPageable);
             }
 
             Map<Long, BigDecimal> paidAmountsByEventId = loadPaidAmounts(page.getContent());
@@ -117,8 +140,8 @@ public class CalendarController {
                     user.userId(),
                     eventStart,
                     eventEnd,
-                    pageable != null ? pageable.getPageNumber() : null,
-                    pageable != null ? pageable.getPageSize() : null,
+                    sanitizedPageable.getPageNumber(),
+                    sanitizedPageable.getPageSize(),
                     ex.getClass().getSimpleName(),
                     ex.getMessage(),
                     ex

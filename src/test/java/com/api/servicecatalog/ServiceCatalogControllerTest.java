@@ -1,6 +1,7 @@
 package com.api.servicecatalog;
 
 import com.api.auth.AuthenticatedUser;
+import com.api.common.InvalidRequestParameterException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,6 +19,7 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 
@@ -128,6 +130,34 @@ class ServiceCatalogControllerTest {
         assertThat(body.items()).isEmpty();
         assertThat(body.totalItems()).isEqualTo(0);
         assertThat(body.totalPages()).isEqualTo(0);
+    }
+
+    @Test
+    void shouldRejectUnsupportedSortField() {
+        assertThatThrownBy(() -> controller.listServices(user, null, "description;drop table services", "asc", 0, 25))
+                .isInstanceOf(InvalidRequestParameterException.class)
+                .hasMessageContaining("sortBy");
+    }
+
+    @Test
+    void shouldRejectInvalidDirection() {
+        assertThatThrownBy(() -> controller.listServices(user, null, "description", "desc;drop", 0, 25))
+                .isInstanceOf(InvalidRequestParameterException.class)
+                .hasMessageContaining("direction");
+    }
+
+    @Test
+    void shouldRejectNegativePage() {
+        assertThatThrownBy(() -> controller.listServices(user, null, "description", "asc", -1, 25))
+                .isInstanceOf(InvalidRequestParameterException.class)
+                .hasMessageContaining("page");
+    }
+
+    @Test
+    void shouldRejectInvalidSize() {
+        assertThatThrownBy(() -> controller.listServices(user, null, "description", "asc", 0, 0))
+                .isInstanceOf(InvalidRequestParameterException.class)
+                .hasMessageContaining("size");
     }
 
     private Service createService(Long id, String description, BigDecimal value) {

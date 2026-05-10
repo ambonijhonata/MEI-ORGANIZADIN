@@ -6,9 +6,11 @@ import jakarta.validation.ConstraintViolationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.core.MethodParameter;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.List;
 import java.util.Set;
@@ -102,6 +104,45 @@ class GlobalExceptionHandlerTest {
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertEquals(400, response.getBody().status());
         assertEquals("VALIDATION_ERROR", response.getBody().code());
+    }
+
+    @Test
+    void shouldHandleInvalidRequestParameterWith400() {
+        var ex = new InvalidRequestParameterException("sortBy", "sortBy must be one of: id, name");
+        var response = handler.handleInvalidRequestParameter(ex);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals(400, response.getBody().status());
+        assertEquals("VALIDATION_ERROR", response.getBody().code());
+        assertEquals(1, response.getBody().errors().size());
+        assertEquals("sortBy", response.getBody().errors().get(0).field());
+    }
+
+    @Test
+    void shouldHandleMethodArgumentTypeMismatchWith400() {
+        MethodArgumentTypeMismatchException ex = new MethodArgumentTypeMismatchException(
+                "abc",
+                Integer.class,
+                "page",
+                mock(MethodParameter.class),
+                new IllegalArgumentException("invalid")
+        );
+
+        var response = handler.handleArgumentTypeMismatch(ex);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals(400, response.getBody().status());
+        assertEquals("VALIDATION_ERROR", response.getBody().code());
+        assertEquals("page", response.getBody().errors().get(0).field());
+    }
+
+    @Test
+    void shouldHandleIllegalArgumentForNegativePageWith400() {
+        var response = handler.handleIllegalArgument(new IllegalArgumentException("Page index must not be less than zero"));
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("VALIDATION_ERROR", response.getBody().code());
+        assertEquals("page", response.getBody().errors().get(0).field());
     }
 
     @Test
