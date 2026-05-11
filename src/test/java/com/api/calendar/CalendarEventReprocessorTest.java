@@ -102,7 +102,7 @@ class CalendarEventReprocessorTest {
     }
 
     @Test
-    void shouldReplacePersistedServiceLinksBeforeSavingReprocessedEvent() {
+    void shouldKeepCanonicalOccurrenceCountAcrossRepeatedReprocessing() {
         User user = new User("sub", "email@test.com", "Name");
         CalendarEvent event = new CalendarEvent(user, "e1", "maria-corte (pix)", "maria-corte (pix)", Instant.now(), Instant.now());
         setCalendarEventId(event, 77L);
@@ -120,11 +120,31 @@ class CalendarEventReprocessorTest {
         reprocessor.reprocessUnidentifiedEvents(1L);
 
         assertEquals(1, event.getServiceLinks().size());
-        var inOrder = inOrder(calendarEventServiceLinkRepository, calendarEventRepository);
-        inOrder.verify(calendarEventServiceLinkRepository)
-                .deleteInBulkByCalendarEventIdIn(argThat(ids -> ids != null && ids.size() == 1 && ids.contains(77L)));
-        inOrder.verify(calendarEventServiceLinkRepository).flush();
-        inOrder.verify(calendarEventRepository).saveAll(List.of(event));
+        verify(calendarEventRepository, times(2)).saveAll(List.of(event));
+        verify(calendarEventServiceLinkRepository, never()).deleteInBulkByCalendarEventIdIn(anySet());
+    }
+
+    @Test
+    void shouldReprocessRepeatedServiceTitleAsQuantity() {
+        User user = new User("sub", "email@test.com", "Name");
+        CalendarEvent event = new CalendarEvent(user, "e1", "maria-sobrancelha+sobrancelha", "maria-sobrancelha+sobrancelha", Instant.now(), Instant.now());
+        Service sobrancelha = serviceWithId(user, 1L, "Sobrancelha", "sobrancelha", "48.00");
+
+        when(calendarEventRepository.findByUserIdAndIdentifiedFalse(1L)).thenReturn(List.of(event));
+        when(matcher.servicesByNormalizedDescription(1L)).thenReturn(new HashMap<>() {{
+            put("sobrancelha", sobrancelha);
+        }});
+        when(titleParser.parse("maria-sobrancelha+sobrancelha"))
+                .thenReturn(new EventTitleParser.ParsedTitle("maria", List.of("sobrancelha", "sobrancelha"), null));
+        when(normalizer.normalize("sobrancelha")).thenReturn("sobrancelha");
+
+        reprocessor.reprocessUnidentifiedEvents(1L);
+
+        assertTrue(event.isIdentified());
+        assertEquals(2, event.getServiceLinks().size());
+        assertEquals(0, event.getServiceLinks().get(0).getOccurrenceIndex());
+        assertEquals(1, event.getServiceLinks().get(1).getOccurrenceIndex());
+        assertEquals(new BigDecimal("96.00"), event.getServiceValueSnapshot());
     }
 
     @Test

@@ -7,9 +7,9 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 @Entity
 @Table(name = "calendar_events", uniqueConstraints = {
@@ -109,18 +109,23 @@ public class CalendarEvent {
     }
 
     public void associateServices(List<Service> services) {
+        if (services == null || services.isEmpty()) {
+            clearServiceAssociation();
+            return;
+        }
+
         this.serviceLinks.clear();
         BigDecimal totalValue = BigDecimal.ZERO;
+        Map<String, Integer> occurrencesByIdentity = new HashMap<>();
         for (Service s : services) {
-            this.serviceLinks.add(new CalendarEventServiceLink(this, s));
+            int occurrenceIndex = nextOccurrenceIndex(occurrencesByIdentity, serviceIdentity(s));
+            this.serviceLinks.add(new CalendarEventServiceLink(this, s, occurrenceIndex));
             totalValue = totalValue.add(s.getValue());
         }
-        if (!services.isEmpty()) {
-            this.service = services.get(0);
-            this.serviceDescriptionSnapshot = services.get(0).getDescription();
-            this.serviceValueSnapshot = totalValue;
-            this.identified = true;
-        }
+        this.service = services.get(0);
+        this.serviceDescriptionSnapshot = services.get(0).getDescription();
+        this.serviceValueSnapshot = totalValue;
+        this.identified = true;
     }
 
     public boolean enrichServices(List<Service> services) {
@@ -135,12 +140,9 @@ public class CalendarEvent {
 
         ensureLegacyAssociationBackfilledIntoLinks();
 
-        Set<String> existingServiceIdentities = new HashSet<>();
+        Map<String, Integer> existingServiceIdentities = new HashMap<>();
         for (CalendarEventServiceLink serviceLink : this.serviceLinks) {
-            String identity = serviceIdentity(serviceLink.getService());
-            if (identity != null) {
-                existingServiceIdentities.add(identity);
-            }
+            incrementOccurrence(existingServiceIdentities, serviceIdentity(serviceLink.getService()));
         }
 
         boolean changed = false;
@@ -149,10 +151,14 @@ public class CalendarEvent {
             if (identity == null) {
                 continue;
             }
-            if (existingServiceIdentities.add(identity)) {
-                this.serviceLinks.add(new CalendarEventServiceLink(this, service));
+            int existingCount = existingServiceIdentities.getOrDefault(identity, 0);
+            int requestedCount = countOccurrences(services, identity);
+            while (existingCount < requestedCount) {
+                this.serviceLinks.add(new CalendarEventServiceLink(this, service, existingCount));
                 changed = true;
+                existingCount++;
             }
+            existingServiceIdentities.put(identity, existingCount);
         }
 
         if (!changed) {
@@ -218,7 +224,7 @@ public class CalendarEvent {
         BigDecimal valueSnapshot = this.serviceValueSnapshot != null
                 ? this.serviceValueSnapshot
                 : this.service.getValue();
-        this.serviceLinks.add(new CalendarEventServiceLink(this, this.service, descriptionSnapshot, valueSnapshot));
+        this.serviceLinks.add(new CalendarEventServiceLink(this, this.service, 0, descriptionSnapshot, valueSnapshot));
     }
 
     private BigDecimal totalLinkedSnapshotValue() {
@@ -248,6 +254,32 @@ public class CalendarEvent {
             return "value:" + service.getValue().stripTrailingZeros().toPlainString();
         }
         return null;
+    }
+
+    private int nextOccurrenceIndex(Map<String, Integer> occurrencesByIdentity, String identity) {
+        if (identity == null) {
+            return 0;
+        }
+        int next = occurrencesByIdentity.getOrDefault(identity, 0);
+        occurrencesByIdentity.put(identity, next + 1);
+        return next;
+    }
+
+    private void incrementOccurrence(Map<String, Integer> occurrencesByIdentity, String identity) {
+        if (identity == null) {
+            return;
+        }
+        occurrencesByIdentity.put(identity, occurrencesByIdentity.getOrDefault(identity, 0) + 1);
+    }
+
+    private int countOccurrences(List<Service> services, String identity) {
+        int count = 0;
+        for (Service service : services) {
+            if (identity != null && identity.equals(serviceIdentity(service))) {
+                count++;
+            }
+        }
+        return count;
     }
 
     public Long getId() { return id; }

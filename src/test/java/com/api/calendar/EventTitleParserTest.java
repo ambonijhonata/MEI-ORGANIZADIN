@@ -119,6 +119,15 @@ class EventTitleParserTest {
     }
 
     @Test
+    void shouldPreserveRepeatedServiceTokensAsDistinctOccurrences() {
+        var result = parser.parse("maria - sobrancelha + sobrancelha + buco");
+
+        assertEquals("maria", result.clientName());
+        assertEquals(List.of("sobrancelha", "sobrancelha", "buco"), result.serviceNames());
+        assertNull(result.paymentType());
+    }
+
+    @Test
     void shouldExtractKnownPaymentTypeFromSuffix() {
         var result = parser.parse("jhonata - sobrancelha + buco (pix)");
 

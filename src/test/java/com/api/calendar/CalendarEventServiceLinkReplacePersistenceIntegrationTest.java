@@ -60,8 +60,8 @@ class CalendarEventServiceLinkReplacePersistenceIntegrationTest {
     @BeforeEach
     void ensureUniqueIndexPresent() {
         jdbcTemplate.execute("""
-                CREATE UNIQUE INDEX IF NOT EXISTS ux_calendar_event_services_event_service
-                ON calendar_event_services (calendar_event_id, service_id)
+                CREATE UNIQUE INDEX IF NOT EXISTS ux_calendar_event_services_event_service_occurrence
+                ON calendar_event_services (calendar_event_id, service_id, occurrence_index)
                 """);
     }
 
@@ -204,6 +204,33 @@ class CalendarEventServiceLinkReplacePersistenceIntegrationTest {
         assertEquals(1, reloadedUpdated.getServiceLinks().size());
         assertFalse(calendarEventRepository.findById(deletedPersisted.getId()).isPresent());
         assertTrue(calendarEventPaymentRepository.findByCalendarEventIdOrderByIdAsc(deletedPersisted.getId()).isEmpty());
+    }
+
+    @Test
+    void shouldPersistRepeatedSameServiceOccurrencesWithDistinctOccurrenceIndexes() {
+        User user = userRepository.saveAndFlush(new User("sub-dup", "dup@test.com", "Dup Test"));
+        Service sobrancelha = serviceRepository.saveAndFlush(new Service(user, "Sobrancelha", "sobrancelha", new BigDecimal("48.00")));
+
+        CalendarEvent event = new CalendarEvent(
+                user,
+                "google-event-dup",
+                "maria - sobrancelha + sobrancelha",
+                "maria - sobrancelha + sobrancelha",
+                Instant.parse("2026-05-08T10:00:00Z"),
+                Instant.parse("2026-05-08T11:00:00Z")
+        );
+        event.associateServices(List.of(sobrancelha, sobrancelha));
+
+        assertDoesNotThrow(() -> calendarEventRepository.saveAndFlush(event));
+
+        entityManager.clear();
+
+        CalendarEvent reloaded = loadWithAssociations(user.getId(), "google-event-dup");
+        assertEquals(2, reloaded.getServiceLinks().size());
+        assertEquals(0, reloaded.getServiceLinks().get(0).getOccurrenceIndex());
+        assertEquals(1, reloaded.getServiceLinks().get(1).getOccurrenceIndex());
+        assertEquals(0, new BigDecimal("96.00").compareTo(reloaded.getServiceValueSnapshot()));
+        assertEquals(2, calendarEventServiceLinkRepository.findByCalendarEventId(reloaded.getId()).size());
     }
 
     private CalendarEvent loadWithAssociations(Long userId, String googleEventId) {

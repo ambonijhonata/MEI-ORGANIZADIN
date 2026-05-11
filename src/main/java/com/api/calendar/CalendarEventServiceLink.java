@@ -21,6 +21,9 @@ public class CalendarEventServiceLink {
     @JoinColumn(name = "service_id")
     private Service service;
 
+    @Column(name = "occurrence_index", nullable = false)
+    private int occurrenceIndex;
+
     @Column(name = "service_description_snapshot", nullable = false, length = 500)
     private String serviceDescriptionSnapshot;
 
@@ -33,18 +36,25 @@ public class CalendarEventServiceLink {
     protected CalendarEventServiceLink() {}
 
     public CalendarEventServiceLink(CalendarEvent calendarEvent, Service service) {
+        this(calendarEvent, service, 0);
+    }
+
+    public CalendarEventServiceLink(CalendarEvent calendarEvent, Service service, int occurrenceIndex) {
         this.calendarEvent = calendarEvent;
         this.service = service;
+        this.occurrenceIndex = occurrenceIndex;
         this.serviceDescriptionSnapshot = service.getDescription();
         this.serviceValueSnapshot = service.getValue();
     }
 
     public CalendarEventServiceLink(CalendarEvent calendarEvent,
                                     Service service,
+                                    int occurrenceIndex,
                                     String serviceDescriptionSnapshot,
                                     BigDecimal serviceValueSnapshot) {
         this.calendarEvent = calendarEvent;
         this.service = service;
+        this.occurrenceIndex = occurrenceIndex;
         this.serviceDescriptionSnapshot = serviceDescriptionSnapshot;
         this.serviceValueSnapshot = serviceValueSnapshot;
     }
@@ -57,6 +67,7 @@ public class CalendarEventServiceLink {
     public Long getId() { return id; }
     public CalendarEvent getCalendarEvent() { return calendarEvent; }
     public Service getService() { return service; }
+    public int getOccurrenceIndex() { return occurrenceIndex; }
     public String getServiceDescriptionSnapshot() { return serviceDescriptionSnapshot; }
     public BigDecimal getServiceValueSnapshot() { return serviceValueSnapshot; }
 }

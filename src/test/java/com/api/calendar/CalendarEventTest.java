@@ -171,4 +171,34 @@ class CalendarEventTest {
         assertNull(event.getClient());
         assertNull(event.getService());
     }
+
+    @Test
+    void shouldAssociateRepeatedSameServiceAsSeparateOccurrences() {
+        CalendarEvent event = new CalendarEvent(user, "e1", "sobrancelha + sobrancelha", "sobrancelha + sobrancelha", Instant.now(), Instant.now());
+        Service sobrancelha = new Service(user, "Sobrancelha", "sobrancelha", new BigDecimal("40.00"));
+
+        event.associateServices(List.of(sobrancelha, sobrancelha));
+
+        assertTrue(event.isIdentified());
+        assertEquals(2, event.getServiceLinks().size());
+        assertEquals(0, event.getServiceLinks().get(0).getOccurrenceIndex());
+        assertEquals(1, event.getServiceLinks().get(1).getOccurrenceIndex());
+        assertEquals(new BigDecimal("80.00"), event.getServiceValueSnapshot());
+    }
+
+    @Test
+    void shouldEnrichExistingServicesWithMissingRepeatedOccurrence() {
+        CalendarEvent event = new CalendarEvent(user, "e1", "rodrigo - sobrancelha + sobrancelha",
+                "rodrigo - sobrancelha + sobrancelha", Instant.now(), Instant.now());
+        Service sobrancelha = new Service(user, "Sobrancelha", "sobrancelha", new BigDecimal("48.00"));
+
+        event.associateServices(List.of(sobrancelha));
+        boolean changed = event.enrichServices(List.of(sobrancelha, sobrancelha));
+
+        assertTrue(changed);
+        assertEquals(2, event.getServiceLinks().size());
+        assertEquals(0, event.getServiceLinks().get(0).getOccurrenceIndex());
+        assertEquals(1, event.getServiceLinks().get(1).getOccurrenceIndex());
+        assertEquals(new BigDecimal("96.00"), event.getServiceValueSnapshot());
+    }
 }

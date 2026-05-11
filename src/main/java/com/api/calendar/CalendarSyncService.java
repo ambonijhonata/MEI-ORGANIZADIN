@@ -577,7 +577,7 @@ public class CalendarSyncService {
                 googleEvents,
                 fullSync
         );
-        Map<Long, Set<String>> existingServiceIdentitiesByEventId =
+        Map<Long, Map<String, Integer>> existingServiceIdentitiesByEventId =
                 loadServiceIdentityByEventId(existingEventsByGoogleEventId.values());
 
         List<CalendarEvent> upserts = new ArrayList<>(googleEvents.size());
@@ -611,8 +611,8 @@ public class CalendarSyncService {
                     lookups.clientsByNormalizedName(),
                     lookups.servicesByNormalizedDescription(),
                     existingEvent != null
-                            ? existingServiceIdentitiesByEventId.getOrDefault(existingEvent.getId(), Set.of())
-                            : Set.of(),
+                            ? existingServiceIdentitiesByEventId.getOrDefault(existingEvent.getId(), Map.of())
+                            : Map.of(),
                     normalizationCache
             );
             if (processedEvent.shouldPersist()) {
@@ -639,7 +639,7 @@ public class CalendarSyncService {
                                         CalendarEvent existingEvent,
                                         Map<String, Client> clientsByNormalizedName,
                                         Map<String, Service> servicesByNormalizedDescription,
-                                        Set<String> existingServiceIdentities,
+                                        Map<String, Integer> existingServiceIdentities,
                                         Map<String, String> normalizationCache) {
         String googleEventId = googleEvent.getId();
         String title = googleEvent.getSummary();
@@ -761,10 +761,8 @@ public class CalendarSyncService {
 
     private boolean hasServiceAssociationChanges(CalendarEvent existingEvent,
                                                  List<Service> matchedServices,
-                                                 Set<String> existingServiceIdentities) {
-        Set<String> persistedServiceIdentities = existingServiceIdentities != null
-                ? existingServiceIdentities
-                : Set.of();
+                                                 Map<String, Integer> existingServiceIdentities) {
+        Map<String, Integer> persistedServiceIdentities = resolvePersistedServiceIdentityCounts(existingEvent, existingServiceIdentities);
 
         if (matchedServices.isEmpty()) {
             return hasPersistedAssociation(existingEvent, persistedServiceIdentities);
@@ -784,17 +782,14 @@ public class CalendarSyncService {
             return true;
         }
 
-        if (persistedServiceIdentities.isEmpty()) {
-            return false;
-        }
-
-        return !persistedServiceIdentities.equals(serviceIdentitySet(matchedServices));
+        return !persistedServiceIdentities.equals(serviceIdentityCounts(matchedServices));
     }
 
     private boolean hasPersistedAssociation(CalendarEvent existingEvent,
-                                            Set<String> existingServiceIdentities) {
+                                            Map<String, Integer> existingServiceIdentities) {
+        Map<String, Integer> persistedServiceIdentities = resolvePersistedServiceIdentityCounts(existingEvent, existingServiceIdentities);
         return existingEvent.isIdentified()
-                || (existingServiceIdentities != null && !existingServiceIdentities.isEmpty())
+                || !persistedServiceIdentities.isEmpty()
                 || existingEvent.getServiceDescriptionSnapshot() != null
                 || existingEvent.getServiceValueSnapshot() != null;
     }
@@ -813,10 +808,13 @@ public class CalendarSyncService {
                 && Objects.equals(existingClient.getName(), resolvedClient.getName());
     }
 
-    private Set<String> serviceIdentitySet(List<Service> services) {
-        Set<String> identities = new HashSet<>();
+    private Map<String, Integer> serviceIdentityCounts(List<Service> services) {
+        Map<String, Integer> identities = new HashMap<>();
         for (Service service : services) {
-            identities.add(serviceIdentity(service));
+            String identity = serviceIdentity(service);
+            if (identity != null) {
+                identities.put(identity, identities.getOrDefault(identity, 0) + 1);
+            }
         }
         return identities;
     }
@@ -948,8 +946,8 @@ public class CalendarSyncService {
         }
     }
 
-    private Map<Long, Set<String>> loadServiceIdentityByEventId(Iterable<CalendarEvent> events) {
-        Map<Long, Set<String>> identitiesByEventId = new HashMap<>();
+    private Map<Long, Map<String, Integer>> loadServiceIdentityByEventId(Iterable<CalendarEvent> events) {
+        Map<Long, Map<String, Integer>> identitiesByEventId = new HashMap<>();
         if (events == null || calendarEventServiceLinkRepository == null) {
             return identitiesByEventId;
         }
@@ -973,13 +971,15 @@ public class CalendarSyncService {
                 if (row == null || row.getCalendarEventId() == null) {
                     continue;
                 }
-                identitiesByEventId.computeIfAbsent(row.getCalendarEventId(), ignored -> new HashSet<>())
-                        .add(serviceIdentity(
+                incrementIdentityCount(
+                        identitiesByEventId.computeIfAbsent(row.getCalendarEventId(), ignored -> new HashMap<>()),
+                        serviceIdentity(
                                 row.getServiceId(),
                                 row.getServiceNormalizedDescription(),
                                 row.getServiceDescription(),
                                 row.getServiceValue()
-                        ));
+                        )
+                );
             }
         }
 
@@ -990,20 +990,62 @@ public class CalendarSyncService {
                 if (row == null || row.getCalendarEventId() == null) {
                     continue;
                 }
-                identitiesByEventId.computeIfAbsent(row.getCalendarEventId(), ignored -> new HashSet<>())
-                        .add(serviceIdentity(
+                incrementIdentityCount(
+                        identitiesByEventId.computeIfAbsent(row.getCalendarEventId(), ignored -> new HashMap<>()),
+                        serviceIdentity(
                                 row.getServiceId(),
                                 row.getServiceNormalizedDescription(),
                                 row.getServiceDescription(),
                                 row.getServiceValue()
-                        ));
+                        )
+                );
             }
         }
 
         for (Long eventId : eventIds) {
-            identitiesByEventId.computeIfAbsent(eventId, ignored -> new HashSet<>());
+            identitiesByEventId.computeIfAbsent(eventId, ignored -> new HashMap<>());
         }
         return identitiesByEventId;
+    }
+
+    private void incrementIdentityCount(Map<String, Integer> identityCounts, String identity) {
+        if (identity == null || identityCounts == null) {
+            return;
+        }
+        identityCounts.put(identity, identityCounts.getOrDefault(identity, 0) + 1);
+    }
+
+    private Map<String, Integer> resolvePersistedServiceIdentityCounts(CalendarEvent existingEvent,
+                                                                       Map<String, Integer> existingServiceIdentities) {
+        if (existingServiceIdentities != null && !existingServiceIdentities.isEmpty()) {
+            return existingServiceIdentities;
+        }
+
+        Map<String, Integer> fallbackCounts = new HashMap<>();
+        if (existingEvent == null) {
+            return fallbackCounts;
+        }
+
+        for (CalendarEventServiceLink serviceLink : existingEvent.getServiceLinks()) {
+            incrementIdentityCount(fallbackCounts, serviceIdentity(serviceLink.getService()));
+        }
+
+        if (!fallbackCounts.isEmpty()) {
+            return fallbackCounts;
+        }
+
+        if (existingEvent.getServiceDescriptionSnapshot() != null || existingEvent.getServiceValueSnapshot() != null) {
+            incrementIdentityCount(
+                    fallbackCounts,
+                    serviceIdentity(
+                            existingEvent.getService() != null ? existingEvent.getService().getId() : null,
+                            existingEvent.getService() != null ? existingEvent.getService().getNormalizedDescription() : null,
+                            existingEvent.getServiceDescriptionSnapshot(),
+                            existingEvent.getServiceValueSnapshot()
+                    )
+            );
+        }
+        return fallbackCounts;
     }
 
     private String safeErrorMessage(Throwable throwable) {

@@ -98,20 +98,18 @@ public class CashFlowReportService {
     private Map<String, ServiceContribution> resolveEventServiceContributions(CalendarEvent event,
                                                                               PaymentScope paymentScope,
                                                                               Map<Long, BigDecimal> paidAmountsByEventId) {
-        Map<String, BigDecimal> serviceValues = extractEventServiceValues(event);
+        Map<String, ServiceContribution> serviceValues = extractEventServiceValues(event);
         if (serviceValues.isEmpty()) {
             return Map.of();
         }
 
         if (paymentScope == PaymentScope.ALL) {
-            Map<String, ServiceContribution> contributions = new TreeMap<>();
-            for (var serviceValue : serviceValues.entrySet()) {
-                contributions.put(serviceValue.getKey(), new ServiceContribution(serviceValue.getValue(), 1));
-            }
-            return contributions;
+            return serviceValues;
         }
 
-        BigDecimal eventServiceTotal = serviceValues.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal eventServiceTotal = serviceValues.values().stream()
+                .map(ServiceContribution::total)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal paidOnlyAmount = reportPaidAmountService.resolvePaidOnlyEventAmount(
                 event,
                 eventServiceTotal,
@@ -123,11 +121,11 @@ public class CashFlowReportService {
 
         if (serviceValues.size() == 1) {
             String serviceName = serviceValues.keySet().iterator().next();
-            return Map.of(serviceName, new ServiceContribution(paidOnlyAmount, 1));
+            return Map.of(serviceName, new ServiceContribution(paidOnlyAmount, serviceValues.get(serviceName).quantity()));
         }
 
         List<String> serviceNames = new ArrayList<>(serviceValues.keySet());
-        List<BigDecimal> weights = serviceNames.stream().map(serviceValues::get).toList();
+        List<BigDecimal> weights = serviceNames.stream().map(name -> serviceValues.get(name).total()).toList();
         List<BigDecimal> distributedAmounts = reportPaidAmountService.distributeAmountProportionally(
                 paidOnlyAmount,
                 weights
@@ -135,19 +133,27 @@ public class CashFlowReportService {
 
         Map<String, ServiceContribution> distributedByService = new TreeMap<>();
         for (int i = 0; i < serviceNames.size(); i++) {
-            distributedByService.put(serviceNames.get(i), new ServiceContribution(distributedAmounts.get(i), 1));
+            String serviceName = serviceNames.get(i);
+            distributedByService.put(
+                    serviceName,
+                    new ServiceContribution(distributedAmounts.get(i), serviceValues.get(serviceName).quantity())
+            );
         }
         return distributedByService;
     }
 
-    private Map<String, BigDecimal> extractEventServiceValues(CalendarEvent event) {
-        Map<String, BigDecimal> serviceValues = new TreeMap<>();
+    private Map<String, ServiceContribution> extractEventServiceValues(CalendarEvent event) {
+        Map<String, ServiceContribution> serviceValues = new TreeMap<>();
         for (CalendarEventServiceLink serviceLink : event.getServiceLinks()) {
             String serviceName = serviceLink.getServiceDescriptionSnapshot();
             if (serviceName == null || serviceName.isBlank()) {
                 continue;
             }
-            serviceValues.merge(serviceName, safeAmount(serviceLink.getServiceValueSnapshot()), BigDecimal::add);
+            serviceValues.merge(
+                    serviceName,
+                    new ServiceContribution(safeAmount(serviceLink.getServiceValueSnapshot()), 1),
+                    (left, right) -> new ServiceContribution(left.total().add(right.total()), left.quantity() + right.quantity())
+            );
         }
 
         if (!serviceValues.isEmpty()) {
@@ -156,7 +162,7 @@ public class CashFlowReportService {
 
         String legacyServiceName = event.getServiceDescriptionSnapshot();
         if (legacyServiceName != null && !legacyServiceName.isBlank()) {
-            serviceValues.put(legacyServiceName, safeAmount(event.getServiceValueSnapshot()));
+            serviceValues.put(legacyServiceName, new ServiceContribution(safeAmount(event.getServiceValueSnapshot()), 1));
         }
         return serviceValues;
     }

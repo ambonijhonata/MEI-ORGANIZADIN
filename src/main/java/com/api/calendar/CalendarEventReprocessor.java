@@ -7,10 +7,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 @Component
 public class CalendarEventReprocessor {
@@ -45,24 +43,16 @@ public class CalendarEventReprocessor {
         userScopedExecutionLock.execute(userId, () -> {
             List<CalendarEvent> unidentified = calendarEventRepository.findByUserIdAndIdentifiedFalse(userId);
             Map<String, Service> servicesByNormalizedDescription = matcher.servicesByNormalizedDescription(userId);
-            Set<Long> replacementEventIds = new HashSet<>();
 
             for (CalendarEvent event : unidentified) {
                 EventTitleParser.ParsedTitle parsed = titleParser.parse(event.getTitle());
                 List<Service> matchedServices = resolveMatchedServices(parsed, servicesByNormalizedDescription);
                 if (!matchedServices.isEmpty()) {
-                    if (event.getId() != null) {
-                        replacementEventIds.add(event.getId());
-                    }
                     event.associateServices(matchedServices);
                 }
                 event.setPaymentType(parsed.paymentType());
             }
 
-            if (!replacementEventIds.isEmpty()) {
-                calendarEventServiceLinkRepository.deleteInBulkByCalendarEventIdIn(replacementEventIds);
-                calendarEventServiceLinkRepository.flush();
-            }
             calendarEventRepository.saveAll(unidentified);
             return null;
         });

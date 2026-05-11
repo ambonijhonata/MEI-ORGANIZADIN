@@ -733,8 +733,7 @@ class CalendarSyncServiceExtendedTest {
 
         assertEquals(0, followupSync.updated());
         assertEquals(1, persistedHolder[0].getServiceLinks().size());
-        verify(calendarEventServiceLinkRepository, times(1))
-                .deleteInBulkByCalendarEventIdIn(argThat(ids -> ids != null && ids.contains(501L)));
+        verify(calendarEventServiceLinkRepository, never()).deleteInBulkByCalendarEventIdIn(anyCollection());
     }
 
     @Test
@@ -898,6 +897,45 @@ class CalendarSyncServiceExtendedTest {
         assertEquals(2, existingEvent.getServiceLinks().size());
         assertFalse(syncState.hasPendingCatalogEnrichment());
         assertEquals(new BigDecimal("73.00"), existingEvent.getServiceValueSnapshot());
+    }
+
+    @Test
+    void shouldCreateRepeatedServiceOccurrencesFromTitleDuringSync() throws IOException {
+        User user = new User("sub", "email@test.com", "Name");
+        SyncState syncState = new SyncState(user);
+        Service sobrancelha = serviceWithId(user, 1L, "Sobrancelha", "sobrancelha", "48.00");
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        when(syncStateRepository.save(any(SyncState.class))).thenReturn(syncState);
+
+        Event event = createTestEvent("e-dup", "maria - sobrancelha + sobrancelha");
+        when(googleCalendarClient.fetchEvents(eq(1L), isNull()))
+                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "token"));
+        when(normalizer.normalize("maria - sobrancelha + sobrancelha")).thenReturn("maria - sobrancelha + sobrancelha");
+        when(normalizer.normalize("maria")).thenReturn("maria");
+        when(normalizer.normalize("sobrancelha")).thenReturn("sobrancelha");
+        when(titleParser.parse("maria - sobrancelha + sobrancelha"))
+                .thenReturn(new EventTitleParser.ParsedTitle("maria", List.of("sobrancelha", "sobrancelha"), null));
+        when(clientService.findOrCreateByName(eq(1L), eq(user), eq("maria"))).thenReturn(new Client(user, "Maria", "maria"));
+        when(matcher.servicesByNormalizedDescription(1L)).thenReturn(new HashMap<>() {{
+            put("sobrancelha", sobrancelha);
+        }});
+
+        CalendarSyncService.SyncResult result = syncService.synchronize(1L);
+
+        assertEquals(1, result.created());
+        verify(calendarEventRepository).saveAll(argThat(events -> {
+            if (events == null) {
+                return false;
+            }
+            List<CalendarEvent> persistedEvents = StreamSupport.stream(events.spliterator(), false).toList();
+            return persistedEvents.size() == 1
+                    && persistedEvents.get(0).getServiceLinks().size() == 2
+                    && persistedEvents.get(0).getServiceLinks().get(0).getOccurrenceIndex() == 0
+                    && persistedEvents.get(0).getServiceLinks().get(1).getOccurrenceIndex() == 1
+                    && new BigDecimal("96.00").compareTo(persistedEvents.get(0).getServiceValueSnapshot()) == 0;
+        }));
     }
 
     private Service serviceWithId(User user, Long id, String description, String normalized, String value) {

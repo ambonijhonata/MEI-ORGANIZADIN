@@ -313,6 +313,38 @@ class CashFlowReportServiceExtendedTest {
     }
 
     @Test
+    void shouldReflectRepeatedSameServiceQuantityInCashFlow() {
+        User user = new User("sub", "email@test.com", "Name");
+        Service sobrancelha = new Service(user, "Sobrancelha", "sobrancelha", new BigDecimal("48.00"));
+        Service buco = new Service(user, "Buco", "buco", new BigDecimal("23.00"));
+        Instant day = LocalDate.of(2026, 4, 13).atStartOfDay(ZoneOffset.UTC).toInstant().plusSeconds(3600);
+        CalendarEvent event = new CalendarEvent(user, "e4", "maria - sobrancelha + sobrancelha + buco",
+                "maria - sobrancelha + sobrancelha + buco", day, day.plusSeconds(1800));
+        event.associateServices(List.of(sobrancelha, sobrancelha, buco));
+
+        when(calendarEventRepository.findIdentifiedWithServiceLinksByUserAndPeriod(eq(1L), any(), any()))
+                .thenReturn(List.of(event));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.empty());
+
+        CashFlowReportService.CashFlowReport report = reportService.generateReport(
+                1L,
+                LocalDate.of(2026, 4, 13),
+                LocalDate.of(2026, 4, 13),
+                PaymentScope.ALL
+        );
+
+        CashFlowReportService.DailyEntry entry = report.entries().get(0);
+        assertEquals(new BigDecimal("119.00"), entry.total());
+        assertEquals(2, entry.services().size());
+        assertEquals("Sobrancelha", entry.services().get(0).name());
+        assertEquals(2, entry.services().get(0).quantity());
+        assertEquals(new BigDecimal("96.00"), entry.services().get(0).total());
+        assertEquals("Buco", entry.services().get(1).name());
+        assertEquals(1, entry.services().get(1).quantity());
+        assertEquals(new BigDecimal("23.00"), entry.services().get(1).total());
+    }
+
+    @Test
     void shouldCountOnlyContributionsReturnedInPaidOnlyScope() {
         Instant day = LocalDate.of(2026, 3, 10).atStartOfDay(ZoneOffset.UTC).toInstant().plusSeconds(3600);
         CalendarEvent paidEvent = mockEventWithLinks(
