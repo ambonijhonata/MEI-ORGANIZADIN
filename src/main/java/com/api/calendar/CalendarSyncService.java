@@ -580,7 +580,7 @@ public class CalendarSyncService {
         Map<Long, Map<String, Integer>> existingServiceIdentitiesByEventId =
                 loadServiceIdentityByEventId(existingEventsByGoogleEventId.values());
 
-        List<CalendarEvent> upserts = new ArrayList<>(googleEvents.size());
+        List<EventMutationPlan> upserts = new ArrayList<>(googleEvents.size());
         List<CalendarEvent> deletions = new ArrayList<>();
         Set<Long> serviceLinkReplacementEventIds = new HashSet<>();
         int created = 0;
@@ -603,7 +603,7 @@ public class CalendarSyncService {
                 continue;
             }
 
-            ProcessedEvent processedEvent = processEvent(
+            EventMutationPlan mutationPlan = processEvent(
                     userId,
                     user,
                     googleEvent,
@@ -615,15 +615,15 @@ public class CalendarSyncService {
                             : Map.of(),
                     normalizationCache
             );
-            if (processedEvent.shouldPersist()) {
-                upserts.add(processedEvent.calendarEvent());
+            if (mutationPlan.shouldPersist()) {
+                upserts.add(mutationPlan);
             }
-            if (processedEvent.shouldReplaceServiceLinks()) {
-                serviceLinkReplacementEventIds.add(processedEvent.calendarEvent().getId());
+            if (mutationPlan.shouldReplaceServiceLinks()) {
+                serviceLinkReplacementEventIds.add(mutationPlan.calendarEvent().getId());
             }
-            if (processedEvent.isNew()) {
+            if (mutationPlan.isNew()) {
                 created++;
-            } else if (processedEvent.shouldPersist()) {
+            } else if (mutationPlan.shouldPersist()) {
                 updated++;
             }
         }
@@ -633,14 +633,14 @@ public class CalendarSyncService {
         return mutations;
     }
 
-    private ProcessedEvent processEvent(Long userId,
-                                        User user,
-                                        Event googleEvent,
-                                        CalendarEvent existingEvent,
-                                        Map<String, Client> clientsByNormalizedName,
-                                        Map<String, Service> servicesByNormalizedDescription,
-                                        Map<String, Integer> existingServiceIdentities,
-                                        Map<String, String> normalizationCache) {
+    private EventMutationPlan processEvent(Long userId,
+                                           User user,
+                                           Event googleEvent,
+                                           CalendarEvent existingEvent,
+                                           Map<String, Client> clientsByNormalizedName,
+                                           Map<String, Service> servicesByNormalizedDescription,
+                                           Map<String, Integer> existingServiceIdentities,
+                                           Map<String, String> normalizationCache) {
         String googleEventId = googleEvent.getId();
         String title = googleEvent.getSummary();
         String normalizedTitle = normalizeWithCache(title, normalizationCache);
@@ -663,12 +663,13 @@ public class CalendarSyncService {
 
         if (existingEvent == null) {
             CalendarEvent calendarEvent = new CalendarEvent(user, googleEventId, title, normalizedTitle, eventStart, eventEnd);
-            if (parsed.hasClient()) {
-                calendarEvent.setClient(resolvedClient);
-            }
-            calendarEvent.setPaymentType(parsed.paymentType());
-            applyServiceAssociation(calendarEvent, matchedServices);
-            return new ProcessedEvent(calendarEvent, true, true, false);
+            return EventMutationPlan.forNewEvent(
+                    calendarEvent,
+                    resolvedClient,
+                    parsed.hasClient(),
+                    parsed.paymentType(),
+                    matchedServices
+            );
         }
 
         boolean coreDataChanged = hasCoreDataChanges(existingEvent, title, normalizedTitle, eventStart, eventEnd);
@@ -682,24 +683,23 @@ public class CalendarSyncService {
         boolean shouldPersist = coreDataChanged || clientChanged || serviceAssociationChanged || paymentTypeChanged;
 
         if (!shouldPersist) {
-            return new ProcessedEvent(existingEvent, false, false, false);
+            return EventMutationPlan.noChanges(existingEvent);
         }
 
-        if (coreDataChanged) {
-            existingEvent.updateFromGoogle(title, normalizedTitle, eventStart, eventEnd);
-        }
-        if (clientChanged) {
-            existingEvent.setClient(resolvedClient);
-        }
-        if (serviceAssociationChanged) {
-            applyServiceAssociation(existingEvent, matchedServices);
-        }
-        if (paymentTypeChanged) {
-            existingEvent.setPaymentType(parsed.paymentType());
-        }
-
-        boolean shouldReplaceServiceLinks = serviceAssociationChanged && existingEvent.getId() != null;
-        return new ProcessedEvent(existingEvent, false, true, shouldReplaceServiceLinks);
+        return EventMutationPlan.forExistingEvent(
+                existingEvent,
+                title,
+                normalizedTitle,
+                eventStart,
+                eventEnd,
+                coreDataChanged,
+                resolvedClient,
+                clientChanged,
+                parsed.paymentType(),
+                paymentTypeChanged,
+                matchedServices,
+                serviceAssociationChanged
+        );
     }
 
     private Client resolveClient(Long userId,
@@ -896,8 +896,34 @@ public class CalendarSyncService {
             calendarEventRepository.deleteAllInBatch(mutations.deletions());
         }
         if (!mutations.upserts().isEmpty()) {
-            saveEventsInBatches(mutations.upserts());
+            List<CalendarEvent> eventsToPersist = new ArrayList<>(mutations.upserts().size());
+            for (EventMutationPlan mutationPlan : mutations.upserts()) {
+                eventsToPersist.add(applyEventMutationPlan(mutationPlan));
+            }
+            saveEventsInBatches(eventsToPersist);
         }
+    }
+
+    private CalendarEvent applyEventMutationPlan(EventMutationPlan mutationPlan) {
+        CalendarEvent calendarEvent = mutationPlan.calendarEvent();
+        if (mutationPlan.coreDataChanged()) {
+            calendarEvent.updateFromGoogle(
+                    mutationPlan.title(),
+                    mutationPlan.normalizedTitle(),
+                    mutationPlan.eventStart(),
+                    mutationPlan.eventEnd()
+            );
+        }
+        if (mutationPlan.clientChanged()) {
+            calendarEvent.setClient(mutationPlan.resolvedClient());
+        }
+        if (mutationPlan.serviceAssociationChanged()) {
+            applyServiceAssociation(calendarEvent, mutationPlan.matchedServices());
+        }
+        if (mutationPlan.paymentTypeChanged()) {
+            calendarEvent.setPaymentType(mutationPlan.paymentType());
+        }
+        return calendarEvent;
     }
 
     private Set<Long> extractEventIds(List<CalendarEvent> events) {
@@ -1274,7 +1300,7 @@ public class CalendarSyncService {
     ) {}
 
     private record SyncMutations(
-            List<CalendarEvent> upserts,
+            List<EventMutationPlan> upserts,
             List<CalendarEvent> deletions,
             Set<Long> serviceLinkReplacementEventIds,
             int created,
@@ -1282,12 +1308,98 @@ public class CalendarSyncService {
             int deleted
     ) {}
 
-    private record ProcessedEvent(
+    private record EventMutationPlan(
             CalendarEvent calendarEvent,
             boolean isNew,
             boolean shouldPersist,
-            boolean shouldReplaceServiceLinks
-    ) {}
+            boolean shouldReplaceServiceLinks,
+            String title,
+            String normalizedTitle,
+            Instant eventStart,
+            Instant eventEnd,
+            boolean coreDataChanged,
+            Client resolvedClient,
+            boolean clientChanged,
+            PaymentType paymentType,
+            boolean paymentTypeChanged,
+            List<Service> matchedServices,
+            boolean serviceAssociationChanged
+    ) {
+        private static EventMutationPlan noChanges(CalendarEvent calendarEvent) {
+            return new EventMutationPlan(
+                    calendarEvent,
+                    false,
+                    false,
+                    false,
+                    calendarEvent.getTitle(),
+                    calendarEvent.getNormalizedTitle(),
+                    calendarEvent.getEventStart(),
+                    calendarEvent.getEventEnd(),
+                    false,
+                    null,
+                    false,
+                    calendarEvent.getPaymentType(),
+                    false,
+                    List.of(),
+                    false
+            );
+        }
+
+        private static EventMutationPlan forNewEvent(CalendarEvent calendarEvent,
+                                                     Client resolvedClient,
+                                                     boolean hasClient,
+                                                     PaymentType paymentType,
+                                                     List<Service> matchedServices) {
+            return new EventMutationPlan(
+                    calendarEvent,
+                    true,
+                    true,
+                    false,
+                    calendarEvent.getTitle(),
+                    calendarEvent.getNormalizedTitle(),
+                    calendarEvent.getEventStart(),
+                    calendarEvent.getEventEnd(),
+                    false,
+                    resolvedClient,
+                    hasClient,
+                    paymentType,
+                    paymentType != null,
+                    matchedServices == null ? List.of() : List.copyOf(matchedServices),
+                    matchedServices != null && !matchedServices.isEmpty()
+            );
+        }
+
+        private static EventMutationPlan forExistingEvent(CalendarEvent calendarEvent,
+                                                          String title,
+                                                          String normalizedTitle,
+                                                          Instant eventStart,
+                                                          Instant eventEnd,
+                                                          boolean coreDataChanged,
+                                                          Client resolvedClient,
+                                                          boolean clientChanged,
+                                                          PaymentType paymentType,
+                                                          boolean paymentTypeChanged,
+                                                          List<Service> matchedServices,
+                                                          boolean serviceAssociationChanged) {
+            return new EventMutationPlan(
+                    calendarEvent,
+                    false,
+                    true,
+                    serviceAssociationChanged && calendarEvent.getId() != null,
+                    title,
+                    normalizedTitle,
+                    eventStart,
+                    eventEnd,
+                    coreDataChanged,
+                    resolvedClient,
+                    clientChanged,
+                    paymentType,
+                    paymentTypeChanged,
+                    matchedServices == null ? List.of() : List.copyOf(matchedServices),
+                    serviceAssociationChanged
+            );
+        }
+    }
 
     public record SyncResult(int created, int updated, int deleted) {}
 }

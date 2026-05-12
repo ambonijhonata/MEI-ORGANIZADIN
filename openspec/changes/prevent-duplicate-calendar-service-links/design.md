@@ -44,6 +44,22 @@ O cenario real mais provavel e:
 - Manter apenas `clear()+add()` na entidade: simples, mas foi insuficiente na pratica.
 - Atualizar linha a linha com diff detalhado: funciona, mas agrega complexidade sem ganho relevante para o volume atual.
 
+### 2.1 Separar a fase de leitura da fase de escrita no sync
+**Decision:** O fluxo de sync deve resolver cliente, servicos casados, contagem de links persistidos e demais consultas JPA antes de aplicar qualquer mutacao em `CalendarEvent` que monte novos `serviceLinks`.
+
+**Why:** O erro observado nao depende apenas de concorrencia. No fluxo atual, um evento existente podia ter os novos `serviceLinks` montados em memoria e, antes do replace explicito no banco, uma query posterior como `findOrCreateByName(...)` disparava `auto-flush` do Hibernate. Isso fazia a insercao dos novos links colidir com os antigos ainda persistidos.
+
+**Required flow shape:**
+- fase 1: carregar eventos existentes, resolver cliente, resolver servicos reconhecidos e calcular se houve mudanca, sem mutar `serviceLinks`;
+- fase 2: registrar um plano de persistencia por evento com os campos e links canonicos desejados;
+- fase 3: durante `persistMutations`, remover links antigos dos eventos persistidos afetados, fazer `flush`, aplicar o conjunto canonico novo e so entao salvar os eventos.
+
+**Guardrail:** Nenhuma query JPA deve acontecer entre o momento em que um evento existente ganha novos `serviceLinks` em memoria e o momento em que os links antigos correspondentes sao removidos e sincronizados com `flush`.
+
+**Alternatives considered:**
+- Confiar apenas na restricao unica do banco: evita corrupcao silenciosa, mas continua transformando o fluxo normal em excecao de integridade.
+- Trocar `FlushMode` ou desabilitar `auto-flush` localmente: mascara o sintoma, mas nao resolve a mistura perigosa entre leitura e escrita na mesma unidade de trabalho.
+
 ### 3. Proteger o banco com unicidade por chave semantica de link
 **Decision:** Adicionar protecao de unicidade em `calendar_event_services` para impedir dois links semanticamente equivalentes no mesmo evento.
 

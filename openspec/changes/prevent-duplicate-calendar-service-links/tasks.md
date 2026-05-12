@@ -47,6 +47,9 @@ COMMIT;
 - [x] 4.1 Introduzir uma estrategia explicita de replace para `calendar_event_services` em eventos ja persistidos, removendo links antigos antes de gravar o novo conjunto canonico.
 - [x] 4.2 Ajustar a associacao de servicos para garantir que um evento com o mesmo conjunto de servicos nao acumule novos links em syncs ou reprocessamentos repetidos.
 - [x] 4.3 Garantir que eventos multi-servico preservem exatamente um link por servico e mantenham `serviceValueSnapshot` coerente com a soma do conjunto canonico.
+- [x] 4.4 Refatorar o fluxo de sync para separar fase de leitura e fase de escrita, garantindo que cliente, servicos casados e contagens persistidas sejam resolvidos antes de qualquer mutacao em `serviceLinks`.
+- [x] 4.5 Garantir que nenhum metodo do sync execute query JPA apos montar novos `serviceLinks` para eventos persistidos e antes do delete/flush explicito dos links antigos.
+- [x] 4.6 Adicionar cobertura de regressao para o caso especifico de `auto-flush`: evento existente com troca de associacao, consulta JPA intermediaria e ausencia de `DataIntegrityViolationException`.
 
 ## 5. Regression Tests
 
