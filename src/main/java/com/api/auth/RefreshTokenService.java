@@ -67,7 +67,7 @@ public class RefreshTokenService {
         if (current.isExpired(now)) {
             current.revoke("EXPIRED", now);
             repository.save(current);
-            log.warn("refresh_rotation_outcome outcome=expired userId={} tokenId={}", current.getUser().getId(), current.getId());
+            log.warn("refresh_rotation_outcome outcome=expired");
             return RotationResult.expired();
         }
         if (current.isRevoked()) {
@@ -75,12 +75,7 @@ public class RefreshTokenService {
                 if (isRetrySafeCandidate(current, metadata, now)) {
                     Optional<RefreshSessionToken> retrySafeBase = resolveRetrySafeBaseToken(current, now);
                     if (retrySafeBase.isPresent()) {
-                        log.info(
-                                "refresh_rotation_outcome outcome=retry_safe_deduped userId={} sourceTokenId={} baseTokenId={}",
-                                current.getUser().getId(),
-                                current.getId(),
-                                retrySafeBase.get().getId()
-                        );
+                        log.info("refresh_rotation_outcome outcome=retry_safe_deduped");
                         return rotateFromActiveToken(
                                 retrySafeBase.get(),
                                 metadata != null ? metadata : RefreshTokenMetadata.empty(),
@@ -90,10 +85,10 @@ public class RefreshTokenService {
                     }
                 }
                 revokeAllActiveUserTokens(current.getUser().getId(), "REUSE_DETECTED", now);
-                log.warn("refresh_rotation_outcome outcome=reused userId={} tokenId={}", current.getUser().getId(), current.getId());
+                log.warn("refresh_rotation_outcome outcome=reused");
                 return RotationResult.reused();
             }
-            log.warn("refresh_rotation_outcome outcome=revoked userId={} tokenId={}", current.getUser().getId(), current.getId());
+            log.warn("refresh_rotation_outcome outcome=revoked");
             return RotationResult.revoked();
         }
 
@@ -144,23 +139,13 @@ public class RefreshTokenService {
         repository.save(activeToken);
 
         if (retrySafe) {
-            log.info(
-                    "refresh_rotation_outcome outcome=retry_safe_rotated userId={} previousTokenId={} replacementTokenId={}",
-                    activeToken.getUser().getId(),
-                    activeToken.getId(),
-                    replacement.getId()
-            );
+            log.info("refresh_rotation_outcome outcome=retry_safe_rotated");
             return RotationResult.retrySafeSuccess(
                     new IssuedRefreshToken(newRawToken, newExpiresAt, replacement.getId(), toPrincipal(activeToken.getUser()))
             );
         }
 
-        log.info(
-                "refresh_rotation_outcome outcome=rotated userId={} previousTokenId={} replacementTokenId={}",
-                activeToken.getUser().getId(),
-                activeToken.getId(),
-                replacement.getId()
-        );
+        log.info("refresh_rotation_outcome outcome=rotated");
         return RotationResult.success(
                 new IssuedRefreshToken(newRawToken, newExpiresAt, replacement.getId(), toPrincipal(activeToken.getUser()))
         );

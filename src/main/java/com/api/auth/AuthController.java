@@ -116,7 +116,7 @@ public class AuthController {
                     request.metadataOrEmpty()
             );
         } catch (RuntimeException ex) {
-            log.warn("auth_refresh_result status=RETRYABLE_FAILURE message={}", ex.getMessage());
+            log.warn("auth_refresh_result status=RETRYABLE_FAILURE");
             throw new RefreshRetryableException("Refresh temporarily unavailable");
         }
 
@@ -171,7 +171,7 @@ public class AuthController {
 
     private void persistGoogleOAuthCredentialIfPresent(String authorizationCode, User user) {
         if (authorizationCode == null || authorizationCode.isBlank()) {
-            log.info("Login without authorizationCode for userId={}", user.getId());
+            log.info("auth_login_oauth_code status=missing");
             return;
         }
         try {
@@ -193,8 +193,8 @@ public class AuthController {
                     ));
             oauthCredentialRepository.save(credential);
         } catch (IOException e) {
-            log.warn("OAuth code exchange failed for userId={}: {}", user.getId(), e.getMessage());
-            throw new OAuthExchangeException("OAuth exchange failed: " + e.getMessage());
+            log.warn("auth_login_oauth_code status=exchange_failed");
+            throw new OAuthExchangeException("OAuth exchange failed");
         }
     }
 

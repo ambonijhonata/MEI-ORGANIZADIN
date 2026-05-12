@@ -28,8 +28,8 @@ public class RetryableGoogleCalendarClient {
                 lastException = e;
                 if (attempt < MAX_RETRIES) {
                     long delay = BASE_DELAY_MS * (long) Math.pow(2, attempt);
-                    log.warn("Google API call failed (attempt {}/{}), retrying in {}ms: {}",
-                            attempt + 1, MAX_RETRIES + 1, delay, e.getMessage());
+                    log.warn("google_calendar_retryable_failure attempt={} max_attempts={} retry_delay_ms={}",
+                            attempt + 1, MAX_RETRIES + 1, delay);
                     try {
                         Thread.sleep(delay);
                     } catch (InterruptedException ie) {

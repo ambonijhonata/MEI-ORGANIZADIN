@@ -195,7 +195,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ErrorResponse> handleRuntime(RuntimeException ex) {
-        log.error("Unhandled runtime exception in API request", ex);
+        log.error("api_request_failed error_type={}", ex.getClass().getSimpleName(), ex);
         var error = new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "INTERNAL_SERVER_ERROR",

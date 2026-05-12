@@ -255,8 +255,8 @@ public class CalendarSyncService {
             return execution.result();
 
         } catch (GoogleCalendarClient.SyncTokenExpiredException e) {
-            log.info("calendar_sync_full_resync_fallback userId={} reason=sync_token_expired elapsed_ms={}",
-                    userId, elapsedMs(totalStartNs));
+            log.info("calendar_sync_full_resync_fallback reason=sync_token_expired elapsed_ms={}",
+                    elapsedMs(totalStartNs));
             return performFullResync(userId, user, syncState);
         }
     }
@@ -1195,8 +1195,7 @@ public class CalendarSyncService {
                                 boolean tokenBeforePresent,
                                 boolean tokenAfterPresent) {
         log.info(
-                "calendar_sync_summary userId={} mode={} events_received={} created={} updated={} deleted={} google_fetch_ms={} db_lookup_ms={} processing_ms={} db_write_ms={} sync_total_ms={} fallback_from_expired_token={} token_before_present={} token_after_present={}",
-                userId,
+                "calendar_sync_summary mode={} events_received={} created={} updated={} deleted={} google_fetch_ms={} db_lookup_ms={} processing_ms={} db_write_ms={} sync_total_ms={} fallback_from_expired_token={} token_before_present={} token_after_present={}",
                 mode,
                 eventsReceived,
                 created,
@@ -1238,8 +1237,7 @@ public class CalendarSyncService {
             markSyncedWithoutTouchingToken(syncState);
             syncState.setSyncToken(tokenBeforeSync);
             log.warn(
-                    "calendar_sync_token_missing userId={} mode={} action=preserve_existing_token token_before_present=true",
-                    userId,
+                    "calendar_sync_token_missing mode={} action=preserve_existing_token token_before_present=true",
                     mode
             );
             return;
@@ -1247,8 +1245,7 @@ public class CalendarSyncService {
 
         syncState.markSynced(null);
         log.warn(
-                "calendar_sync_token_missing userId={} mode={} action=keep_token_empty token_before_present=false",
-                userId,
+                "calendar_sync_token_missing mode={} action=keep_token_empty token_before_present=false",
                 mode
         );
     }

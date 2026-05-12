@@ -136,14 +136,12 @@ public class CalendarController {
             ));
         } catch (RuntimeException ex) {
             log.error(
-                    "calendar_events_list_failed userId={} eventStart={} eventEnd={} page={} size={} errorType={} message={}",
-                    user.userId(),
+                    "calendar_events_list_failed eventStart={} eventEnd={} page={} size={} error_type={}",
                     eventStart,
                     eventEnd,
                     sanitizedPageable.getPageNumber(),
                     sanitizedPageable.getPageSize(),
                     ex.getClass().getSimpleName(),
-                    ex.getMessage(),
                     ex
             );
             throw ex;
