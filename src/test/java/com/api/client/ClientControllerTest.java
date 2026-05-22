@@ -64,6 +64,19 @@ class ClientControllerTest {
     }
 
     @Test
+    void shouldPassNameFilterThroughToService() {
+        PageRequest pageRequest = PageRequest.of(0, 25, Sort.by(Sort.Direction.ASC, "id"));
+        Page<Client> page = new PageImpl<>(List.of(), pageRequest, 0);
+        when(clientService.listClientsPaginated(1L, "An", 1, 25, pageRequest.getSort())).thenReturn(page);
+
+        var response = controller.list(user, "An", "id", "asc", 1, 25);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().items()).isEmpty();
+    }
+
+    @Test
     void shouldRejectUnsupportedSortField() {
         assertThatThrownBy(() -> controller.list(user, null, "name;drop table clients", "asc", 1, 25))
                 .isInstanceOf(InvalidRequestParameterException.class)

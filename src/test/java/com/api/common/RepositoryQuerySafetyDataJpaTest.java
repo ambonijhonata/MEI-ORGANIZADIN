@@ -51,7 +51,7 @@ class RepositoryQuerySafetyDataJpaTest {
     void shouldTreatSqlInjectionLikeClientNameAsPlainText() {
         clientRepository.save(new Client(user, "Maria Silva", "maria silva"));
 
-        var page = clientRepository.findByUserIdAndNameContainingIgnoreCase(
+        var page = clientRepository.findByUserIdAndNameStartsWithIgnoreCase(
                 user.getId(),
                 "' OR 1=1 --",
                 PageRequest.of(0, 25, Sort.by(Sort.Direction.ASC, "id"))
@@ -59,6 +59,41 @@ class RepositoryQuerySafetyDataJpaTest {
 
         assertThat(page.getTotalElements()).isZero();
         assertThat(page.getContent()).isEmpty();
+    }
+
+    @Test
+    void shouldFilterClientsByPrefixOnlyCaseInsensitive() {
+        clientRepository.save(new Client(user, "Angelo", "angelo"));
+        clientRepository.save(new Client(user, "Eliane", "eliane"));
+        clientRepository.save(new Client(user, "Silvana", "silvana"));
+        clientRepository.save(new Client(user, "Angela", "angela"));
+
+        var page = clientRepository.findByUserIdAndNameStartsWithIgnoreCase(
+                user.getId(),
+                "An",
+                PageRequest.of(0, 25, Sort.by(Sort.Direction.ASC, "id"))
+        );
+
+        assertThat(page.getContent()).extracting(Client::getName)
+                .containsExactly("Angelo", "Angela");
+
+        var lowercasePage = clientRepository.findByUserIdAndNameStartsWithIgnoreCase(
+                user.getId(),
+                "an",
+                PageRequest.of(0, 25, Sort.by(Sort.Direction.ASC, "id"))
+        );
+
+        assertThat(lowercasePage.getContent()).extracting(Client::getName)
+                .containsExactly("Angelo", "Angela");
+
+        var containsOnly = clientRepository.findByUserIdAndNameStartsWithIgnoreCase(
+                user.getId(),
+                "lv",
+                PageRequest.of(0, 25, Sort.by(Sort.Direction.ASC, "id"))
+        );
+
+        assertThat(containsOnly.getTotalElements()).isZero();
+        assertThat(containsOnly.getContent()).isEmpty();
     }
 
     @Test

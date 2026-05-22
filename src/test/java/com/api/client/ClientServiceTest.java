@@ -73,18 +73,18 @@ class ClientServiceTest {
 
         assertNotNull(result);
         verify(clientRepository).findByUserId(1L, sort);
-        verify(clientRepository, never()).findByUserIdAndNameContainingIgnoreCase(anyLong(), anyString(), any(Sort.class));
+        verify(clientRepository, never()).findByUserIdAndNameStartsWithIgnoreCase(anyLong(), anyString(), any(Sort.class));
     }
 
     @Test
     void shouldListClientsWithNameFilter() {
         Sort sort = Sort.by(Sort.Direction.ASC, "id");
-        when(clientRepository.findByUserIdAndNameContainingIgnoreCase(1L, "Maria", sort)).thenReturn(List.of());
+        when(clientRepository.findByUserIdAndNameStartsWithIgnoreCase(1L, "Maria", sort)).thenReturn(List.of());
 
         List<Client> result = clientService.listClients(1L, "Maria", sort);
 
         assertNotNull(result);
-        verify(clientRepository).findByUserIdAndNameContainingIgnoreCase(1L, "Maria", sort);
+        verify(clientRepository).findByUserIdAndNameStartsWithIgnoreCase(1L, "Maria", sort);
     }
 
     @Test
@@ -113,12 +113,22 @@ class ClientServiceTest {
     void shouldListClientsPaginatedWithNameFilter() {
         Sort sort = Sort.by(Sort.Direction.ASC, "id");
         Page<Client> page = new PageImpl<>(List.of());
-        when(clientRepository.findByUserIdAndNameContainingIgnoreCase(eq(1L), eq("Ana"), any(PageRequest.class))).thenReturn(page);
+        when(clientRepository.findByUserIdAndNameStartsWithIgnoreCase(eq(1L), eq("Ana"), any(PageRequest.class))).thenReturn(page);
 
         Page<Client> result = clientService.listClientsPaginated(1L, "Ana", 1, 25, sort);
 
         assertNotNull(result);
-        verify(clientRepository).findByUserIdAndNameContainingIgnoreCase(eq(1L), eq("Ana"), any(PageRequest.class));
+        verify(clientRepository).findByUserIdAndNameStartsWithIgnoreCase(eq(1L), eq("Ana"), any(PageRequest.class));
+    }
+
+    @Test
+    void shouldTrimNameFilterBeforeQuerying() {
+        Sort sort = Sort.by(Sort.Direction.ASC, "id");
+        when(clientRepository.findByUserIdAndNameStartsWithIgnoreCase(1L, "Ana", sort)).thenReturn(List.of());
+
+        clientService.listClients(1L, "  Ana  ", sort);
+
+        verify(clientRepository).findByUserIdAndNameStartsWithIgnoreCase(1L, "Ana", sort);
     }
 
     @Test

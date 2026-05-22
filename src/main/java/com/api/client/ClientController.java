@@ -67,7 +67,7 @@ public class ClientController {
             description = "Retorna clientes do usuário autenticado com paginação. Permite busca por nome e ordenação por name, cpf, dateOfBirth, email, phone ou createdAt.")
     public ResponseEntity<PaginatedResponse<ClientResponse>> list(
             @AuthenticationPrincipal AuthenticatedUser user,
-            @RequestParam(required = false) @Parameter(description = "Filtrar por nome (parcial, case-insensitive)") String name,
+            @RequestParam(required = false) @Parameter(description = "Filtrar por nome (prefixo, case-insensitive)") String name,
             @RequestParam(defaultValue = "id") @Parameter(description = "Campo de ordenação: id, name, cpf, dateOfBirth, email, phone, createdAt") String sortBy,
             @RequestParam(defaultValue = "asc") @Parameter(description = "Direção: asc ou desc") String direction,
             @RequestParam(defaultValue = "1") @Parameter(description = "Página (começa em 1)") int pageIndex,

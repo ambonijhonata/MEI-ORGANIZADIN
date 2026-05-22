@@ -55,7 +55,7 @@ public class ClientService {
     @Transactional(readOnly = true)
     public List<Client> listClients(Long userId, String name, Sort sort) {
         if (name != null && !name.isBlank()) {
-            return clientRepository.findByUserIdAndNameContainingIgnoreCase(userId, name, sort);
+            return clientRepository.findByUserIdAndNameStartsWithIgnoreCase(userId, name.trim(), sort);
         }
         return clientRepository.findByUserId(userId, sort);
     }
@@ -64,7 +64,7 @@ public class ClientService {
     public Page<Client> listClientsPaginated(Long userId, String name, int pageIndex, int itemsPerPage, Sort sort) {
         PageRequest pageable = PageRequest.of(pageIndex - 1, itemsPerPage, sort);
         if (name != null && !name.isBlank()) {
-            return clientRepository.findByUserIdAndNameContainingIgnoreCase(userId, name, pageable);
+            return clientRepository.findByUserIdAndNameStartsWithIgnoreCase(userId, name.trim(), pageable);
         }
         return clientRepository.findByUserId(userId, pageable);
     }
