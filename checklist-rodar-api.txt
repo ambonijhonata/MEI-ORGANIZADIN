@@ -1,0 +1,68 @@
+CHECKLIST PARA RODAR A API (run.bat)
+
+1) O que enviar para o colega
+- Enviar a pasta completa:
+  C:\Users\Pichau\source\repos\TCC\API
+
+2) Pre-requisitos da maquina
+- Java 21 instalado
+- Maven instalado e disponivel no PATH (comando "mvn")
+- PostgreSQL instalado e rodando
+- Internet para baixar dependencias Maven e validar token Google
+
+3) Banco de dados (PostgreSQL)
+- Banco padrao: mei_organizadin
+- Porta padrao: 5432
+- Usuario padrao: postgres
+- Senha padrao: root
+
+Variaveis opcionais para customizar:
+- DB_HOST (padrao: localhost)
+- DB_PORT (padrao: 5432)
+- DB_NAME (padrao: mei_organizadin)
+- DB_USERNAME (padrao: postgres)
+- DB_PASSWORD (padrao: root)
+
+4) OAuth/Google
+- A API usa Google ID Token como Bearer token nos endpoints protegidos.
+- Variaveis:
+  - GOOGLE_OAUTH_CLIENT_ID = <definir-no-ambiente>
+  - GOOGLE_OAUTH_CLIENT_SECRET = <definir-no-ambiente>
+- Se nao configurar variaveis, a aplicacao usa os valores default do application.yml.
+- Recomendacao: usar credenciais proprias de ambiente de teste.
+
+5) Como subir
+- Abrir o terminal na pasta API
+- Executar:
+  run.bat
+
+Esse .bat roda:
+- mvn spring-boot:run -Dspring-boot.run.profiles=dev
+
+6) URLs uteis apos subir
+- Swagger:
+  http://localhost:8080/swagger-ui/index.html
+- Login Google para teste via navegador:
+  http://localhost:8080/api/auth/google
+
+7) Como testar endpoints protegidos
+- Fazer login em /api/auth/google
+- No callback, copiar o campo "idToken"
+- No Swagger, autorizar com:
+  Authorization: Bearer <idToken>
+
+8) Observacoes importantes
+- Sem PostgreSQL acessivel, a API nao sobe corretamente.
+- Sem token Google valido, endpoints protegidos retornam 401.
+- A porta padrao da API e 8080 (variavel SERVER_PORT para alterar).
+
+9) Validacao: navegacao por dia no calendario (GET /api/calendar/events)
+- Com um idToken valido no header Authorization, executar no navegador/Swagger/curl:
+  - GET /api/calendar/events?eventStart=2026-04-12&eventEnd=2026-04-12&page=0&size=50
+  - GET /api/calendar/events?eventStart=2026-04-11&eventEnd=2026-04-11&page=0&size=50
+- Resultado esperado:
+  - HTTP 200 em ambas as chamadas (independente de haver eventos ou nao)
+  - A resposta de listagem nao deve quebrar com LazyInitializationException ao mapear pagamentos
+- Se a verificacao do token estiver temporariamente indisponivel (falha de rede/Google chaves):
+  - A API deve responder HTTP 503 com code=AUTH_VERIFICATION_UNAVAILABLE (nao 401)
+  - O app deve manter a sessao e apenas mostrar erro de carregamento/retry
