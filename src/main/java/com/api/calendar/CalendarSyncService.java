@@ -236,7 +236,6 @@ public class CalendarSyncService {
             deleted = execution.result().deleted();
 
             logSyncSummary(
-                    userId,
                     syncMode,
                     eventsReceived,
                     created,
@@ -295,7 +294,6 @@ public class CalendarSyncService {
         dbWriteMs = execution.dbWriteMs();
 
         logSyncSummary(
-                userId,
                 "full_resync_410",
                 eventsReceived,
                 execution.result().created(),
@@ -349,7 +347,6 @@ public class CalendarSyncService {
         dbWriteMs = execution.dbWriteMs();
 
         logSyncSummary(
-                userId,
                 "start_date_sync",
                 eventsReceived,
                 execution.result().created(),
@@ -423,7 +420,7 @@ public class CalendarSyncService {
             if (calendarEventReprocessor != null && syncState.hasPendingCatalogEnrichment()) {
                 calendarEventReprocessor.enrichPendingSynchronizedAppointments(userId, syncState);
             }
-            applySyncStateAfterSuccessfulSync(syncState, tokenBeforeSync, nextSyncToken, userId, syncMode);
+            applySyncStateAfterSuccessfulSync(syncState, tokenBeforeSync, nextSyncToken, syncMode);
             syncStateRepository.save(syncState);
         });
         long dbWriteMs = elapsedMs(writeStartNs);
@@ -594,11 +591,9 @@ public class CalendarSyncService {
 
             CalendarEvent existingEvent = existingEventsByGoogleEventId.get(googleEvent.getId());
             if (isDeletedEvent(googleEvent)) {
-                if (existingEvent != null) {
-                    if (allowDeletes) {
-                        deletions.add(existingEvent);
-                        deleted++;
-                    }
+                if (existingEvent != null && allowDeletes) {
+                    deletions.add(existingEvent);
+                    deleted++;
                 }
                 continue;
             }
@@ -868,10 +863,6 @@ public class CalendarSyncService {
             return false;
         }
         return left.compareTo(right) == 0;
-    }
-
-    private boolean isNullOrEmpty(List<?> values) {
-        return values == null || values.isEmpty();
     }
 
     private String normalizeWithCache(String rawValue, Map<String, String> normalizationCache) {
@@ -1206,8 +1197,7 @@ public class CalendarSyncService {
         return Instant.now();
     }
 
-    private void logSyncSummary(Long userId,
-                                String mode,
+    private void logSyncSummary(String mode,
                                 int eventsReceived,
                                 int created,
                                 int updated,
@@ -1252,7 +1242,6 @@ public class CalendarSyncService {
     private void applySyncStateAfterSuccessfulSync(SyncState syncState,
                                                    String tokenBeforeSync,
                                                    String nextSyncToken,
-                                                   Long userId,
                                                    String mode) {
         if (hasToken(nextSyncToken)) {
             syncState.markSynced(nextSyncToken);
