@@ -1,7 +1,7 @@
 package com.api.common;
-@SuppressWarnings("PMD.MissingSerialVersionUID")
 
 public class InvalidRequestParameterException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
 
     private final String field;
 

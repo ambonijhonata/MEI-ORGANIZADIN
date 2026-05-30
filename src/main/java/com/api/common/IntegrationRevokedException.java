@@ -1,7 +1,8 @@
 package com.api.common;
-@SuppressWarnings("PMD.MissingSerialVersionUID")
 
 public class IntegrationRevokedException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
+
     public IntegrationRevokedException(final String message) {
         super(message);
     }

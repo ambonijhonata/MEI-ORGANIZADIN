@@ -1,7 +1,8 @@
 package com.api.common;
-@SuppressWarnings("PMD.MissingSerialVersionUID")
 
 public class InvalidPeriodException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
+
     public InvalidPeriodException(final String message) {
         super(message);
     }

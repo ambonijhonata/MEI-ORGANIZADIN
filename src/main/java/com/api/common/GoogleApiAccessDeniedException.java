@@ -1,7 +1,8 @@
 package com.api.common;
-@SuppressWarnings("PMD.MissingSerialVersionUID")
 
 public class GoogleApiAccessDeniedException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
+
     public GoogleApiAccessDeniedException(final String message) {
         super(message);
     }
