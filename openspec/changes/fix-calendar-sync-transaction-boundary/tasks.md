@@ -1,4 +1,4 @@
-﻿## 1. Transaction Boundary Hardening
+## 1. Transaction Boundary Hardening
 
 - [x] 1.1 Definir e aplicar fronteira transacional explicita no fluxo de persistencia do `CalendarSyncService` para garantir `EntityManager` ativo em mutacoes e flush.
 - [x] 1.2 Isolar/validar o caminho de cleanup inicial/full sync para que delecao em lote e flush executem dentro da mesma transacao.

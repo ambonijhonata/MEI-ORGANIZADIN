@@ -1,4 +1,4 @@
-﻿## 1. Root Cause Fix In Calendar Sync
+## 1. Root Cause Fix In Calendar Sync
 
 - [x] 1.1 Refatorar comparacao de associacao de servicos em `CalendarSyncService` para evitar acesso lazy invalido (sem dereferenciar proxy fora de contexto).
 - [x] 1.2 Revisar comparacao de cliente/servico para usar identidade segura (id/snapshot/preload) no hot path.

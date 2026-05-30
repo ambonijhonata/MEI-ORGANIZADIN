@@ -24,7 +24,7 @@ import java.util.Set;
 @SuppressWarnings({"PMD.CommentDefaultAccessModifier", "PMD.LawOfDemeter", "PMD.LongVariable", "PMD.ShortVariable"})
 @RestController
 @RequestMapping("/api/services")
-@Tag(name = "CatÃ¡logo de ServiÃ§os", description = "CRUD de serviÃ§os do usuÃ¡rio (descriÃ§Ã£o + valor)")
+@Tag(name = "Catálogo de Serviços", description = "CRUD de serviços do usuário (descrição + valor)")
 public class ServiceCatalogController {
     private static final int MAX_PAGE_SIZE = 100;
     private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
@@ -41,11 +41,11 @@ public class ServiceCatalogController {
     }
 
     @PostMapping
-    @Operation(summary = "Criar serviÃ§o", description = "Cadastra um novo serviÃ§o com descriÃ§Ã£o e valor",
+    @Operation(summary = "Criar serviço", description = "Cadastra um novo serviço com descrição e valor",
             responses = {
-                    @ApiResponse(responseCode = "201", description = "ServiÃ§o criado"),
-                    @ApiResponse(responseCode = "400", description = "Dados invÃ¡lidos"),
-                    @ApiResponse(responseCode = "422", description = "ServiÃ§o com mesma descriÃ§Ã£o jÃ¡ existe")
+                    @ApiResponse(responseCode = "201", description = "Serviço criado"),
+                    @ApiResponse(responseCode = "400", description = "Dados inválidos"),
+                    @ApiResponse(responseCode = "422", description = "Serviço com mesma descrição já existe")
             })
     public ResponseEntity<ServiceResponse> createService(
             @AuthenticationPrincipal final AuthenticatedUser user,
@@ -55,15 +55,15 @@ public class ServiceCatalogController {
     }
 
     @GetMapping
-    @Operation(summary = "Listar serviÃ§os",
-            description = "Retorna serviÃ§os do usuÃ¡rio autenticado. Permite busca por descriÃ§Ã£o e ordenaÃ§Ã£o por description, value ou createdAt.")
+    @Operation(summary = "Listar serviços",
+            description = "Retorna serviços do usuário autenticado. Permite busca por descrição e ordenação por description, value ou createdAt.")
     public ResponseEntity<PaginatedServiceResponse> listServices(
             @AuthenticationPrincipal final AuthenticatedUser user,
-            @RequestParam(required = false) @Parameter(description = "Filtrar por descriÃ§Ã£o (parcial, case-insensitive)") final String description,
-            @RequestParam(defaultValue = "id") @Parameter(description = "Campo de ordenaÃ§Ã£o: id, description, value, createdAt") final String sortBy,
-            @RequestParam(defaultValue = "asc") @Parameter(description = "DireÃ§Ã£o: asc ou desc") final String direction,
-            @RequestParam(defaultValue = "0") @Parameter(description = "PÃ¡gina (final 0-based)") final int page,
-            @RequestParam(defaultValue = "25") @Parameter(description = "Itens por pÃ¡gina") final int size) {
+            @RequestParam(required = false) @Parameter(description = "Filtrar por descrição (parcial, case-insensitive)") final String description,
+            @RequestParam(defaultValue = "id") @Parameter(description = "Campo de ordenação: id, description, value, createdAt") final String sortBy,
+            @RequestParam(defaultValue = "asc") @Parameter(description = "Direção: asc ou desc") final String direction,
+            @RequestParam(defaultValue = "0") @Parameter(description = "Página (final 0-based)") final int page,
+            @RequestParam(defaultValue = "25") @Parameter(description = "Itens por página") final int size) {
         final Pageable pageable = PageRequestSanitizer.sanitizeZeroBased(
                 page,
                 size,
@@ -87,9 +87,9 @@ public class ServiceCatalogController {
     }
 
     @GetMapping("/{id:\\d+}")
-    @Operation(summary = "Buscar serviÃ§o por ID", responses = {
-            @ApiResponse(responseCode = "200", description = "ServiÃ§o encontrado"),
-            @ApiResponse(responseCode = "404", description = "ServiÃ§o nÃ£o encontrado")
+    @Operation(summary = "Buscar serviço por ID", responses = {
+            @ApiResponse(responseCode = "200", description = "Serviço encontrado"),
+            @ApiResponse(responseCode = "404", description = "Serviço não encontrado")
     })
     public ResponseEntity<ServiceResponse> getService(
             @AuthenticationPrincipal final AuthenticatedUser user,
@@ -99,11 +99,11 @@ public class ServiceCatalogController {
     }
 
     @PutMapping("/{id:\\d+}")
-    @Operation(summary = "Atualizar serviÃ§o", description = "Atualiza descriÃ§Ã£o e/ou valor. Dispara reprocessamento de eventos nÃ£o identificados.",
+    @Operation(summary = "Atualizar serviço", description = "Atualiza descrição e/ou valor. Dispara reprocessamento de eventos não identificados.",
             responses = {
-                    @ApiResponse(responseCode = "200", description = "ServiÃ§o atualizado"),
-                    @ApiResponse(responseCode = "404", description = "ServiÃ§o nÃ£o encontrado"),
-                    @ApiResponse(responseCode = "422", description = "DescriÃ§Ã£o duplicada")
+                    @ApiResponse(responseCode = "200", description = "Serviço atualizado"),
+                    @ApiResponse(responseCode = "404", description = "Serviço não encontrado"),
+                    @ApiResponse(responseCode = "422", description = "Descrição duplicada")
             })
     public ResponseEntity<ServiceResponse> updateService(
             @AuthenticationPrincipal final AuthenticatedUser user,
@@ -114,11 +114,11 @@ public class ServiceCatalogController {
     }
 
     @DeleteMapping("/{id:\\d+}")
-    @Operation(summary = "Excluir serviÃ§o", description = "Exclui o serviÃ§o. Bloqueado se houver eventos vinculados.",
+    @Operation(summary = "Excluir serviço", description = "Exclui o serviço. Bloqueado se houver eventos vinculados.",
             responses = {
-                    @ApiResponse(responseCode = "204", description = "ServiÃ§o excluÃ­do"),
-                    @ApiResponse(responseCode = "404", description = "ServiÃ§o nÃ£o encontrado"),
-                    @ApiResponse(responseCode = "422", description = "ServiÃ§o possui eventos vinculados")
+                    @ApiResponse(responseCode = "204", description = "Serviço excluído"),
+                    @ApiResponse(responseCode = "404", description = "Serviço não encontrado"),
+                    @ApiResponse(responseCode = "422", description = "Serviço possui eventos vinculados")
             })
     public ResponseEntity<Void> deleteService(
             @AuthenticationPrincipal final AuthenticatedUser user,
@@ -128,10 +128,10 @@ public class ServiceCatalogController {
     }
 
     @PostMapping("/delete")
-    @Operation(summary = "Excluir vÃ¡rios serviÃ§os",
-            description = "Recebe uma lista de IDs e remove apenas serviÃ§os sem vÃ­nculo com eventos sincronizados.",
+    @Operation(summary = "Excluir vários serviços",
+            description = "Recebe uma lista de IDs e remove apenas serviços sem vínculo com eventos sincronizados.",
             responses = {
-                    @ApiResponse(responseCode = "200", description = "Processamento concluÃ­do com resumo de exclusÃµes")
+                    @ApiResponse(responseCode = "200", description = "Processamento concluído com resumo de exclusões")
             })
     public ResponseEntity<DeleteManyServicesResponse> deleteManyServices(
             @AuthenticationPrincipal final AuthenticatedUser user,

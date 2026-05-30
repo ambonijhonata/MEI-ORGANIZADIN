@@ -24,7 +24,7 @@ import java.util.Set;
 @SuppressWarnings({"PMD.AvoidDuplicateLiterals", "PMD.CommentDefaultAccessModifier", "PMD.LawOfDemeter", "PMD.LinguisticNaming", "PMD.LongVariable", "PMD.ShortVariable", "PMD.UseExplicitTypes"})
 @RestController
 @RequestMapping("/api/clients")
-@Tag(name = "Clientes", description = "CRUD de clientes do usuÃ¡rio")
+@Tag(name = "Clientes", description = "CRUD de clientes do usuário")
 public class ClientController {
     private static final int MAX_ITEMS_PER_PAGE = 100;
     private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
@@ -52,7 +52,7 @@ public class ClientController {
     @PostMapping
     @Operation(summary = "Criar cliente", responses = {
             @ApiResponse(responseCode = "201", description = "Cliente criado"),
-            @ApiResponse(responseCode = "400", description = "Dados invÃ¡lidos")
+            @ApiResponse(responseCode = "400", description = "Dados inválidos")
     })
     public ResponseEntity<ClientResponse> create(
             @AuthenticationPrincipal final AuthenticatedUser user,
@@ -65,14 +65,14 @@ public class ClientController {
 
     @GetMapping
     @Operation(summary = "Listar clientes",
-            description = "Retorna clientes do usuÃ¡rio autenticado com paginaÃ§Ã£o. Permite busca por nome e ordenaÃ§Ã£o por name, cpf, dateOfBirth, email, phone ou createdAt.")
+            description = "Retorna clientes do usuário autenticado com paginação. Permite busca por nome e ordenação por name, cpf, dateOfBirth, email, phone ou createdAt.")
     public ResponseEntity<PaginatedResponse<ClientResponse>> list(
             @AuthenticationPrincipal final AuthenticatedUser user,
             @RequestParam(required = false) @Parameter(description = "Filtrar por nome (prefixo, case-insensitive)") final String name,
-            @RequestParam(defaultValue = "id") @Parameter(description = "Campo de ordenaÃ§Ã£o: id, name, cpf, dateOfBirth, email, phone, createdAt") final String sortBy,
-            @RequestParam(defaultValue = "asc") @Parameter(description = "DireÃ§Ã£o: asc ou desc") final String direction,
-            @RequestParam(defaultValue = "1") @Parameter(description = "PÃ¡gina (final comeÃ§a em 1)") final int pageIndex,
-            @RequestParam(defaultValue = "25") @Parameter(description = "Itens por pÃ¡gina") final int itemsPerPage) {
+            @RequestParam(defaultValue = "id") @Parameter(description = "Campo de ordenação: id, name, cpf, dateOfBirth, email, phone, createdAt") final String sortBy,
+            @RequestParam(defaultValue = "asc") @Parameter(description = "Direção: asc ou desc") final String direction,
+            @RequestParam(defaultValue = "1") @Parameter(description = "Página (final começa em 1)") final int pageIndex,
+            @RequestParam(defaultValue = "25") @Parameter(description = "Itens por página") final int itemsPerPage) {
         final var sanitizedPageRequest = PageRequestSanitizer.sanitizeOneBased(
                 pageIndex,
                 itemsPerPage,
@@ -111,10 +111,10 @@ public class ClientController {
     ) {}
 
     @GetMapping("/client-has-link-with-appointment")
-    @Operation(summary = "Verificar vÃ­nculo do cliente com agendamento",
-            description = "Retorna true se o cliente com o nome informado estÃ¡ vinculado a algum agendamento",
+    @Operation(summary = "Verificar vínculo do cliente com agendamento",
+            description = "Retorna true se o cliente com o nome informado está vinculado a algum agendamento",
             responses = {
-                    @ApiResponse(responseCode = "200", description = "Resultado da verificaÃ§Ã£o")
+                    @ApiResponse(responseCode = "200", description = "Resultado da verificação")
             })
     public ResponseEntity<Boolean> hasLinkWithAppointment(
             @AuthenticationPrincipal final AuthenticatedUser user,
@@ -128,7 +128,7 @@ public class ClientController {
     @GetMapping("/{id}")
     @Operation(summary = "Buscar cliente por ID", responses = {
             @ApiResponse(responseCode = "200", description = "Cliente encontrado"),
-            @ApiResponse(responseCode = "404", description = "Cliente nÃ£o encontrado")
+            @ApiResponse(responseCode = "404", description = "Cliente não encontrado")
     })
     public ResponseEntity<ClientResponse> get(
             @AuthenticationPrincipal final AuthenticatedUser user, @PathVariable final Long id) {
@@ -138,7 +138,7 @@ public class ClientController {
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar cliente", responses = {
             @ApiResponse(responseCode = "200", description = "Cliente atualizado"),
-            @ApiResponse(responseCode = "404", description = "Cliente nÃ£o encontrado")
+            @ApiResponse(responseCode = "404", description = "Cliente não encontrado")
     })
     public ResponseEntity<ClientResponse> update(
             @AuthenticationPrincipal final AuthenticatedUser user, @PathVariable final Long id,
@@ -151,8 +151,8 @@ public class ClientController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir cliente", responses = {
-            @ApiResponse(responseCode = "204", description = "Cliente excluÃ­do"),
-            @ApiResponse(responseCode = "404", description = "Cliente nÃ£o encontrado"),
+            @ApiResponse(responseCode = "204", description = "Cliente excluído"),
+            @ApiResponse(responseCode = "404", description = "Cliente não encontrado"),
             @ApiResponse(responseCode = "422", description = "Cliente possui agendamentos vinculados")
     })
     public ResponseEntity<Void> delete(
@@ -163,9 +163,9 @@ public class ClientController {
 
     @PostMapping("/delete")
     @Operation(summary = "Excluir clientes em lote",
-            description = "Exclui mÃºltiplos clientes por ID. Clientes com agendamentos vinculados nÃ£o sÃ£o excluÃ­dos.",
+            description = "Exclui múltiplos clientes por ID. Clientes com agendamentos vinculados não são excluídos.",
             responses = {
-                    @ApiResponse(responseCode = "200", description = "Resultado da exclusÃ£o em lote")
+                    @ApiResponse(responseCode = "200", description = "Resultado da exclusão em lote")
             })
     public ResponseEntity<BulkDeleteResponse> bulkDelete(
             @AuthenticationPrincipal final AuthenticatedUser user,

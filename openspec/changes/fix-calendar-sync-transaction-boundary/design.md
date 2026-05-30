@@ -1,4 +1,4 @@
-﻿## Context
+## Context
 
 O `POST /api/calendar/sync` processa grandes volumes e executa limpeza/reconciliacao com delecao em lote. Em producao, o fluxo falha com `TransactionRequiredException` (`No EntityManager with actual transaction available for current thread`) durante `deleteInBulkByCalendarEventIdIn`/`flush`, o que indica operacao de escrita JPA fora de transacao ativa. A falha quebra o sync apos parte do processamento e retorna erro 500 para o cliente.
 

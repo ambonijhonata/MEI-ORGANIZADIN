@@ -1,4 +1,4 @@
-﻿## Why
+## Why
 
 A sincronizacao de calendario em producao passou a falhar com `LazyInitializationException` no fluxo de comparacao de associacoes, mantendo o estado em `SYNCING` e retornando `401 UNAUTHORIZED` ao cliente em cenarios que nao sao erro de autenticacao. Precisamos corrigir a causa raiz no backend para restaurar confiabilidade sem perder a meta de desempenho de ate 10 segundos.
 

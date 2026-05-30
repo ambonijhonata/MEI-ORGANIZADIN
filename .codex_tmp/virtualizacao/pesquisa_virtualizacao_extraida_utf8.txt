@@ -1,4 +1,4 @@
-﻿Virtualização
+Virtualização
 A virtualização é uma das tecnologias fundamentais que sustentam a computação em nuvem. Ela permite criar vários ambientes simulados ou recursos dedicados a partir de um único sistema de hardware físico, dividindo esse sistema em ambientes distintos conhecidos como máquinas virtuais (VMs).
 Com a virtualização, os usuários podem executar múltiplos sistemas operacionais e aplicativos em um único servidor físico, melhorando a eficiência dos recursos de hardware e reduzindo os custos. Para que isso funcione, são criados múltiplos ambientes a partir de um único sistema físico por meio de softwares chamados hipervisores, que gerenciam os recursos.
 A virtualização é um dos principais fatores que impulsionaram o surgimento do cloud computing, pois a capacidade de criar e gerenciar ambientes virtualizados em um único hardware permitiu a criação de plataformas de nuvem escaláveis, eficientes e automatizadas. Em outras palavras, a computação em nuvem usa tecnologia de virtualização para fornecer serviços que permitem aos usuários acessar servidores virtualizados e aplicativos sem a necessidade de adquirir equipamentos próprios e específicos.

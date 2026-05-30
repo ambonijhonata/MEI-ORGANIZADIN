@@ -1,6 +1,6 @@
 ## Context
 
-A change `enrich-synced-appointments-with-late-services` ja introduziu o enriquecimento assÃ­ncrono de agendamentos sincronizados quando o catalogo ganha servicos novos ou renomeados. Isso resolveu o caso ideal em que o gatilho do catalogo roda com sucesso logo apos o cadastro.
+A change `enrich-synced-appointments-with-late-services` ja introduziu o enriquecimento assíncrono de agendamentos sincronizados quando o catalogo ganha servicos novos ou renomeados. Isso resolveu o caso ideal em que o gatilho do catalogo roda com sucesso logo apos o cadastro.
 
 O problema remanescente e estrutural:
 - a sync incremental do Google so revisita eventos que voltam no delta;
@@ -25,7 +25,7 @@ Logo, pedir um novo sync completo ao Google apos cada cadastro de servico nao e 
 - Garantir que agendamentos sincronizados sejam eventualmente reenriquecidos quando o catalogo do usuario muda.
 - Corrigir tanto casos novos quanto eventos legados parcialmente sincronizados antes do deploy.
 - Fazer a sync manual/automatica consumir pendencias locais de enriquecimento, mesmo sem delta do Google.
-- Manter o enrich assÃ­ncrono por evento de catalogo como fast path, mas adicionar retry persistido e backfill.
+- Manter o enrich assíncrono por evento de catalogo como fast path, mas adicionar retry persistido e backfill.
 - Preservar a semantica atual: enriquecimento local usa o titulo salvo e o catalogo atual, sem full resync com Google.
 
 **Non-Goals:**
@@ -41,13 +41,13 @@ Logo, pedir um novo sync completo ao Google apos cada cadastro de servico nao e 
 
 **Recommended shape:**
 - guardar esse estado em `SyncState` ou estrutura sync-adjacent equivalente;
-- usar um modelo monotÃ´nico, por exemplo:
+- usar um modelo monotônico, por exemplo:
   - `catalog_enrichment_revision_requested`
   - `catalog_enrichment_revision_applied`
   ou
   - `catalog_enrichment_pending` + `catalog_enrichment_requested_at`
 
-**Why:** O problema do modelo atual e depender de uma unica chamada assÃ­ncrona no instante do cadastro. Persistir a pendencia torna o reenriquecimento:
+**Why:** O problema do modelo atual e depender de uma unica chamada assíncrona no instante do cadastro. Persistir a pendencia torna o reenriquecimento:
 - recuperavel apos falha;
 - reexecutavel em sync posterior;
 - aplicavel a backfill legado.
@@ -59,10 +59,10 @@ Logo, pedir um novo sync completo ao Google apos cada cadastro de servico nao e 
 ### 2. Tratar o cadastro/rename de servico como sinal local, nao como gatilho de Google sync
 **Decision:** Ao criar um servico ou alterar sua descricao normalizada:
 1. marcar a pendencia/revisao de enriquecimento do usuario;
-2. disparar o enrich assÃ­ncrono atual como tentativa imediata;
+2. disparar o enrich assíncrono atual como tentativa imediata;
 3. limpar a pendencia apenas apos sucesso do enriquecimento completo.
 
-**Why:** Isso preserva a boa UX do fast path sem perder confiabilidade quando a execucao assÃ­ncrona falhar ou nao cobrir casos legados.
+**Why:** Isso preserva a boa UX do fast path sem perder confiabilidade quando a execucao assíncrona falhar ou nao cobrir casos legados.
 
 **Alternatives considered:**
 - disparar sync incremental no cadastro: rejeitada porque nao revisita eventos sem delta do Google.
@@ -112,7 +112,7 @@ Logo, pedir um novo sync completo ao Google apos cada cadastro de servico nao e 
 - [Varredura de historico por usuario pode aumentar custo da sync quando houver pendencia] -> Mitigacao: executar apenas quando o marcador persistido indicar necessidade e limpar o marcador apos sucesso.
 - [Backfill inicial pode disparar muito reenriquecimento apos deploy] -> Mitigacao: limitar a usuarios com eventos Google-backed e monitorar execucao por lote/lock de usuario.
 - [Fast path async e retry via sync podem correr juntos] -> Mitigacao: ambos devem permanecer sob o mesmo `UserScopedExecutionLock` e compartilhar a mesma regra de conclusao da pendencia.
-- [Modelo booleano simples pode perder eventos de catalogo ocorridos durante enriquecimento] -> Mitigacao: preferir revisao monotÃ´nica ou requested/applied version em vez de booleano efemero.
+- [Modelo booleano simples pode perder eventos de catalogo ocorridos durante enriquecimento] -> Mitigacao: preferir revisao monotônica ou requested/applied version em vez de booleano efemero.
 
 ## Migration Plan
 

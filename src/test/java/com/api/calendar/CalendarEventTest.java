@@ -55,10 +55,10 @@ class CalendarEventTest {
 
     @Test
     void shouldEnrichExistingServicesWithoutOverwritingOriginalSnapshot() {
-        CalendarEvent event = new CalendarEvent(user, "e1", "helena - sobrancelha + buÃ§o + tintura",
+        CalendarEvent event = new CalendarEvent(user, "e1", "helena - sobrancelha + buço + tintura",
                 "helena - sobrancelha + buco + tintura", Instant.now(), Instant.now());
         Service sobrancelha = new Service(user, "Sobrancelha", "sobrancelha", new BigDecimal("48.00"));
-        Service buco = new Service(user, "BuÃ§o", "buco", new BigDecimal("23.00"));
+        Service buco = new Service(user, "Buço", "buco", new BigDecimal("23.00"));
         Service tintura = new Service(user, "Tintura", "tintura", new BigDecimal("35.00"));
 
         event.associateServices(List.of(sobrancelha));
@@ -71,7 +71,7 @@ class CalendarEventTest {
         assertEquals(3, event.getServiceLinks().size());
         assertEquals("Sobrancelha", event.getServiceLinks().get(0).getServiceDescriptionSnapshot());
         assertEquals(new BigDecimal("48.00"), event.getServiceLinks().get(0).getServiceValueSnapshot());
-        assertEquals("BuÃ§o", event.getServiceLinks().get(1).getServiceDescriptionSnapshot());
+        assertEquals("Buço", event.getServiceLinks().get(1).getServiceDescriptionSnapshot());
         assertEquals(new BigDecimal("23.00"), event.getServiceLinks().get(1).getServiceValueSnapshot());
         assertEquals("Tintura", event.getServiceLinks().get(2).getServiceDescriptionSnapshot());
         assertEquals(new BigDecimal("35.00"), event.getServiceLinks().get(2).getServiceValueSnapshot());

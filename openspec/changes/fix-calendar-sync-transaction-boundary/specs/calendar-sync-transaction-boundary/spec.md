@@ -1,4 +1,4 @@
-﻿## ADDED Requirements
+## ADDED Requirements
 
 ### Requirement: Calendar sync persistence MUST run inside an active transaction
 The system SHALL execute all database mutation and flush operations of `POST /api/calendar/sync` inside an active JPA transaction, including cleanup and bulk deletion paths.

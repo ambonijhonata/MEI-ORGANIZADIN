@@ -1,4 +1,4 @@
-﻿## ADDED Requirements
+## ADDED Requirements
 
 ### Requirement: Reliability Fixes Must Preserve Sync Performance Validation
 The system SHALL validate that lazy-safety and error-surface corrections do not introduce unacceptable sync performance regression.

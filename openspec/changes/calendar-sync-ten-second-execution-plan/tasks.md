@@ -1,4 +1,4 @@
-﻿## 1. Baseline e Ambiente de Validacao
+## 1. Baseline e Ambiente de Validacao
 
 - [x] 1.1 Definir ambiente de benchmark com limites equivalentes a `512MB RAM` e `0.1 CPU`.
 - [ ] 1.2 Executar baseline atual do `POST /api/calendar/sync` com conta de 14.482 eventos e registrar `google_fetch_ms`, `db_lookup_ms`, `processing_ms`, `db_write_ms`, `sync_total_ms`.

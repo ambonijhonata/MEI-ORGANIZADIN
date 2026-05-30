@@ -20,7 +20,7 @@ import java.util.Map;
 @SuppressWarnings({"PMD.LongVariable", "PMD.LooseCoupling", "PMD.OnlyOneReturn"})
 @RestController
 @RequestMapping("/api/auth")
-@Tag(name = "AutenticaÃ§Ã£o (Teste)", description = "Endpoints auxiliares para testar o fluxo OAuth via navegador")
+@Tag(name = "Autenticação (Teste)", description = "Endpoints auxiliares para testar o fluxo OAuth via navegador")
 public class AuthCallbackController {
 
     private final GoogleOAuthClient googleOAuthClient;
@@ -44,7 +44,7 @@ public class AuthCallbackController {
     @GetMapping(value = "/google", produces = "text/html")
     @Operation(summary = "Iniciar login Google (navegador)",
             description = "Redireciona o navegador para a tela de login do Google. " +
-                    "ApÃ³s autorizar, o Google redireciona para /api/auth/callback com o code.")
+                    "Após autorizar, o Google redireciona para /api/auth/callback com o code.")
     public String redirectToGoogle(final HttpServletRequest request) {
         final String redirectUri = getRedirectUri(request);
         final String authUrl = googleOAuthProperties.authUri()
@@ -62,8 +62,8 @@ public class AuthCallbackController {
 
     @GetMapping("/callback")
     @Operation(summary = "Callback OAuth Google",
-            description = "Recebe o authorization code do Google apÃ³s o redirect, " +
-                    "troca por tokens, cria/atualiza o usuÃ¡rio e retorna os dados. " +
+            description = "Recebe o authorization code do Google após o redirect, " +
+                    "troca por tokens, cria/atualiza o usuário e retorna os dados. " +
                     "Use o idToken retornado como Bearer token nos outros endpoints.")
     public Map<String, Object> callback(
             @RequestParam("code") final String code,
@@ -71,7 +71,7 @@ public class AuthCallbackController {
             final HttpServletRequest request) {
 
         if (error != null) {
-            return Map.of("error", error, "message", "Google retornou erro na autorizaÃ§Ã£o");
+            return Map.of("error", error, "message", "Google retornou erro na autorização");
         }
 
         final String redirectUri = getRedirectUri(request);
@@ -84,7 +84,7 @@ public class AuthCallbackController {
             final String refreshToken = tokenResponse.getRefreshToken();
 
             final GoogleIdToken.Payload payload = tokenValidator.validate(idTokenString)
-                    .orElseThrow(() -> new AuthController.InvalidTokenException("ID Token invÃ¡lido apÃ³s troca"));
+                    .orElseThrow(() -> new AuthController.InvalidTokenException("ID Token inválido após troca"));
 
             final User user = userResolver.resolveUser(payload);
 

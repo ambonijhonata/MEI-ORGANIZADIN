@@ -18,7 +18,7 @@ import java.time.LocalDate;
 @SuppressWarnings("PMD.LongVariable")
 @RestController
 @RequestMapping("/api/reports")
-@Tag(name = "RelatÃ³rios Financeiros", description = "RelatÃ³rios de faturamento e fluxo de caixa")
+@Tag(name = "Relatórios Financeiros", description = "Relatórios de faturamento e fluxo de caixa")
 public class ReportController {
 
     private final RevenueReportService revenueReportService;
@@ -34,10 +34,10 @@ public class ReportController {
     }
 
     @GetMapping("/revenue")
-    @Operation(summary = "RelatÃ³rio de faturamento", description = "Retorna o total consolidado de faturamento no perÃ­odo. MÃ¡ximo 12 meses.",
+    @Operation(summary = "Relatório de faturamento", description = "Retorna o total consolidado de faturamento no período. Máximo 12 meses.",
             responses = {
-                    @ApiResponse(responseCode = "200", description = "RelatÃ³rio gerado"),
-                    @ApiResponse(responseCode = "400", description = "PerÃ­odo invÃ¡lido (excede 12 meses ou datas invertidas)")
+                    @ApiResponse(responseCode = "200", description = "Relatório gerado"),
+                    @ApiResponse(responseCode = "400", description = "Período inválido (excede 12 meses ou datas invertidas)")
             })
     public ResponseEntity<RevenueReportService.RevenueReport> getRevenueReport(
             @AuthenticationPrincipal final AuthenticatedUser user,
@@ -50,10 +50,10 @@ public class ReportController {
     }
 
     @GetMapping("/cashflow")
-    @Operation(summary = "RelatÃ³rio de fluxo de caixa", description = "Retorna sÃ©rie temporal de faturamento por dia. MÃ¡ximo 1 mÃªs.",
+    @Operation(summary = "Relatório de fluxo de caixa", description = "Retorna série temporal de faturamento por dia. Máximo 1 mês.",
             responses = {
-                    @ApiResponse(responseCode = "200", description = "RelatÃ³rio gerado"),
-                    @ApiResponse(responseCode = "400", description = "PerÃ­odo invÃ¡lido (excede 1 mÃªs ou datas invertidas)")
+                    @ApiResponse(responseCode = "200", description = "Relatório gerado"),
+                    @ApiResponse(responseCode = "400", description = "Período inválido (excede 1 mês ou datas invertidas)")
             })
     public ResponseEntity<CashFlowReportService.CashFlowReport> getCashFlowReport(
             @AuthenticationPrincipal final AuthenticatedUser user,
@@ -67,11 +67,11 @@ public class ReportController {
 
     @GetMapping("/revenue-by-payment-method")
     @Operation(
-            summary = "RelatÃ³rio de faturamento por mÃ©todo de pagamento",
-            description = "Retorna o total consolidado por mÃ©todo de pagamento no perÃ­odo. Considera somente pagamentos persistidos em calendar_event_payments. MÃ¡ximo 12 meses.",
+            summary = "Relatório de faturamento por método de pagamento",
+            description = "Retorna o total consolidado por método de pagamento no período. Considera somente pagamentos persistidos em calendar_event_payments. Máximo 12 meses.",
             responses = {
-                    @ApiResponse(responseCode = "200", description = "RelatÃ³rio gerado"),
-                    @ApiResponse(responseCode = "400", description = "PerÃ­odo invÃ¡lido (excede 12 meses ou datas invertidas)")
+                    @ApiResponse(responseCode = "200", description = "Relatório gerado"),
+                    @ApiResponse(responseCode = "400", description = "Período inválido (excede 12 meses ou datas invertidas)")
             }
     )
     public ResponseEntity<PaymentMethodRevenueReportService.PaymentMethodRevenueReport> getRevenueByPaymentMethodReport(

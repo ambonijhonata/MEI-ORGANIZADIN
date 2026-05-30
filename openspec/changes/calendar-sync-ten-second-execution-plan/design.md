@@ -1,4 +1,4 @@
-﻿## Context
+## Context
 
 O `POST /api/calendar/sync` continua com latência acima do esperado em conta de alto volume (~14.482 eventos), com histórico recente de ~20-23s em execução completa. O cenário-alvo desta change considera ambiente restrito (`512MB RAM`, `0.1 CPU`), no qual picos de memória, GC e custo de ORM em massa tornam-se gargalos relevantes.
 

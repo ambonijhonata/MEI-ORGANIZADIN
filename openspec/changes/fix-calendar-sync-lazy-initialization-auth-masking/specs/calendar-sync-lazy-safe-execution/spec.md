@@ -1,4 +1,4 @@
-﻿## ADDED Requirements
+## ADDED Requirements
 
 ### Requirement: Sync Processing Must Be Lazy-Safe
 The system SHALL execute calendar sync processing without dereferencing lazy proxies outside an active persistence context.

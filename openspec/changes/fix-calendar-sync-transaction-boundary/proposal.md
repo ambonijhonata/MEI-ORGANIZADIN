@@ -1,4 +1,4 @@
-﻿## Why
+## Why
 
 O endpoint `POST /api/calendar/sync` falha em produção com `TransactionRequiredException` durante o cleanup de eventos, interrompendo sincronizações de alto volume e degradando a experiência do usuário. O erro ocorre no caminho de deleção em lote com `flush` sem transação ativa, então precisa ser corrigido agora para restaurar confiabilidade do sync.
 

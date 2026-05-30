@@ -1,4 +1,4 @@
-﻿# Proposta de Correcao das Violacoes PMD
+# Proposta de Correcao das Violacoes PMD
 
 ## Escopo
 

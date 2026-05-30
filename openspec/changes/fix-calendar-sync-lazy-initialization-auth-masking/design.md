@@ -1,4 +1,4 @@
-﻿## Context
+## Context
 
 A sincronizacao de calendario passou a falhar em producao com `LazyInitializationException` no hot path de comparacao de associacoes de servico, apos ajustes recentes de performance. O erro ocorre no fluxo de `POST /api/calendar/sync`, interrompe o processamento, deixa estado `SYNCING` persistido e aparece para o cliente como `401 UNAUTHORIZED`, embora o token esteja valido.
 

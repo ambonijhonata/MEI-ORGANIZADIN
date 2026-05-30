@@ -1,4 +1,4 @@
-﻿## MODIFIED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Optional startDate query parameter for manual calendar sync
 The system SHALL accept an optional `startDate` query parameter in `POST /api/calendar/sync`, using ISO date format `yyyy-mm-dd`.

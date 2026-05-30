@@ -1,4 +1,4 @@
-﻿## MODIFIED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Background Revalidation Using Existing Sync Endpoint
 After immediate rendering, the system SHALL revalidate calendar data in the background using the existing sync endpoint contract, with strict non-blocking behavior even under heavy sync duration.

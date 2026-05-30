@@ -1,4 +1,4 @@
-﻿## ADDED Requirements
+## ADDED Requirements
 
 ### Requirement: Authenticated Internal Failures Must Not Be Surfaced As Generic UNAUTHORIZED
 The system SHALL avoid returning generic `UNAUTHORIZED` for authenticated requests that fail due to internal sync processing errors.

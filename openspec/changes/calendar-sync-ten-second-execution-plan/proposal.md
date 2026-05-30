@@ -1,4 +1,4 @@
-﻿## Why
+## Why
 
 O endpoint `POST /api/calendar/sync` ainda excede o tempo aceitável para contas de alto volume e causa timeout percebido pelo app. Precisamos de um plano de execução objetivo, faseado e mensurável para atingir `<=10s` com segurança no ambiente restrito (`512MB RAM`, `0.1 CPU`).
 

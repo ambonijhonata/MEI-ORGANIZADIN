@@ -1,4 +1,4 @@
-﻿## ADDED Requirements
+## ADDED Requirements
 
 ### Requirement: Objective Phase-Gated Execution Plan
 The system SHALL execute calendar sync performance work through explicit phases with measurable acceptance criteria before advancing.
