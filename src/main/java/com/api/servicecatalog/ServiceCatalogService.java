@@ -21,6 +21,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@SuppressWarnings({"PMD.LinguisticNaming", "PMD.LongVariable", "PMD.OnlyOneReturn"})
 @Component
 public class ServiceCatalogService {
 
@@ -32,13 +33,13 @@ public class ServiceCatalogService {
     private final CalendarEventReprocessor reprocessor;
     private final SyncStateRepository syncStateRepository;
 
-    public ServiceCatalogService(ServiceRepository serviceRepository,
-                                  UserRepository userRepository,
-                                  CalendarEventRepository calendarEventRepository,
-                                  CalendarEventServiceLinkRepository serviceLinkRepository,
-                                  ServiceDescriptionNormalizer normalizer,
-                                  CalendarEventReprocessor reprocessor,
-                                  SyncStateRepository syncStateRepository) {
+    public ServiceCatalogService(final ServiceRepository serviceRepository,
+                                  final UserRepository userRepository,
+                                  final CalendarEventRepository calendarEventRepository,
+                                  final CalendarEventServiceLinkRepository serviceLinkRepository,
+                                  final ServiceDescriptionNormalizer normalizer,
+                                  final CalendarEventReprocessor reprocessor,
+                                  final SyncStateRepository syncStateRepository) {
         this.serviceRepository = serviceRepository;
         this.userRepository = userRepository;
         this.calendarEventRepository = calendarEventRepository;
@@ -49,18 +50,18 @@ public class ServiceCatalogService {
     }
 
     @Transactional
-    public Service createService(Long userId, String description, BigDecimal value) {
-        User user = userRepository.findById(userId)
+    public Service createService(final Long userId, final String description, final BigDecimal value) {
+        final User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        String normalized = normalizer.normalize(description);
+        final String normalized = normalizer.normalize(description);
 
         if (serviceRepository.existsByUserIdAndNormalizedDescription(userId, normalized)) {
             throw new BusinessException(duplicateDescriptionMessage(description));
         }
 
-        Service service = new Service(user, description, normalized, value);
-        Service saved = serviceRepository.save(service);
+        final Service service = new Service(user, description, normalized, value);
+        final Service saved = serviceRepository.save(service);
 
         requestCatalogEnrichment(userId, user);
         reprocessor.enrichSynchronizedAppointments(userId);
@@ -69,7 +70,7 @@ public class ServiceCatalogService {
     }
 
     @Transactional(readOnly = true)
-    public Page<Service> listServices(Long userId, String description, Pageable pageable) {
+    public Page<Service> listServices(final Long userId, final String description, final Pageable pageable) {
         if (description != null && !description.isBlank()) {
             return serviceRepository.findByUserIdAndDescriptionContainingIgnoreCase(userId, description, pageable);
         }
@@ -77,18 +78,18 @@ public class ServiceCatalogService {
     }
 
     @Transactional(readOnly = true)
-    public Service getService(Long userId, Long serviceId) {
+    public Service getService(final Long userId, final Long serviceId) {
         return serviceRepository.findByIdAndUserId(serviceId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Service not found"));
     }
 
     @Transactional
-    public Service updateService(Long userId, Long serviceId, String description, BigDecimal value) {
-        Service service = serviceRepository.findByIdAndUserId(serviceId, userId)
+    public Service updateService(final Long userId, final Long serviceId, final String description, final BigDecimal value) {
+        final Service service = serviceRepository.findByIdAndUserId(serviceId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Service not found"));
 
-        String previousNormalizedDescription = service.getNormalizedDescription();
-        String normalized = normalizer.normalize(description);
+        final String previousNormalizedDescription = service.getNormalizedDescription();
+        final String normalized = normalizer.normalize(description);
 
         serviceRepository.findByUserIdAndNormalizedDescription(userId, normalized)
                 .filter(existing -> !Objects.equals(existing.getId(), serviceId))
@@ -100,7 +101,7 @@ public class ServiceCatalogService {
         service.setNormalizedDescription(normalized);
         service.setValue(value);
 
-        Service saved = serviceRepository.save(service);
+        final Service saved = serviceRepository.save(service);
 
         if (!normalized.equals(previousNormalizedDescription)) {
             requestCatalogEnrichment(userId, service.getUser());
@@ -111,8 +112,8 @@ public class ServiceCatalogService {
     }
 
     @Transactional
-    public void deleteService(Long userId, Long serviceId) {
-        Service service = serviceRepository.findByIdAndUserId(serviceId, userId)
+    public void deleteService(final Long userId, final Long serviceId) {
+        final Service service = serviceRepository.findByIdAndUserId(serviceId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Service not found"));
 
         if (hasLinkedEvents(serviceId)) {
@@ -123,24 +124,24 @@ public class ServiceCatalogService {
     }
 
     @Transactional
-    public BulkDeleteResult deleteServices(Long userId, List<Long> serviceIds) {
+    public BulkDeleteResult deleteServices(final Long userId, final List<Long> serviceIds) {
         if (serviceIds == null || serviceIds.isEmpty()) {
             return new BulkDeleteResult(0, 0);
         }
 
-        Set<Long> uniqueIds = serviceIds.stream()
+        final Set<Long> uniqueIds = serviceIds.stream()
                 .filter(id -> id != null)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         if (uniqueIds.isEmpty()) {
             return new BulkDeleteResult(0, 0);
         }
 
-        List<Service> ownedServices = serviceRepository.findByUserIdAndIdIn(userId, uniqueIds);
+        final List<Service> ownedServices = serviceRepository.findByUserIdAndIdIn(userId, uniqueIds);
         int deleted = 0;
         int hasLink = 0;
 
-        for (Service service : ownedServices) {
-            Long serviceId = service.getId();
+        for (final Service service : ownedServices) {
+            final Long serviceId = service.getId();
             if (serviceId == null) {
                 continue;
             }
@@ -155,20 +156,20 @@ public class ServiceCatalogService {
         return new BulkDeleteResult(deleted, hasLink);
     }
 
-    private boolean hasLinkedEvents(Long serviceId) {
+    private boolean hasLinkedEvents(final Long serviceId) {
         return serviceLinkRepository.existsByServiceId(serviceId)
                 || calendarEventRepository.existsByServiceId(serviceId);
     }
 
-    private String duplicateDescriptionMessage(String description) {
-        String trimmedDescription = description == null ? "" : description.trim();
+    private String duplicateDescriptionMessage(final String description) {
+        final String trimmedDescription = description == null ? "" : description.trim();
         return trimmedDescription.isBlank()
                 ? "Serviço já cadastrado"
                 : trimmedDescription + " já cadastrado";
     }
 
-    private void requestCatalogEnrichment(Long userId, User user) {
-        SyncState syncState = syncStateRepository.findByUserId(userId)
+    private void requestCatalogEnrichment(final Long userId, final User user) {
+        final SyncState syncState = syncStateRepository.findByUserId(userId)
                 .orElseGet(() -> new SyncState(user));
         syncState.requestCatalogEnrichment();
         syncStateRepository.save(syncState);

@@ -6,6 +6,7 @@ import org.springframework.data.domain.Sort;
 
 import java.util.ArrayList;
 import java.util.Set;
+@SuppressWarnings({"PMD.AvoidLiteralsInIfCondition", "PMD.LawOfDemeter", "PMD.LongVariable", "PMD.OnlyOneReturn", "PMD.PrematureDeclaration", "PMD.UseExplicitTypes", "PMD.UseObjectForClearerAPI"})
 
 public final class PageRequestSanitizer {
 
@@ -13,53 +14,53 @@ public final class PageRequestSanitizer {
     }
 
     public static PageRequest sanitizeOneBased(
-            int pageIndex,
-            int pageSize,
-            String sortBy,
-            String direction,
-            Set<String> allowedSortFields,
-            int maxPageSize
+            final int pageIndex,
+            final int pageSize,
+            final String sortBy,
+            final String direction,
+            final Set<String> allowedSortFields,
+            final int maxPageSize
     ) {
         if (pageIndex < 1) {
             throw new InvalidRequestParameterException("pageIndex", "pageIndex must be greater than or equal to 1");
         }
-        int sanitizedSize = sanitizePageSize(pageSize, "itemsPerPage", maxPageSize);
-        Sort sort = sanitizeSort(sortBy, direction, allowedSortFields, "sortBy", "direction");
+        final int sanitizedSize = sanitizePageSize(pageSize, "itemsPerPage", maxPageSize);
+        final Sort sort = sanitizeSort(sortBy, direction, allowedSortFields, "sortBy", "direction");
         return PageRequest.of(pageIndex - 1, sanitizedSize, sort);
     }
 
     public static PageRequest sanitizeZeroBased(
-            int page,
-            int size,
-            String sortBy,
-            String direction,
-            Set<String> allowedSortFields,
-            int maxPageSize
+            final int page,
+            final int size,
+            final String sortBy,
+            final String direction,
+            final Set<String> allowedSortFields,
+            final int maxPageSize
     ) {
         if (page < 0) {
             throw new InvalidRequestParameterException("page", "page must be greater than or equal to 0");
         }
-        int sanitizedSize = sanitizePageSize(size, "size", maxPageSize);
-        Sort sort = sanitizeSort(sortBy, direction, allowedSortFields, "sortBy", "direction");
+        final int sanitizedSize = sanitizePageSize(size, "size", maxPageSize);
+        final Sort sort = sanitizeSort(sortBy, direction, allowedSortFields, "sortBy", "direction");
         return PageRequest.of(page, sanitizedSize, sort);
     }
 
     public static Pageable sanitizePageable(
-            Pageable pageable,
-            Set<String> allowedSortFields,
-            int defaultPage,
-            int defaultSize,
-            int maxPageSize
+            final Pageable pageable,
+            final Set<String> allowedSortFields,
+            final int defaultPage,
+            final int defaultSize,
+            final int maxPageSize
     ) {
-        int page = pageable != null ? pageable.getPageNumber() : defaultPage;
-        int size = pageable != null ? pageable.getPageSize() : defaultSize;
+        final int page = pageable != null ? pageable.getPageNumber() : defaultPage;
+        final int size = pageable != null ? pageable.getPageSize() : defaultSize;
 
         if (page < 0) {
             throw new InvalidRequestParameterException("page", "page must be greater than or equal to 0");
         }
 
-        int sanitizedSize = sanitizePageSize(size, "size", maxPageSize);
-        Sort sanitizedSort = sanitizePageableSort(pageable != null ? pageable.getSort() : Sort.unsorted(), allowedSortFields);
+        final int sanitizedSize = sanitizePageSize(size, "size", maxPageSize);
+        final Sort sanitizedSort = sanitizePageableSort(pageable != null ? pageable.getSort() : Sort.unsorted(), allowedSortFields);
 
         if (sanitizedSort.isSorted()) {
             return PageRequest.of(page, sanitizedSize, sanitizedSort);
@@ -68,11 +69,11 @@ public final class PageRequestSanitizer {
     }
 
     public static Sort sanitizeSort(
-            String sortBy,
-            String direction,
-            Set<String> allowedSortFields,
-            String sortFieldName,
-            String directionFieldName
+            final String sortBy,
+            final String direction,
+            final Set<String> allowedSortFields,
+            final String sortFieldName,
+            final String directionFieldName
     ) {
         if (sortBy == null || sortBy.isBlank() || !allowedSortFields.contains(sortBy)) {
             throw new InvalidRequestParameterException(
@@ -83,14 +84,14 @@ public final class PageRequestSanitizer {
         return Sort.by(parseDirection(direction, directionFieldName), sortBy);
     }
 
-    private static Sort sanitizePageableSort(Sort sort, Set<String> allowedSortFields) {
+    private static Sort sanitizePageableSort(final Sort sort, final Set<String> allowedSortFields) {
         if (sort == null || sort.isUnsorted()) {
             return Sort.unsorted();
         }
 
-        var sanitizedOrders = new ArrayList<Sort.Order>();
-        for (Sort.Order order : sort) {
-            String property = order.getProperty();
+        final var sanitizedOrders = new ArrayList<Sort.Order>();
+        for (final Sort.Order order : sort) {
+            final String property = order.getProperty();
             if (property == null || property.isBlank() || !allowedSortFields.contains(property)) {
                 throw new InvalidRequestParameterException(
                         "sort",
@@ -102,7 +103,7 @@ public final class PageRequestSanitizer {
         return Sort.by(sanitizedOrders);
     }
 
-    private static Sort.Direction parseDirection(String direction, String directionFieldName) {
+    private static Sort.Direction parseDirection(final String direction, final String directionFieldName) {
         if (direction == null) {
             throw new InvalidRequestParameterException(directionFieldName, directionFieldName + " must be 'asc' or 'desc'");
         }
@@ -115,7 +116,7 @@ public final class PageRequestSanitizer {
         throw new InvalidRequestParameterException(directionFieldName, directionFieldName + " must be 'asc' or 'desc'");
     }
 
-    private static int sanitizePageSize(int pageSize, String fieldName, int maxPageSize) {
+    private static int sanitizePageSize(final int pageSize, final String fieldName, final int maxPageSize) {
         if (pageSize < 1) {
             throw new InvalidRequestParameterException(fieldName, fieldName + " must be greater than or equal to 1");
         }

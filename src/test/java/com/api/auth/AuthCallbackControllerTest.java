@@ -38,7 +38,13 @@ class AuthCallbackControllerTest {
                 "client-id", "client-secret",
                 "https://oauth2.googleapis.com/token",
                 "https://accounts.google.com/o/oauth2/v2/auth");
-        controller = new AuthCallbackController(googleOAuthClient, properties, tokenValidator, userRepository, oauthCredentialRepository);
+        controller = new AuthCallbackController(
+                googleOAuthClient,
+                properties,
+                tokenValidator,
+                new AuthenticatedUserResolver(userRepository),
+                oauthCredentialRepository
+        );
     }
 
     @Test

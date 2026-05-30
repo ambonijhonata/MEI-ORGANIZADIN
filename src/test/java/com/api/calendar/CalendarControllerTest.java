@@ -17,6 +17,7 @@ import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -25,6 +26,7 @@ class CalendarControllerTest {
 
     @Mock private CalendarSyncService calendarSyncService;
     @Mock private CalendarPaymentService calendarPaymentService;
+    @Mock private ManualAppointmentService manualAppointmentService;
     @Mock private CalendarEventRepository calendarEventRepository;
     @Mock private CalendarEventPaymentRepository calendarEventPaymentRepository;
     @Mock private SyncStateRepository syncStateRepository;
@@ -34,6 +36,7 @@ class CalendarControllerTest {
         CalendarController controller = new CalendarController(
                 calendarSyncService,
                 calendarPaymentService,
+                manualAppointmentService,
                 calendarEventRepository,
                 calendarEventPaymentRepository,
                 syncStateRepository
@@ -56,6 +59,7 @@ class CalendarControllerTest {
         CalendarController controller = new CalendarController(
                 calendarSyncService,
                 calendarPaymentService,
+                manualAppointmentService,
                 calendarEventRepository,
                 calendarEventPaymentRepository,
                 syncStateRepository
@@ -79,6 +83,7 @@ class CalendarControllerTest {
         CalendarController controller = new CalendarController(
                 calendarSyncService,
                 calendarPaymentService,
+                manualAppointmentService,
                 calendarEventRepository,
                 calendarEventPaymentRepository,
                 syncStateRepository
@@ -99,6 +104,7 @@ class CalendarControllerTest {
         CalendarController controller = new CalendarController(
                 calendarSyncService,
                 calendarPaymentService,
+                manualAppointmentService,
                 calendarEventRepository,
                 calendarEventPaymentRepository,
                 syncStateRepository
@@ -116,6 +122,7 @@ class CalendarControllerTest {
         CalendarController controller = new CalendarController(
                 calendarSyncService,
                 calendarPaymentService,
+                manualAppointmentService,
                 calendarEventRepository,
                 calendarEventPaymentRepository,
                 syncStateRepository
@@ -126,5 +133,63 @@ class CalendarControllerTest {
         assertThatThrownBy(() -> controller.listEvents(user, null, null, pageable))
                 .isInstanceOf(InvalidRequestParameterException.class)
                 .hasMessageContaining("size");
+    }
+
+    @Test
+    void shouldCreateManualAppointment() {
+        CalendarController controller = new CalendarController(
+                calendarSyncService,
+                calendarPaymentService,
+                manualAppointmentService,
+                calendarEventRepository,
+                calendarEventPaymentRepository,
+                syncStateRepository
+        );
+        AuthenticatedUser user = new AuthenticatedUser(1L, "sub", "test@example.com", "Test");
+        CalendarController.ManualAppointmentCreateRequest request =
+                new CalendarController.ManualAppointmentCreateRequest(
+                        11L,
+                        LocalDate.of(2026, 5, 27),
+                        java.time.LocalTime.of(14, 0),
+                        java.time.LocalTime.of(14, 30),
+                        List.of(21L, 22L)
+                );
+        CalendarEvent created = mock(CalendarEvent.class);
+        when(created.getId()).thenReturn(77L);
+        when(created.getGoogleEventId()).thenReturn(null);
+        when(created.getTitle()).thenReturn("Maria - Corte + Escova");
+        when(created.getEventStart()).thenReturn(java.time.Instant.parse("2026-05-27T17:00:00Z"));
+        when(created.getEventEnd()).thenReturn(java.time.Instant.parse("2026-05-27T17:30:00Z"));
+        when(created.isIdentified()).thenReturn(true);
+        when(created.getServiceDescriptionSnapshot()).thenReturn("Corte");
+        when(created.getServiceValueSnapshot()).thenReturn(new java.math.BigDecimal("130.00"));
+
+        when(manualAppointmentService.createManualAppointment(
+                1L,
+                new ManualAppointmentService.ManualAppointmentRequest(
+                        11L,
+                        LocalDate.of(2026, 5, 27),
+                        java.time.LocalTime.of(14, 0),
+                        java.time.LocalTime.of(14, 30),
+                        List.of(21L, 22L)
+                )
+        )).thenReturn(created);
+
+        ResponseEntity<CalendarController.EventResponse> response =
+                controller.createManualAppointment(user, request);
+
+        assertEquals(201, response.getStatusCode().value());
+        assertEquals(77L, response.getBody().id());
+        assertEquals("Maria - Corte + Escova", response.getBody().title());
+        verify(manualAppointmentService).createManualAppointment(
+                1L,
+                new ManualAppointmentService.ManualAppointmentRequest(
+                        11L,
+                        LocalDate.of(2026, 5, 27),
+                        java.time.LocalTime.of(14, 0),
+                        java.time.LocalTime.of(14, 30),
+                        List.of(21L, 22L)
+                )
+        );
     }
 }

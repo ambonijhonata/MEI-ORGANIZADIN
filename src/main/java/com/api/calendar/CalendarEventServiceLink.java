@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 
+@SuppressWarnings({"PMD.CommentDefaultAccessModifier", "PMD.DataClass", "PMD.LawOfDemeter", "PMD.LongVariable", "PMD.ShortVariable"})
 @Entity
 @Table(name = "calendar_event_services")
 public class CalendarEventServiceLink {
@@ -35,11 +36,11 @@ public class CalendarEventServiceLink {
 
     protected CalendarEventServiceLink() {}
 
-    public CalendarEventServiceLink(CalendarEvent calendarEvent, Service service) {
+    public CalendarEventServiceLink(final CalendarEvent calendarEvent, final Service service) {
         this(calendarEvent, service, 0);
     }
 
-    public CalendarEventServiceLink(CalendarEvent calendarEvent, Service service, int occurrenceIndex) {
+    public CalendarEventServiceLink(final CalendarEvent calendarEvent, final Service service, final int occurrenceIndex) {
         this.calendarEvent = calendarEvent;
         this.service = service;
         this.occurrenceIndex = occurrenceIndex;
@@ -47,11 +48,11 @@ public class CalendarEventServiceLink {
         this.serviceValueSnapshot = service.getValue();
     }
 
-    public CalendarEventServiceLink(CalendarEvent calendarEvent,
-                                    Service service,
-                                    int occurrenceIndex,
-                                    String serviceDescriptionSnapshot,
-                                    BigDecimal serviceValueSnapshot) {
+    public CalendarEventServiceLink(final CalendarEvent calendarEvent,
+                                    final Service service,
+                                    final int occurrenceIndex,
+                                    final String serviceDescriptionSnapshot,
+                                    final BigDecimal serviceValueSnapshot) {
         this.calendarEvent = calendarEvent;
         this.service = service;
         this.occurrenceIndex = occurrenceIndex;

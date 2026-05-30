@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+@SuppressWarnings({"PMD.AvoidLiteralsInIfCondition", "PMD.CyclomaticComplexity", "PMD.LawOfDemeter", "PMD.LongVariable", "PMD.OnlyOneReturn"})
 @Component
 public class CalendarEventReprocessor {
 
@@ -21,13 +22,13 @@ public class CalendarEventReprocessor {
     private final SyncStateRepository syncStateRepository;
     private final UserScopedExecutionLock userScopedExecutionLock;
 
-    public CalendarEventReprocessor(CalendarEventRepository calendarEventRepository,
-                                    CalendarEventServiceLinkRepository calendarEventServiceLinkRepository,
-                                    CalendarEventServiceMatcher matcher,
-                                    EventTitleParser titleParser,
-                                    ServiceDescriptionNormalizer normalizer,
-                                    SyncStateRepository syncStateRepository,
-                                    UserScopedExecutionLock userScopedExecutionLock) {
+    public CalendarEventReprocessor(final CalendarEventRepository calendarEventRepository,
+                                    final CalendarEventServiceLinkRepository calendarEventServiceLinkRepository,
+                                    final CalendarEventServiceMatcher matcher,
+                                    final EventTitleParser titleParser,
+                                    final ServiceDescriptionNormalizer normalizer,
+                                    final SyncStateRepository syncStateRepository,
+                                    final UserScopedExecutionLock userScopedExecutionLock) {
         this.calendarEventRepository = calendarEventRepository;
         this.calendarEventServiceLinkRepository = calendarEventServiceLinkRepository;
         this.matcher = matcher;
@@ -39,14 +40,14 @@ public class CalendarEventReprocessor {
 
     @Async
     @Transactional
-    public void reprocessUnidentifiedEvents(Long userId) {
+    public void reprocessUnidentifiedEvents(final Long userId) {
         userScopedExecutionLock.execute(userId, () -> {
-            List<CalendarEvent> unidentified = calendarEventRepository.findByUserIdAndIdentifiedFalse(userId);
-            Map<String, Service> servicesByNormalizedDescription = matcher.servicesByNormalizedDescription(userId);
+            final List<CalendarEvent> unidentified = calendarEventRepository.findByUserIdAndIdentifiedFalse(userId);
+            final Map<String, Service> servicesByNormalizedDescription = matcher.servicesByNormalizedDescription(userId);
 
-            for (CalendarEvent event : unidentified) {
-                EventTitleParser.ParsedTitle parsed = titleParser.parse(event.getTitle());
-                List<Service> matchedServices = resolveMatchedServices(parsed, servicesByNormalizedDescription);
+            for (final CalendarEvent event : unidentified) {
+                final EventTitleParser.ParsedTitle parsed = titleParser.parse(event.getTitle());
+                final List<Service> matchedServices = resolveMatchedServices(parsed, servicesByNormalizedDescription);
                 if (!matchedServices.isEmpty()) {
                     event.associateServices(matchedServices);
                 }
@@ -60,29 +61,29 @@ public class CalendarEventReprocessor {
 
     @Async
     @Transactional
-    public void enrichSynchronizedAppointments(Long userId) {
+    public void enrichSynchronizedAppointments(final Long userId) {
         userScopedExecutionLock.execute(userId, () -> {
-            SyncState syncState = syncStateRepository.findByUserId(userId).orElse(null);
+            final SyncState syncState = syncStateRepository.findByUserId(userId).orElse(null);
             enrichSynchronizedAppointmentsInternal(userId, syncState, true);
             return null;
         });
     }
 
     @Transactional
-    public boolean enrichPendingSynchronizedAppointments(Long userId, SyncState syncState) {
+    public boolean enrichPendingSynchronizedAppointments(final Long userId, final SyncState syncState) {
         return enrichSynchronizedAppointmentsInternal(userId, syncState, false);
     }
 
-    private List<Service> resolveMatchedServices(EventTitleParser.ParsedTitle parsed,
-                                                 Map<String, Service> servicesByNormalizedDescription) {
+    private List<Service> resolveMatchedServices(final EventTitleParser.ParsedTitle parsed,
+                                                 final Map<String, Service> servicesByNormalizedDescription) {
         if (parsed.serviceNames().isEmpty()) {
             return List.of();
         }
 
-        List<Service> matchedServices = new ArrayList<>(parsed.serviceNames().size());
-        for (String serviceName : parsed.serviceNames()) {
-            String normalizedServiceName = normalizer.normalize(serviceName);
-            Service service = servicesByNormalizedDescription.get(normalizedServiceName);
+        final List<Service> matchedServices = new ArrayList<>(parsed.serviceNames().size());
+        for (final String serviceName : parsed.serviceNames()) {
+            final String normalizedServiceName = normalizer.normalize(serviceName);
+            final Service service = servicesByNormalizedDescription.get(normalizedServiceName);
             if (service != null) {
                 matchedServices.add(service);
             }
@@ -90,25 +91,25 @@ public class CalendarEventReprocessor {
         return matchedServices;
     }
 
-    private boolean enrichSynchronizedAppointmentsInternal(Long userId,
-                                                           SyncState syncState,
-                                                           boolean allowUntrackedBackfill) {
-        long targetRevision = resolveTargetRevision(syncState, allowUntrackedBackfill);
+    private boolean enrichSynchronizedAppointmentsInternal(final Long userId,
+                                                           final SyncState syncState,
+                                                           final boolean allowUntrackedBackfill) {
+        final long targetRevision = resolveTargetRevision(syncState, allowUntrackedBackfill);
         if (targetRevision == 0L) {
             return false;
         }
 
-        List<CalendarEvent> synchronizedEvents = calendarEventRepository.findAllWithAssociationsByUserId(userId);
-        Map<String, Service> servicesByNormalizedDescription = matcher.servicesByNormalizedDescription(userId);
-        List<CalendarEvent> changedEvents = new ArrayList<>();
+        final List<CalendarEvent> synchronizedEvents = calendarEventRepository.findAllWithAssociationsByUserId(userId);
+        final Map<String, Service> servicesByNormalizedDescription = matcher.servicesByNormalizedDescription(userId);
+        final List<CalendarEvent> changedEvents = new ArrayList<>();
 
-        for (CalendarEvent event : synchronizedEvents) {
-            if (event.getGoogleEventId() == null || event.getGoogleEventId().isBlank()) {
+        for (final CalendarEvent event : synchronizedEvents) {
+            if (!event.isGoogleOrigin()) {
                 continue;
             }
 
-            EventTitleParser.ParsedTitle parsed = titleParser.parse(event.getTitle());
-            List<Service> matchedServices = resolveMatchedServices(parsed, servicesByNormalizedDescription);
+            final EventTitleParser.ParsedTitle parsed = titleParser.parse(event.getTitle());
+            final List<Service> matchedServices = resolveMatchedServices(parsed, servicesByNormalizedDescription);
             boolean changed = false;
             if (!matchedServices.isEmpty()) {
                 changed = event.enrichServices(matchedServices);
@@ -135,7 +136,7 @@ public class CalendarEventReprocessor {
         return true;
     }
 
-    private long resolveTargetRevision(SyncState syncState, boolean allowUntrackedBackfill) {
+    private long resolveTargetRevision(final SyncState syncState, final boolean allowUntrackedBackfill) {
         if (syncState == null) {
             return allowUntrackedBackfill ? 1L : 0L;
         }

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
 
+@SuppressWarnings("PMD.AtLeastOneConstructor")
 @Repository
 public class CalendarEventServiceLinkBulkRepositoryImpl implements CalendarEventServiceLinkBulkRepository {
 
@@ -15,12 +16,12 @@ public class CalendarEventServiceLinkBulkRepositoryImpl implements CalendarEvent
     private EntityManager entityManager;
 
     @Override
-    public void deleteInBulkByCalendarEventIdIn(Collection<Long> calendarEventIds) {
+    public void deleteInBulkByCalendarEventIdIn(final Collection<Long> calendarEventIds) {
         if (calendarEventIds == null || calendarEventIds.isEmpty()) {
             return;
         }
 
-        Query query = entityManager.createQuery(
+        final Query query = entityManager.createQuery(
                 "DELETE FROM CalendarEventServiceLink sl WHERE sl.calendarEvent.id IN :calendarEventIds"
         );
         query.setFlushMode(FlushModeType.COMMIT);

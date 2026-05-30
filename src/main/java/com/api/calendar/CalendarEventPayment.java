@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 
+@SuppressWarnings({"PMD.CommentDefaultAccessModifier", "PMD.DataClass", "PMD.ShortVariable"})
 @Entity
 @Table(name = "calendar_event_payments")
 public class CalendarEventPayment {
@@ -37,11 +38,11 @@ public class CalendarEventPayment {
     }
 
     public CalendarEventPayment(
-            CalendarEvent calendarEvent,
-            PaymentType paymentType,
-            BigDecimal amount,
-            boolean valueTotal,
-            Instant paidAt
+            final CalendarEvent calendarEvent,
+            final PaymentType paymentType,
+            final BigDecimal amount,
+            final boolean valueTotal,
+            final Instant paidAt
     ) {
         this.calendarEvent = calendarEvent;
         this.paymentType = paymentType;

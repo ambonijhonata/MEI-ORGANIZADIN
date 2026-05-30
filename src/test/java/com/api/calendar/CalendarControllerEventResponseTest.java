@@ -40,4 +40,25 @@ class CalendarControllerEventResponseTest {
         assertEquals(new BigDecimal("123.45"), response.paymentSummary().totalAmount());
         verify(event, never()).getPayments();
     }
+
+    @Test
+    void eventResponseFromShouldAllowNullGoogleEventIdForManualAppointment() {
+        CalendarEvent event = mock(CalendarEvent.class);
+        when(event.getId()).thenReturn(11L);
+        when(event.getGoogleEventId()).thenReturn(null);
+        when(event.getTitle()).thenReturn("manual");
+        when(event.getEventStart()).thenReturn(Instant.parse("2026-05-27T17:00:00Z"));
+        when(event.getEventEnd()).thenReturn(Instant.parse("2026-05-27T17:30:00Z"));
+        when(event.isIdentified()).thenReturn(true);
+        when(event.getServiceDescriptionSnapshot()).thenReturn("Corte");
+        when(event.getServiceValueSnapshot()).thenReturn(new BigDecimal("50.00"));
+        when(event.getPaymentType()).thenReturn(null);
+
+        CalendarController.EventResponse response = CalendarController.EventResponse.from(event, null);
+
+        assertEquals(11L, response.id());
+        assertEquals(null, response.googleEventId());
+        assertEquals(CalendarPaymentStatus.NONE, response.paymentSummary().status());
+        verify(event, never()).getPayments();
+    }
 }

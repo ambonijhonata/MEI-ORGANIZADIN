@@ -64,6 +64,9 @@ class CalendarPaymentsIntegrationTest {
     private CalendarSyncService calendarSyncService;
 
     @MockBean
+    private ManualAppointmentService manualAppointmentService;
+
+    @MockBean
     private CalendarEventRepository calendarEventRepository;
 
     @MockBean

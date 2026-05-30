@@ -15,6 +15,7 @@ import java.util.Map;
 @Table(name = "calendar_events", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"user_id", "google_event_id"})
 })
+@SuppressWarnings({"PMD.CognitiveComplexity", "PMD.CommentDefaultAccessModifier", "PMD.CyclomaticComplexity", "PMD.GodClass", "PMD.ImmutableField", "PMD.LawOfDemeter", "PMD.LongVariable", "PMD.NullAssignment", "PMD.OnlyOneReturn", "PMD.RedundantFieldInitializer", "PMD.ShortVariable", "PMD.TooManyFields", "PMD.TooManyMethods", "PMD.UseExplicitTypes"})
 public class CalendarEvent {
 
     @Id
@@ -25,7 +26,11 @@ public class CalendarEvent {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(name = "google_event_id", nullable = false, length = 1024)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "source", nullable = false, length = 20)
+    private CalendarEventSource source = CalendarEventSource.GOOGLE;
+
+    @Column(name = "google_event_id", length = 1024)
     private String googleEventId;
 
     @Column(length = 1000)
@@ -79,9 +84,20 @@ public class CalendarEvent {
 
     protected CalendarEvent() {}
 
-    public CalendarEvent(User user, String googleEventId, String title, String normalizedTitle,
-                          Instant eventStart, Instant eventEnd) {
+    public CalendarEvent(final User user, final String googleEventId, final String title, final String normalizedTitle,
+                         final Instant eventStart, final Instant eventEnd) {
+        this(user, CalendarEventSource.GOOGLE, googleEventId, title, normalizedTitle, eventStart, eventEnd);
+    }
+
+    public CalendarEvent(final User user,
+                         final CalendarEventSource source,
+                         final String googleEventId,
+                         final String title,
+                         final String normalizedTitle,
+                         final Instant eventStart,
+                         final Instant eventEnd) {
         this.user = user;
+        this.source = source;
         this.googleEventId = googleEventId;
         this.title = title;
         this.normalizedTitle = normalizedTitle;
@@ -89,9 +105,17 @@ public class CalendarEvent {
         this.eventEnd = eventEnd;
     }
 
+    public static CalendarEvent manual(final User user,
+                                       final String title,
+                                       final String normalizedTitle,
+                                       final Instant eventStart,
+                                       final Instant eventEnd) {
+        return new CalendarEvent(user, CalendarEventSource.MANUAL, null, title, normalizedTitle, eventStart, eventEnd);
+    }
+
     @PrePersist
     void prePersist() {
-        var now = Instant.now();
+        final var now = Instant.now();
         this.createdAt = now;
         this.updatedAt = now;
     }
@@ -101,14 +125,14 @@ public class CalendarEvent {
         this.updatedAt = Instant.now();
     }
 
-    public void associateService(Service service) {
+    public void associateService(final Service service) {
         this.service = service;
         this.serviceDescriptionSnapshot = service.getDescription();
         this.serviceValueSnapshot = service.getValue();
         this.identified = true;
     }
 
-    public void associateServices(List<Service> services) {
+    public void associateServices(final List<Service> services) {
         if (services == null || services.isEmpty()) {
             clearServiceAssociation();
             return;
@@ -116,9 +140,9 @@ public class CalendarEvent {
 
         this.serviceLinks.clear();
         BigDecimal totalValue = BigDecimal.ZERO;
-        Map<String, Integer> occurrencesByIdentity = new HashMap<>();
-        for (Service s : services) {
-            int occurrenceIndex = nextOccurrenceIndex(occurrencesByIdentity, serviceIdentity(s));
+        final Map<String, Integer> occurrencesByIdentity = new HashMap<>();
+        for (final Service s : services) {
+            final int occurrenceIndex = nextOccurrenceIndex(occurrencesByIdentity, serviceIdentity(s));
             this.serviceLinks.add(new CalendarEventServiceLink(this, s, occurrenceIndex));
             totalValue = totalValue.add(s.getValue());
         }
@@ -128,7 +152,7 @@ public class CalendarEvent {
         this.identified = true;
     }
 
-    public boolean enrichServices(List<Service> services) {
+    public boolean enrichServices(final List<Service> services) {
         if (services == null || services.isEmpty()) {
             return false;
         }
@@ -140,19 +164,19 @@ public class CalendarEvent {
 
         ensureLegacyAssociationBackfilledIntoLinks();
 
-        Map<String, Integer> existingServiceIdentities = new HashMap<>();
-        for (CalendarEventServiceLink serviceLink : this.serviceLinks) {
+        final Map<String, Integer> existingServiceIdentities = new HashMap<>();
+        for (final CalendarEventServiceLink serviceLink : this.serviceLinks) {
             incrementOccurrence(existingServiceIdentities, serviceIdentity(serviceLink.getService()));
         }
 
         boolean changed = false;
-        for (Service service : services) {
-            String identity = serviceIdentity(service);
+        for (final Service service : services) {
+            final String identity = serviceIdentity(service);
             if (identity == null) {
                 continue;
             }
             int existingCount = existingServiceIdentities.getOrDefault(identity, 0);
-            int requestedCount = countOccurrences(services, identity);
+            final int requestedCount = countOccurrences(services, identity);
             while (existingCount < requestedCount) {
                 this.serviceLinks.add(new CalendarEventServiceLink(this, service, existingCount));
                 changed = true;
@@ -185,7 +209,7 @@ public class CalendarEvent {
         this.identified = false;
     }
 
-    public void replacePayments(List<CalendarEventPayment> newPayments) {
+    public void replacePayments(final List<CalendarEventPayment> newPayments) {
         this.payments.clear();
         this.payments.addAll(newPayments);
     }
@@ -194,23 +218,27 @@ public class CalendarEvent {
         this.payments.clear();
     }
 
-    public void setClient(Client client) {
+    public void setClient(final Client client) {
         this.client = client;
     }
 
-    public void setPaymentType(PaymentType paymentType) {
+    public void setPaymentType(final PaymentType paymentType) {
         this.paymentType = paymentType;
     }
 
-    public void updateFromGoogle(String title, String normalizedTitle, Instant eventStart, Instant eventEnd) {
+    public void updateFromGoogle(final String title, final String normalizedTitle, final Instant eventStart, final Instant eventEnd) {
         this.title = title;
         this.normalizedTitle = normalizedTitle;
         this.eventStart = eventStart;
         this.eventEnd = eventEnd;
     }
 
-    public void markIdentified(boolean identified) {
+    public void markIdentified(final boolean identified) {
         this.identified = identified;
+    }
+
+    public boolean isGoogleOrigin() {
+        return source == CalendarEventSource.GOOGLE && googleEventId != null && !googleEventId.isBlank();
     }
 
     private void ensureLegacyAssociationBackfilledIntoLinks() {
@@ -218,10 +246,10 @@ public class CalendarEvent {
             return;
         }
 
-        String descriptionSnapshot = this.serviceDescriptionSnapshot != null
+        final String descriptionSnapshot = this.serviceDescriptionSnapshot != null
                 ? this.serviceDescriptionSnapshot
                 : this.service.getDescription();
-        BigDecimal valueSnapshot = this.serviceValueSnapshot != null
+        final BigDecimal valueSnapshot = this.serviceValueSnapshot != null
                 ? this.serviceValueSnapshot
                 : this.service.getValue();
         this.serviceLinks.add(new CalendarEventServiceLink(this, this.service, 0, descriptionSnapshot, valueSnapshot));
@@ -229,7 +257,7 @@ public class CalendarEvent {
 
     private BigDecimal totalLinkedSnapshotValue() {
         BigDecimal total = BigDecimal.ZERO;
-        for (CalendarEventServiceLink serviceLink : this.serviceLinks) {
+        for (final CalendarEventServiceLink serviceLink : this.serviceLinks) {
             if (serviceLink.getServiceValueSnapshot() != null) {
                 total = total.add(serviceLink.getServiceValueSnapshot());
             }
@@ -237,7 +265,7 @@ public class CalendarEvent {
         return total;
     }
 
-    private String serviceIdentity(Service service) {
+    private String serviceIdentity(final Service service) {
         if (service == null) {
             return null;
         }
@@ -256,25 +284,25 @@ public class CalendarEvent {
         return null;
     }
 
-    private int nextOccurrenceIndex(Map<String, Integer> occurrencesByIdentity, String identity) {
+    private int nextOccurrenceIndex(final Map<String, Integer> occurrencesByIdentity, final String identity) {
         if (identity == null) {
             return 0;
         }
-        int next = occurrencesByIdentity.getOrDefault(identity, 0);
+        final int next = occurrencesByIdentity.getOrDefault(identity, 0);
         occurrencesByIdentity.put(identity, next + 1);
         return next;
     }
 
-    private void incrementOccurrence(Map<String, Integer> occurrencesByIdentity, String identity) {
+    private void incrementOccurrence(final Map<String, Integer> occurrencesByIdentity, final String identity) {
         if (identity == null) {
             return;
         }
         occurrencesByIdentity.put(identity, occurrencesByIdentity.getOrDefault(identity, 0) + 1);
     }
 
-    private int countOccurrences(List<Service> services, String identity) {
+    private int countOccurrences(final List<Service> services, final String identity) {
         int count = 0;
-        for (Service service : services) {
+        for (final Service service : services) {
             if (identity != null && identity.equals(serviceIdentity(service))) {
                 count++;
             }
@@ -284,6 +312,7 @@ public class CalendarEvent {
 
     public Long getId() { return id; }
     public User getUser() { return user; }
+    public CalendarEventSource getSource() { return source; }
     public String getGoogleEventId() { return googleEventId; }
     public String getTitle() { return title; }
     public String getNormalizedTitle() { return normalizedTitle; }

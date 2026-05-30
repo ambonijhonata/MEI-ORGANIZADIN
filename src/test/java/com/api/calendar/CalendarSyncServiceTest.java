@@ -512,6 +512,41 @@ class CalendarSyncServiceTest {
     }
 
     @Test
+    void shouldIgnoreManualOriginRowsEvenWhenTheyHaveGoogleEventIdValue() throws IOException {
+        User user = new User("sub", "email@test.com", "Name");
+        SyncState syncState = new SyncState(user);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
+        when(syncStateRepository.save(any(SyncState.class))).thenReturn(syncState);
+        when(googleCalendarClient.fetchEvents(1L, null))
+                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(), "token"));
+
+        CalendarEvent manualLinkedEvent = new CalendarEvent(
+                user,
+                CalendarEventSource.MANUAL,
+                "manual-linked-1",
+                "Manual",
+                "manual",
+                Instant.now(),
+                Instant.now()
+        );
+        CalendarEvent staleGoogleEvent = new CalendarEvent(user, "stale-1", "Old", "old", Instant.now(), Instant.now());
+        when(calendarEventRepository.findGoogleBackedByUserId(1L))
+                .thenReturn(List.of(manualLinkedEvent, staleGoogleEvent));
+
+        CalendarSyncService.SyncResult result = syncService.synchronize(1L);
+
+        assertEquals(1, result.deleted());
+        verify(calendarEventRepository).deleteAllInBatch(argThat(iterable -> {
+            List<CalendarEvent> deletions = StreamSupport.stream(iterable.spliterator(), false).toList();
+            return deletions.size() == 1
+                    && deletions.contains(staleGoogleEvent)
+                    && !deletions.contains(manualLinkedEvent);
+        }));
+    }
+
+    @Test
     void shouldAvoidDereferencingLegacyServiceProxyDuringServiceComparison() throws IOException {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);

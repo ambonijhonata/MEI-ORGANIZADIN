@@ -12,6 +12,7 @@ import java.security.GeneralSecurityException;
 import java.util.Collections;
 import java.util.Optional;
 
+@SuppressWarnings({"PMD.FieldDeclarationsShouldBeAtStartOfClass", "PMD.LooseCoupling", "PMD.OnlyOneReturn"})
 @Component
 public class GoogleIdTokenValidator {
 
@@ -26,22 +27,22 @@ public class GoogleIdTokenValidator {
             GoogleIdToken.Payload payload,
             Exception exception
     ) {
-        public static ValidationResult valid(GoogleIdToken.Payload payload) {
+        public static ValidationResult valid(final GoogleIdToken.Payload payload) {
             return new ValidationResult(Status.VALID, payload, null);
         }
 
-        public static ValidationResult invalid(Exception exception) {
+        public static ValidationResult invalid(final Exception exception) {
             return new ValidationResult(Status.INVALID, null, exception);
         }
 
-        public static ValidationResult unavailable(Exception exception) {
+        public static ValidationResult unavailable(final Exception exception) {
             return new ValidationResult(Status.UNAVAILABLE, null, exception);
         }
     }
 
     private final GoogleIdTokenVerifier verifier;
 
-    public GoogleIdTokenValidator(GoogleOAuthProperties properties) {
+    public GoogleIdTokenValidator(final GoogleOAuthProperties properties) {
         this.verifier = new GoogleIdTokenVerifier.Builder(
                 new NetHttpTransport(),
                 GsonFactory.getDefaultInstance()
@@ -50,14 +51,14 @@ public class GoogleIdTokenValidator {
                 .build();
     }
 
-    public Optional<GoogleIdToken.Payload> validate(String idTokenString) {
-        ValidationResult result = validateDetailed(idTokenString);
+    public Optional<GoogleIdToken.Payload> validate(final String idTokenString) {
+        final ValidationResult result = validateDetailed(idTokenString);
         return Optional.ofNullable(result.payload());
     }
 
-    public ValidationResult validateDetailed(String idTokenString) {
+    public ValidationResult validateDetailed(final String idTokenString) {
         try {
-            GoogleIdToken idToken = verifier.verify(idTokenString);
+            final GoogleIdToken idToken = verifier.verify(idTokenString);
             if (idToken == null) {
                 return ValidationResult.invalid(null);
             }

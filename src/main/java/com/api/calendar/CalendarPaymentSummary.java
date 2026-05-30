@@ -1,14 +1,15 @@
 package com.api.calendar;
 
 import java.math.BigDecimal;
+@SuppressWarnings("PMD.ShortMethodName")
 
 public record CalendarPaymentSummary(BigDecimal paidAmount, BigDecimal totalAmount, CalendarPaymentStatus status) {
 
-    public static CalendarPaymentSummary of(BigDecimal paidAmount, BigDecimal totalAmount) {
-        BigDecimal safePaidAmount = paidAmount != null ? paidAmount : BigDecimal.ZERO;
-        BigDecimal safeTotalAmount = totalAmount != null ? totalAmount : BigDecimal.ZERO;
+    public static CalendarPaymentSummary of(final BigDecimal paidAmount, final BigDecimal totalAmount) {
+        final BigDecimal safePaidAmount = paidAmount != null ? paidAmount : BigDecimal.ZERO;
+        final BigDecimal safeTotalAmount = totalAmount != null ? totalAmount : BigDecimal.ZERO;
 
-        CalendarPaymentStatus status;
+        final CalendarPaymentStatus status;
         if (safeTotalAmount.compareTo(BigDecimal.ZERO) <= 0 || safePaidAmount.compareTo(BigDecimal.ZERO) <= 0) {
             status = CalendarPaymentStatus.NONE;
         } else if (safePaidAmount.compareTo(safeTotalAmount) < 0) {

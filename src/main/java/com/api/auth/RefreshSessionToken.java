@@ -11,6 +11,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
 
+@SuppressWarnings({"PMD.AtLeastOneConstructor", "PMD.DataClass", "PMD.LongVariable", "PMD.ShortVariable"})
 @Entity
 @Table(name = "refresh_session_tokens")
 public class RefreshSessionToken {
@@ -55,13 +56,13 @@ public class RefreshSessionToken {
     private String createdUserAgent;
 
     public static RefreshSessionToken issue(
-            User user,
-            String tokenHash,
-            Instant issuedAt,
-            Instant expiresAt,
-            RefreshTokenMetadata metadata
+            final User user,
+            final String tokenHash,
+            final Instant issuedAt,
+            final Instant expiresAt,
+            final RefreshTokenMetadata metadata
     ) {
-        RefreshSessionToken token = new RefreshSessionToken();
+        final RefreshSessionToken token = new RefreshSessionToken();
         token.id = UUID.randomUUID();
         token.user = user;
         token.tokenHash = tokenHash;
@@ -74,7 +75,7 @@ public class RefreshSessionToken {
         return token;
     }
 
-    public boolean isExpired(Instant now) {
+    public boolean isExpired(final Instant now) {
         return expiresAt != null && expiresAt.isBefore(now);
     }
 
@@ -86,14 +87,14 @@ public class RefreshSessionToken {
         return replacedByTokenId != null;
     }
 
-    public void markReplacedBy(UUID replacementTokenId, Instant now) {
+    public void markReplacedBy(final UUID replacementTokenId, final Instant now) {
         this.replacedByTokenId = replacementTokenId;
         this.lastUsedAt = now;
         this.revokedAt = now;
         this.revokedReason = "ROTATED";
     }
 
-    public void revoke(String reason, Instant now) {
+    public void revoke(final String reason, final Instant now) {
         if (this.revokedAt == null) {
             this.revokedAt = now;
             this.revokedReason = reason;

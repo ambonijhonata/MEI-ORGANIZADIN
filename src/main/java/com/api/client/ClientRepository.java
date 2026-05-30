@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+@SuppressWarnings("PMD.ShortVariable")
 
 public interface ClientRepository extends JpaRepository<Client, Long> {
     List<Client> findAllByUserId(Long userId);

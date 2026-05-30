@@ -11,6 +11,7 @@ import java.util.Collection;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+@SuppressWarnings({"PMD.AvoidDuplicateLiterals", "PMD.ShortVariable", "PMD.TooManyMethods"})
 
 public interface CalendarEventRepository extends JpaRepository<CalendarEvent, Long> {
 
@@ -22,25 +23,37 @@ public interface CalendarEventRepository extends JpaRepository<CalendarEvent, Lo
         BigDecimal getServiceValue();
     }
 
-    Optional<CalendarEvent> findByUserIdAndGoogleEventId(Long userId, String googleEventId);
+    @Query("SELECT e FROM CalendarEvent e " +
+            "WHERE e.user.id = :userId " +
+            "AND e.source = com.api.calendar.CalendarEventSource.GOOGLE " +
+            "AND e.googleEventId = :googleEventId")
+    Optional<CalendarEvent> findByUserIdAndGoogleEventId(@Param("userId") Long userId,
+                                                         @Param("googleEventId") String googleEventId);
 
-    List<CalendarEvent> findByUserIdAndGoogleEventIdIn(Long userId, Collection<String> googleEventIds);
+    @Query("SELECT e FROM CalendarEvent e " +
+            "WHERE e.user.id = :userId " +
+            "AND e.source = com.api.calendar.CalendarEventSource.GOOGLE " +
+            "AND e.googleEventId IN :googleEventIds")
+    List<CalendarEvent> findByUserIdAndGoogleEventIdIn(@Param("userId") Long userId,
+                                                       @Param("googleEventIds") Collection<String> googleEventIds);
 
     @Query("SELECT DISTINCT e FROM CalendarEvent e " +
             "LEFT JOIN FETCH e.service legacyService " +
             "LEFT JOIN FETCH e.serviceLinks serviceLink " +
             "LEFT JOIN FETCH serviceLink.service linkedService " +
-            "WHERE e.user.id = :userId")
+            "WHERE e.user.id = :userId AND e.source = com.api.calendar.CalendarEventSource.GOOGLE")
     List<CalendarEvent> findAllWithAssociationsByUserId(@Param("userId") Long userId);
 
     @Query("SELECT e FROM CalendarEvent e " +
             "WHERE e.user.id = :userId " +
+            "AND e.source = com.api.calendar.CalendarEventSource.GOOGLE " +
             "AND e.googleEventId IS NOT NULL " +
             "AND e.googleEventId <> ''")
     List<CalendarEvent> findGoogleBackedByUserId(@Param("userId") Long userId);
 
     @Query("SELECT e FROM CalendarEvent e " +
             "WHERE e.user.id = :userId " +
+            "AND e.source = com.api.calendar.CalendarEventSource.GOOGLE " +
             "AND e.googleEventId IS NOT NULL " +
             "AND e.googleEventId <> '' " +
             "AND e.eventStart >= :startDate")
@@ -53,7 +66,9 @@ public interface CalendarEventRepository extends JpaRepository<CalendarEvent, Lo
             "LEFT JOIN FETCH e.service legacyService " +
             "LEFT JOIN FETCH e.serviceLinks serviceLink " +
             "LEFT JOIN FETCH serviceLink.service linkedService " +
-            "WHERE e.user.id = :userId AND e.googleEventId IN :googleEventIds")
+            "WHERE e.user.id = :userId " +
+            "AND e.source = com.api.calendar.CalendarEventSource.GOOGLE " +
+            "AND e.googleEventId IN :googleEventIds")
     List<CalendarEvent> findWithAssociationsByUserIdAndGoogleEventIdIn(@Param("userId") Long userId,
                                                                         @Param("googleEventIds") Collection<String> googleEventIds);
 

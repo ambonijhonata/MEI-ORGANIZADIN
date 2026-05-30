@@ -1,7 +1,8 @@
 package com.api.common;
+@SuppressWarnings("PMD.MissingSerialVersionUID")
 
 public class BusinessException extends RuntimeException {
-    public BusinessException(String message) {
+    public BusinessException(final String message) {
         super(message);
     }
 }

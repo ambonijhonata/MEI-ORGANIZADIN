@@ -16,6 +16,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import java.time.Instant;
 import java.util.Map;
 
+@SuppressWarnings({"PMD.LambdaCanBeMethodReference", "PMD.LongVariable", "PMD.SignatureDeclareThrowsException"})
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
@@ -23,14 +24,14 @@ public class SecurityConfig {
     private final GoogleIdTokenAuthenticationFilter googleIdTokenFilter;
     private final ObjectMapper objectMapper;
 
-    public SecurityConfig(GoogleIdTokenAuthenticationFilter googleIdTokenFilter,
-                           ObjectMapper objectMapper) {
+    public SecurityConfig(final GoogleIdTokenAuthenticationFilter googleIdTokenFilter,
+                           final ObjectMapper objectMapper) {
         this.googleIdTokenFilter = googleIdTokenFilter;
         this.objectMapper = objectMapper;
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(final HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -58,7 +59,7 @@ public class SecurityConfig {
         return (request, response, authException) -> {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            Map<String, Object> body = Map.of(
+            final Map<String, Object> body = Map.of(
                     "status", 401,
                     "code", "UNAUTHORIZED",
                     "message", "Authentication required. Provide a valid access token in the Authorization header.",

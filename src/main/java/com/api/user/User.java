@@ -3,6 +3,7 @@ package com.api.user;
 import jakarta.persistence.*;
 import java.time.Instant;
 
+@SuppressWarnings({"PMD.CommentDefaultAccessModifier", "PMD.DataClass", "PMD.ShortClassName", "PMD.ShortVariable", "PMD.UseExplicitTypes"})
 @Entity
 @Table(name = "users")
 public class User {
@@ -28,7 +29,7 @@ public class User {
 
     protected User() {}
 
-    public User(String googleSub, String email, String name) {
+    public User(final String googleSub, final String email, final String name) {
         this.googleSub = googleSub;
         this.email = email;
         this.name = name;
@@ -36,7 +37,7 @@ public class User {
 
     @PrePersist
     void prePersist() {
-        var now = Instant.now();
+        final var now = Instant.now();
         this.createdAt = now;
         this.updatedAt = now;
     }
@@ -53,6 +54,6 @@ public class User {
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 
-    public void setEmail(String email) { this.email = email; }
-    public void setName(String name) { this.name = name; }
+    public void setEmail(final String email) { this.email = email; }
+    public void setName(final String name) { this.name = name; }
 }

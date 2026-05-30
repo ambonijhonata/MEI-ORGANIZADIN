@@ -7,11 +7,15 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.HashMap;
@@ -26,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+@SuppressWarnings({"PMD.AvoidCatchingGenericException", "PMD.CommentDefaultAccessModifier", "PMD.CouplingBetweenObjects", "PMD.FieldNamingConventions", "PMD.GuardLogStatement", "PMD.LawOfDemeter", "PMD.LongVariable", "PMD.OnlyOneReturn", "PMD.PreserveStackTrace", "PMD.ShortVariable"})
 @RestController
 @RequestMapping("/api/calendar")
 @Tag(name = "Google Calendar", description = "Sincronizacao com Google Calendar e consulta de eventos")
@@ -49,19 +55,22 @@ public class CalendarController {
 
     private final CalendarSyncService calendarSyncService;
     private final CalendarPaymentService calendarPaymentService;
+    private final ManualAppointmentService manualAppointmentService;
     private final CalendarEventRepository calendarEventRepository;
     private final CalendarEventPaymentRepository calendarEventPaymentRepository;
     private final SyncStateRepository syncStateRepository;
 
     public CalendarController(
-            CalendarSyncService calendarSyncService,
-            CalendarPaymentService calendarPaymentService,
-            CalendarEventRepository calendarEventRepository,
-            CalendarEventPaymentRepository calendarEventPaymentRepository,
-            SyncStateRepository syncStateRepository
+            final CalendarSyncService calendarSyncService,
+            final CalendarPaymentService calendarPaymentService,
+            final ManualAppointmentService manualAppointmentService,
+            final CalendarEventRepository calendarEventRepository,
+            final CalendarEventPaymentRepository calendarEventPaymentRepository,
+            final SyncStateRepository syncStateRepository
     ) {
         this.calendarSyncService = calendarSyncService;
         this.calendarPaymentService = calendarPaymentService;
+        this.manualAppointmentService = manualAppointmentService;
         this.calendarEventRepository = calendarEventRepository;
         this.calendarEventPaymentRepository = calendarEventPaymentRepository;
         this.syncStateRepository = syncStateRepository;
@@ -77,17 +86,45 @@ public class CalendarController {
             }
     )
     public ResponseEntity<SyncResponse> triggerSync(
-            @AuthenticationPrincipal AuthenticatedUser user,
+            @AuthenticationPrincipal final AuthenticatedUser user,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
             @Parameter(
                     description = "Data inicial opcional para sincronizar eventos a partir do dia informado",
                     example = "2026-04-01"
             )
-            LocalDate startDate
+            final LocalDate startDate
     ) {
-        CalendarSyncService.SyncResult result = calendarSyncService.synchronize(user.userId(), startDate);
+        final CalendarSyncService.SyncResult result = calendarSyncService.synchronize(user.userId(), startDate);
         return ResponseEntity.ok(new SyncResponse(result.created(), result.updated(), result.deleted()));
+    }
+
+    @PostMapping("/events")
+    @Operation(
+            summary = "Criar agendamento manual",
+            description = "Cria um novo agendamento manual no dominio do calendario para o usuario autenticado",
+            responses = {
+                    @ApiResponse(responseCode = "201", description = "Agendamento criado"),
+                    @ApiResponse(responseCode = "400", description = "Payload invalido"),
+                    @ApiResponse(responseCode = "404", description = "Cliente ou servico nao encontrado"),
+                    @ApiResponse(responseCode = "422", description = "Regra de negocio violada")
+            }
+    )
+    public ResponseEntity<EventResponse> createManualAppointment(
+            @AuthenticationPrincipal final AuthenticatedUser user,
+            @Valid @RequestBody final ManualAppointmentCreateRequest request
+    ) {
+        final CalendarEvent created = manualAppointmentService.createManualAppointment(
+                user.userId(),
+                new ManualAppointmentService.ManualAppointmentRequest(
+                        request.clientId(),
+                        request.appointmentDate(),
+                        request.startTime(),
+                        request.endTime(),
+                        request.serviceIds()
+                )
+        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(EventResponse.from(created, null));
     }
 
     @GetMapping("/events")
@@ -96,12 +133,12 @@ public class CalendarController {
             description = "Retorna eventos sincronizados, com paginacao e filtros opcionais por periodo"
     )
     public ResponseEntity<Page<EventResponse>> listEvents(
-            @AuthenticationPrincipal AuthenticatedUser user,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate eventStart,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate eventEnd,
-            Pageable pageable
+            @AuthenticationPrincipal final AuthenticatedUser user,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) final LocalDate eventStart,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) final LocalDate eventEnd,
+            final Pageable pageable
     ) {
-        Pageable sanitizedPageable = PageRequestSanitizer.sanitizePageable(
+        final Pageable sanitizedPageable = PageRequestSanitizer.sanitizePageable(
                 pageable,
                 ALLOWED_SORT_FIELDS,
                 DEFAULT_PAGE,
@@ -109,20 +146,20 @@ public class CalendarController {
                 MAX_PAGE_SIZE
         );
         try {
-            Page<CalendarEvent> page;
+            final Page<CalendarEvent> page;
             if (eventStart != null && eventEnd != null) {
-                Instant start = eventStart.atStartOfDay(ZoneOffset.UTC).toInstant();
-                Instant end = eventEnd.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+                final Instant start = eventStart.atStartOfDay(ZoneOffset.UTC).toInstant();
+                final Instant end = eventEnd.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
                 page = calendarEventRepository.findByUserIdAndEventStartGreaterThanEqualAndEventStartLessThan(
                         user.userId(), start, end, sanitizedPageable
                 );
             } else if (eventStart != null) {
-                Instant start = eventStart.atStartOfDay(ZoneOffset.UTC).toInstant();
+                final Instant start = eventStart.atStartOfDay(ZoneOffset.UTC).toInstant();
                 page = calendarEventRepository.findByUserIdAndEventStartGreaterThanEqual(
                         user.userId(), start, sanitizedPageable
                 );
             } else if (eventEnd != null) {
-                Instant end = eventEnd.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+                final Instant end = eventEnd.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
                 page = calendarEventRepository.findByUserIdAndEventStartLessThan(
                         user.userId(), end, sanitizedPageable
                 );
@@ -130,7 +167,7 @@ public class CalendarController {
                 page = calendarEventRepository.findByUserId(user.userId(), sanitizedPageable);
             }
 
-            Map<Long, BigDecimal> paidAmountsByEventId = loadPaidAmounts(page.getContent());
+            final Map<Long, BigDecimal> paidAmountsByEventId = loadPaidAmounts(page.getContent());
             return ResponseEntity.ok(page.map(event ->
                     EventResponse.from(event, paidAmountsByEventId.get(event.getId()))
             ));
@@ -154,7 +191,7 @@ public class CalendarController {
             description = "Retorna o estado atual da integracao (SYNCED, REAUTH_REQUIRED, etc.)"
     )
     public ResponseEntity<IntegrationStatusResponse> getIntegrationStatus(
-            @AuthenticationPrincipal AuthenticatedUser user
+            @AuthenticationPrincipal final AuthenticatedUser user
     ) {
         return syncStateRepository.findByUserId(user.userId())
                 .map(state -> ResponseEntity.ok(new IntegrationStatusResponse(
@@ -171,14 +208,14 @@ public class CalendarController {
     @PatchMapping("/events/{eventId}/payments")
     @Operation(summary = "Registrar composicao de pagamentos do agendamento")
     public ResponseEntity<PaymentsResponse> upsertPayments(
-            @AuthenticationPrincipal AuthenticatedUser user,
-            @PathVariable Long eventId,
-            @RequestBody PaymentsUpsertRequest request
+            @AuthenticationPrincipal final AuthenticatedUser user,
+            @PathVariable final Long eventId,
+            @RequestBody final PaymentsUpsertRequest request
     ) {
-        List<PaymentEntryRequest> requestPayments = request != null && request.payments() != null
+        final List<PaymentEntryRequest> requestPayments = request != null && request.payments() != null
                 ? request.payments()
                 : Collections.emptyList();
-        List<CalendarEventPayment> savedPayments = calendarPaymentService.upsertPayments(
+        final List<CalendarEventPayment> savedPayments = calendarPaymentService.upsertPayments(
                 user.userId(),
                 eventId,
                 requestPayments.stream()
@@ -198,10 +235,10 @@ public class CalendarController {
     @GetMapping("/events/{eventId}/payments")
     @Operation(summary = "Consultar composicao de pagamentos do agendamento")
     public ResponseEntity<PaymentsResponse> getPayments(
-            @AuthenticationPrincipal AuthenticatedUser user,
-            @PathVariable Long eventId
+            @AuthenticationPrincipal final AuthenticatedUser user,
+            @PathVariable final Long eventId
     ) {
-        List<CalendarEventPayment> payments = calendarPaymentService.listPayments(user.userId(), eventId);
+        final List<CalendarEventPayment> payments = calendarPaymentService.listPayments(user.userId(), eventId);
         return ResponseEntity.ok(new PaymentsResponse(
                 eventId,
                 payments.stream().map(PaymentEntryResponse::from).toList()
@@ -224,8 +261,8 @@ public class CalendarController {
             List<PaymentEntryResponse> payments,
             CalendarPaymentSummary paymentSummary
     ) {
-        static EventResponse from(CalendarEvent event, BigDecimal paidAmount) {
-            BigDecimal totalAmount = event.getServiceValueSnapshot() != null
+        static EventResponse from(final CalendarEvent event, final BigDecimal paidAmount) {
+            final BigDecimal totalAmount = event.getServiceValueSnapshot() != null
                     ? event.getServiceValueSnapshot()
                     : BigDecimal.ZERO;
             return new EventResponse(
@@ -255,6 +292,15 @@ public class CalendarController {
     public record PaymentsUpsertRequest(List<PaymentEntryRequest> payments) {
     }
 
+    public record ManualAppointmentCreateRequest(
+            @NotNull Long clientId,
+            @NotNull LocalDate appointmentDate,
+            @NotNull LocalTime startTime,
+            @NotNull LocalTime endTime,
+            @NotEmpty List<@NotNull Long> serviceIds
+    ) {
+    }
+
     public record PaymentEntryRequest(String paymentType, BigDecimal amount, boolean valueTotal) {
     }
 
@@ -268,7 +314,7 @@ public class CalendarController {
             boolean valueTotal,
             String paidAt
     ) {
-        static PaymentEntryResponse from(CalendarEventPayment payment) {
+        static PaymentEntryResponse from(final CalendarEventPayment payment) {
             return new PaymentEntryResponse(
                     payment.getId(),
                     payment.getPaymentType().name(),
@@ -279,7 +325,7 @@ public class CalendarController {
         }
     }
 
-    private PaymentType parsePaymentType(String rawPaymentType) {
+    private PaymentType parsePaymentType(final String rawPaymentType) {
         try {
             return PaymentType.valueOf(rawPaymentType);
         } catch (RuntimeException ex) {
@@ -287,17 +333,17 @@ public class CalendarController {
         }
     }
 
-    private Map<Long, BigDecimal> loadPaidAmounts(List<CalendarEvent> events) {
+    private Map<Long, BigDecimal> loadPaidAmounts(final List<CalendarEvent> events) {
         if (events == null || events.isEmpty()) {
             return Map.of();
         }
 
-        List<Long> eventIds = events.stream()
+        final List<Long> eventIds = events.stream()
                 .map(CalendarEvent::getId)
                 .toList();
 
-        Map<Long, BigDecimal> paidAmounts = new HashMap<>();
-        for (CalendarEventPaymentTotal total : calendarEventPaymentRepository.summarizePaidAmountsByEventIdIn(eventIds)) {
+        final Map<Long, BigDecimal> paidAmounts = new HashMap<>();
+        for (final CalendarEventPaymentTotal total : calendarEventPaymentRepository.summarizePaidAmountsByEventIdIn(eventIds)) {
             paidAmounts.put(total.eventId(), total.paidAmount());
         }
         return paidAmounts;

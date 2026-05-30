@@ -14,14 +14,15 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.time.Instant;
 import java.util.List;
 
+@SuppressWarnings({"PMD.AtLeastOneConstructor", "PMD.AvoidDuplicateLiterals", "PMD.FieldNamingConventions", "PMD.GuardLogStatement", "PMD.OnlyOneReturn", "PMD.ShortVariable", "PMD.TooManyMethods", "PMD.UseExplicitTypes"})
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(AuthController.InvalidTokenException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidToken(AuthController.InvalidTokenException ex) {
-        var error = new ErrorResponse(
+    public ResponseEntity<ErrorResponse> handleInvalidToken(final AuthController.InvalidTokenException ex) {
+        final var error = new ErrorResponse(
                 HttpStatus.UNAUTHORIZED.value(),
                 "INVALID_TOKEN",
                 ex.getMessage(),
@@ -31,8 +32,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(AuthController.OAuthExchangeException.class)
-    public ResponseEntity<ErrorResponse> handleOAuthExchange(AuthController.OAuthExchangeException ex) {
-        var error = new ErrorResponse(
+    public ResponseEntity<ErrorResponse> handleOAuthExchange(final AuthController.OAuthExchangeException ex) {
+        final var error = new ErrorResponse(
                 HttpStatus.BAD_GATEWAY.value(),
                 "OAUTH_EXCHANGE_FAILED",
                 ex.getMessage(),
@@ -42,8 +43,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(AuthController.RefreshTokenException.class)
-    public ResponseEntity<ErrorResponse> handleRefreshToken(AuthController.RefreshTokenException ex) {
-        var error = new ErrorResponse(
+    public ResponseEntity<ErrorResponse> handleRefreshToken(final AuthController.RefreshTokenException ex) {
+        final var error = new ErrorResponse(
                 HttpStatus.UNAUTHORIZED.value(),
                 ex.getCode(),
                 ex.getMessage(),
@@ -53,8 +54,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(AuthController.RefreshRetryableException.class)
-    public ResponseEntity<ErrorResponse> handleRefreshRetryable(AuthController.RefreshRetryableException ex) {
-        var error = new ErrorResponse(
+    public ResponseEntity<ErrorResponse> handleRefreshRetryable(final AuthController.RefreshRetryableException ex) {
+        final var error = new ErrorResponse(
                 HttpStatus.SERVICE_UNAVAILABLE.value(),
                 "REFRESH_RETRYABLE",
                 ex.getMessage(),
@@ -64,8 +65,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException ex) {
-        var error = new ErrorResponse(
+    public ResponseEntity<ErrorResponse> handleNotFound(final ResourceNotFoundException ex) {
+        final var error = new ErrorResponse(
                 HttpStatus.NOT_FOUND.value(),
                 "NOT_FOUND",
                 ex.getMessage(),
@@ -75,8 +76,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ErrorResponse> handleBusiness(BusinessException ex) {
-        var error = new ErrorResponse(
+    public ResponseEntity<ErrorResponse> handleBusiness(final BusinessException ex) {
+        final var error = new ErrorResponse(
                 HttpStatus.UNPROCESSABLE_ENTITY.value(),
                 "BUSINESS_ERROR",
                 ex.getMessage(),
@@ -86,11 +87,11 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ValidationErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
-        List<FieldError> fieldErrors = ex.getBindingResult().getFieldErrors().stream()
+    public ResponseEntity<ValidationErrorResponse> handleValidation(final MethodArgumentNotValidException ex) {
+        final List<FieldError> fieldErrors = ex.getBindingResult().getFieldErrors().stream()
                 .map(fe -> new FieldError(fe.getField(), fe.getDefaultMessage()))
                 .toList();
-        var error = new ValidationErrorResponse(
+        final var error = new ValidationErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 "VALIDATION_ERROR",
                 "Validation failed",
@@ -101,8 +102,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ErrorResponse> handleConstraintViolation(ConstraintViolationException ex) {
-        var error = new ErrorResponse(
+    public ResponseEntity<ErrorResponse> handleConstraintViolation(final ConstraintViolationException ex) {
+        final var error = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 "VALIDATION_ERROR",
                 ex.getMessage(),
@@ -112,8 +113,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(InvalidRequestParameterException.class)
-    public ResponseEntity<ValidationErrorResponse> handleInvalidRequestParameter(InvalidRequestParameterException ex) {
-        var error = new ValidationErrorResponse(
+    public ResponseEntity<ValidationErrorResponse> handleInvalidRequestParameter(final InvalidRequestParameterException ex) {
+        final var error = new ValidationErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 "VALIDATION_ERROR",
                 "Validation failed",
@@ -124,9 +125,9 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<ValidationErrorResponse> handleArgumentTypeMismatch(MethodArgumentTypeMismatchException ex) {
-        String field = ex.getName() != null ? ex.getName() : "request";
-        var error = new ValidationErrorResponse(
+    public ResponseEntity<ValidationErrorResponse> handleArgumentTypeMismatch(final MethodArgumentTypeMismatchException ex) {
+        final String field = ex.getName() != null ? ex.getName() : "request";
+        final var error = new ValidationErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 "VALIDATION_ERROR",
                 "Validation failed",
@@ -137,8 +138,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ValidationErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
-        String message = ex.getMessage() != null ? ex.getMessage() : "request has an invalid value";
+    public ResponseEntity<ValidationErrorResponse> handleIllegalArgument(final IllegalArgumentException ex) {
+        final String message = ex.getMessage() != null ? ex.getMessage() : "request has an invalid value";
         if (message.contains("Page index")) {
             return ResponseEntity.badRequest().body(new ValidationErrorResponse(
                     HttpStatus.BAD_REQUEST.value(),
@@ -161,8 +162,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(InvalidPeriodException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidPeriod(InvalidPeriodException ex) {
-        var error = new ErrorResponse(
+    public ResponseEntity<ErrorResponse> handleInvalidPeriod(final InvalidPeriodException ex) {
+        final var error = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 "INVALID_PERIOD",
                 ex.getMessage(),
@@ -172,8 +173,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(IntegrationRevokedException.class)
-    public ResponseEntity<ErrorResponse> handleIntegrationRevoked(IntegrationRevokedException ex) {
-        var error = new ErrorResponse(
+    public ResponseEntity<ErrorResponse> handleIntegrationRevoked(final IntegrationRevokedException ex) {
+        final var error = new ErrorResponse(
                 HttpStatus.FORBIDDEN.value(),
                 "INTEGRATION_REVOKED",
                 ex.getMessage(),
@@ -183,8 +184,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(GoogleApiAccessDeniedException.class)
-    public ResponseEntity<ErrorResponse> handleGoogleApiAccessDenied(GoogleApiAccessDeniedException ex) {
-        var error = new ErrorResponse(
+    public ResponseEntity<ErrorResponse> handleGoogleApiAccessDenied(final GoogleApiAccessDeniedException ex) {
+        final var error = new ErrorResponse(
                 HttpStatus.FORBIDDEN.value(),
                 "GOOGLE_API_FORBIDDEN",
                 ex.getMessage(),
@@ -194,9 +195,9 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<ErrorResponse> handleRuntime(RuntimeException ex) {
+    public ResponseEntity<ErrorResponse> handleRuntime(final RuntimeException ex) {
         log.error("api_request_failed error_type={}", ex.getClass().getSimpleName(), ex);
-        var error = new ErrorResponse(
+        final var error = new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "INTERNAL_SERVER_ERROR",
                 "Unexpected internal error while processing request.",

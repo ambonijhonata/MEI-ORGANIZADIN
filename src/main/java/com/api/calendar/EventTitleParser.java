@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+@SuppressWarnings({"PMD.AtLeastOneConstructor", "PMD.AvoidLiteralsInIfCondition", "PMD.LongVariable", "PMD.NullAssignment", "PMD.OnlyOneReturn", "PMD.ShortVariable"})
 @Component
 public class EventTitleParser {
 
@@ -21,16 +22,16 @@ public class EventTitleParser {
             "pix", PaymentType.PIX
     );
 
-    public ParsedTitle parse(String title) {
+    public ParsedTitle parse(final String title) {
         if (title == null || title.isBlank()) {
             return new ParsedTitle(null, List.of(), null);
         }
 
-        ParsedSuffix parsedSuffix = extractPaymentSuffix(title.trim());
-        String titleWithoutPayment = parsedSuffix.titleWithoutPayment();
-        PaymentType paymentType = parsedSuffix.paymentType();
+        final ParsedSuffix parsedSuffix = extractPaymentSuffix(title.trim());
+        final String titleWithoutPayment = parsedSuffix.titleWithoutPayment();
+        final PaymentType paymentType = parsedSuffix.paymentType();
 
-        int separatorIndex = titleWithoutPayment.indexOf('-');
+        final int separatorIndex = titleWithoutPayment.indexOf('-');
         if (separatorIndex < 0) {
             // No client separator: treat entire title as a single service (backward compatibility)
             if (titleWithoutPayment.isBlank()) {
@@ -40,23 +41,23 @@ public class EventTitleParser {
         }
 
         String clientName = titleWithoutPayment.substring(0, separatorIndex).trim();
-        String servicesPart = titleWithoutPayment.substring(separatorIndex + 1).trim();
+        final String servicesPart = titleWithoutPayment.substring(separatorIndex + 1).trim();
 
         if (clientName.isEmpty()) {
             clientName = null;
         }
 
-        List<String> serviceNames = splitServices(servicesPart);
+        final List<String> serviceNames = splitServices(servicesPart);
 
         return new ParsedTitle(clientName, serviceNames, paymentType);
     }
 
-    private List<String> splitServices(String servicesPart) {
+    private List<String> splitServices(final String servicesPart) {
         if (servicesPart.isEmpty()) {
             return List.of();
         }
 
-        List<String> serviceNames = new ArrayList<>();
+        final List<String> serviceNames = new ArrayList<>();
         int tokenStart = 0;
 
         for (int i = 0; i < servicesPart.length(); i++) {
@@ -70,44 +71,44 @@ public class EventTitleParser {
         return serviceNames;
     }
 
-    private void addTrimmedToken(List<String> serviceNames, String source, int startInclusive, int endExclusive) {
+    private void addTrimmedToken(final List<String> serviceNames, final String source, final int startInclusive, final int endExclusive) {
         if (startInclusive >= endExclusive) {
             return;
         }
-        String token = source.substring(startInclusive, endExclusive).trim();
+        final String token = source.substring(startInclusive, endExclusive).trim();
         if (!token.isEmpty()) {
             serviceNames.add(token);
         }
     }
 
-    private ParsedSuffix extractPaymentSuffix(String title) {
-        Matcher matcher = PAYMENT_SUFFIX_PATTERN.matcher(title);
+    private ParsedSuffix extractPaymentSuffix(final String title) {
+        final Matcher matcher = PAYMENT_SUFFIX_PATTERN.matcher(title);
         if (!matcher.find()) {
             return new ParsedSuffix(title, null);
         }
 
-        String paymentToken = matcher.group(1);
-        String normalizedPayment = normalizePaymentToken(paymentToken);
-        PaymentType paymentType = PAYMENT_TYPES_BY_LABEL.get(normalizedPayment);
-        String titleWithoutPayment = title.substring(0, matcher.start()).trim();
+        final String paymentToken = matcher.group(1);
+        final String normalizedPayment = normalizePaymentToken(paymentToken);
+        final PaymentType paymentType = PAYMENT_TYPES_BY_LABEL.get(normalizedPayment);
+        final String titleWithoutPayment = title.substring(0, matcher.start()).trim();
         return new ParsedSuffix(titleWithoutPayment, paymentType);
     }
 
-    private String normalizePaymentToken(String rawValue) {
+    private String normalizePaymentToken(final String rawValue) {
         if (rawValue == null) {
             return "";
         }
 
-        String trimmed = rawValue.trim();
+        final String trimmed = rawValue.trim();
         if (trimmed.isEmpty()) {
             return "";
         }
 
-        String collapsed = collapseWhitespace(trimmed).toLowerCase(Locale.ROOT);
-        String nfd = Normalizer.normalize(collapsed, Normalizer.Form.NFD);
-        StringBuilder sb = new StringBuilder(nfd.length());
+        final String collapsed = collapseWhitespace(trimmed).toLowerCase(Locale.ROOT);
+        final String nfd = Normalizer.normalize(collapsed, Normalizer.Form.NFD);
+        final StringBuilder sb = new StringBuilder(nfd.length());
         for (int i = 0; i < nfd.length(); i++) {
-            char current = nfd.charAt(i);
+            final char current = nfd.charAt(i);
             if (current < '\u0300' || current > '\u036F') {
                 sb.append(current);
             }
@@ -115,12 +116,12 @@ public class EventTitleParser {
         return sb.toString();
     }
 
-    private String collapseWhitespace(String value) {
-        StringBuilder sb = new StringBuilder(value.length());
+    private String collapseWhitespace(final String value) {
+        final StringBuilder sb = new StringBuilder(value.length());
         boolean previousWasWhitespace = false;
 
         for (int i = 0; i < value.length(); i++) {
-            char current = value.charAt(i);
+            final char current = value.charAt(i);
             if (Character.isWhitespace(current)) {
                 if (!previousWasWhitespace) {
                     sb.append(' ');

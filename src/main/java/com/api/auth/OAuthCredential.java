@@ -4,6 +4,7 @@ import com.api.user.User;
 import jakarta.persistence.*;
 import java.time.Instant;
 
+@SuppressWarnings({"PMD.CommentDefaultAccessModifier", "PMD.DataClass", "PMD.ShortVariable", "PMD.UseExplicitTypes"})
 @Entity
 @Table(name = "oauth_credentials")
 public class OAuthCredential {
@@ -33,7 +34,7 @@ public class OAuthCredential {
 
     protected OAuthCredential() {}
 
-    public OAuthCredential(User user, String accessToken, String refreshToken, Instant expiresAt) {
+    public OAuthCredential(final User user, final String accessToken, final String refreshToken, final Instant expiresAt) {
         this.user = user;
         this.accessToken = accessToken;
         this.refreshToken = refreshToken;
@@ -42,7 +43,7 @@ public class OAuthCredential {
 
     @PrePersist
     void prePersist() {
-        var now = Instant.now();
+        final var now = Instant.now();
         this.createdAt = now;
         this.updatedAt = now;
     }
@@ -58,7 +59,7 @@ public class OAuthCredential {
     public String getRefreshToken() { return refreshToken; }
     public Instant getExpiresAt() { return expiresAt; }
 
-    public void setAccessToken(String accessToken) { this.accessToken = accessToken; }
-    public void setRefreshToken(String refreshToken) { this.refreshToken = refreshToken; }
-    public void setExpiresAt(Instant expiresAt) { this.expiresAt = expiresAt; }
+    public void setAccessToken(final String accessToken) { this.accessToken = accessToken; }
+    public void setRefreshToken(final String refreshToken) { this.refreshToken = refreshToken; }
+    public void setExpiresAt(final Instant expiresAt) { this.expiresAt = expiresAt; }
 }

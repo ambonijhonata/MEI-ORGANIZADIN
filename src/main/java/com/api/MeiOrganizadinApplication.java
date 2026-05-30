@@ -5,12 +5,13 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.scheduling.annotation.EnableAsync;
 
+@SuppressWarnings("PMD.UseUtilityClass")
 @SpringBootApplication
 @ConfigurationPropertiesScan
 @EnableAsync
 public class MeiOrganizadinApplication {
 
-    public static void main(String[] args) {
+    public static void main(final String[] args) {
         SpringApplication.run(MeiOrganizadinApplication.class, args);
     }
 }

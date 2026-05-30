@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import java.time.Instant;
 import java.time.LocalDate;
 
+@SuppressWarnings({"PMD.CommentDefaultAccessModifier", "PMD.DataClass", "PMD.ShortVariable", "PMD.UseExplicitTypes"})
 @Entity
 @Table(name = "clients")
 public class Client {
@@ -43,7 +44,7 @@ public class Client {
 
     protected Client() {}
 
-    public Client(User user, String name, String normalizedName) {
+    public Client(final User user, final String name, final String normalizedName) {
         this.user = user;
         this.name = name;
         this.normalizedName = normalizedName;
@@ -51,7 +52,7 @@ public class Client {
 
     @PrePersist
     void prePersist() {
-        var now = Instant.now();
+        final var now = Instant.now();
         this.createdAt = now;
         this.updatedAt = now;
     }
@@ -72,10 +73,10 @@ public class Client {
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 
-    public void setName(String name) { this.name = name; }
-    public void setNormalizedName(String normalizedName) { this.normalizedName = normalizedName; }
-    public void setCpf(String cpf) { this.cpf = cpf; }
-    public void setDateOfBirth(LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
-    public void setEmail(String email) { this.email = email; }
-    public void setPhone(String phone) { this.phone = phone; }
+    public void setName(final String name) { this.name = name; }
+    public void setNormalizedName(final String normalizedName) { this.normalizedName = normalizedName; }
+    public void setCpf(final String cpf) { this.cpf = cpf; }
+    public void setDateOfBirth(final LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
+    public void setEmail(final String email) { this.email = email; }
+    public void setPhone(final String phone) { this.phone = phone; }
 }

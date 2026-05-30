@@ -4,31 +4,32 @@ import org.springframework.stereotype.Component;
 
 import java.text.Normalizer;
 
+@SuppressWarnings({"PMD.AtLeastOneConstructor", "PMD.LongVariable", "PMD.OnlyOneReturn", "PMD.ShortVariable", "PMD.UseLocaleWithCaseConversions"})
 @Component
 public class ServiceDescriptionNormalizer {
 
-    public String normalize(String description) {
+    public String normalize(final String description) {
         if (description == null) {
             return "";
         }
 
-        String trimmed = description.trim();
+        final String trimmed = description.trim();
         if (trimmed.isEmpty()) {
             return "";
         }
 
-        String collapsedSpaces = collapseWhitespace(trimmed);
-        String lowered = collapsedSpaces.toLowerCase();
-        String nfd = Normalizer.normalize(lowered, Normalizer.Form.NFD);
+        final String collapsedSpaces = collapseWhitespace(trimmed);
+        final String lowered = collapsedSpaces.toLowerCase();
+        final String nfd = Normalizer.normalize(lowered, Normalizer.Form.NFD);
         return removeCombiningDiacriticalMarks(nfd);
     }
 
-    private String collapseWhitespace(String value) {
-        StringBuilder sb = new StringBuilder(value.length());
+    private String collapseWhitespace(final String value) {
+        final StringBuilder sb = new StringBuilder(value.length());
         boolean previousWasWhitespace = false;
 
         for (int i = 0; i < value.length(); i++) {
-            char current = value.charAt(i);
+            final char current = value.charAt(i);
             if (isRegexWhitespace(current)) {
                 if (!previousWasWhitespace) {
                     sb.append(' ');
@@ -43,10 +44,10 @@ public class ServiceDescriptionNormalizer {
         return sb.toString();
     }
 
-    private String removeCombiningDiacriticalMarks(String value) {
-        StringBuilder sb = new StringBuilder(value.length());
+    private String removeCombiningDiacriticalMarks(final String value) {
+        final StringBuilder sb = new StringBuilder(value.length());
         for (int i = 0; i < value.length(); i++) {
-            char current = value.charAt(i);
+            final char current = value.charAt(i);
             if (current < '\u0300' || current > '\u036F') {
                 sb.append(current);
             }
@@ -54,7 +55,7 @@ public class ServiceDescriptionNormalizer {
         return sb.toString();
     }
 
-    private boolean isRegexWhitespace(char value) {
+    private boolean isRegexWhitespace(final char value) {
         return value == ' '
                 || value == '\t'
                 || value == '\n'

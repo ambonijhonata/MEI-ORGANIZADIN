@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
+@SuppressWarnings({"PMD.AvoidLiteralsInIfCondition", "PMD.CyclomaticComplexity", "PMD.LawOfDemeter", "PMD.LongVariable", "PMD.OnlyOneReturn"})
 @Component
 public class CalendarPaymentService {
 
@@ -17,17 +18,17 @@ public class CalendarPaymentService {
 
     private final CalendarEventRepository calendarEventRepository;
 
-    public CalendarPaymentService(CalendarEventRepository calendarEventRepository) {
+    public CalendarPaymentService(final CalendarEventRepository calendarEventRepository) {
         this.calendarEventRepository = calendarEventRepository;
     }
 
     @Transactional
     public List<CalendarEventPayment> upsertPayments(
-            Long userId,
-            Long eventId,
-            List<PaymentInput> requestedPayments
+            final Long userId,
+            final Long eventId,
+            final List<PaymentInput> requestedPayments
     ) {
-        CalendarEvent event = calendarEventRepository.findByIdAndUserId(eventId, userId)
+        final CalendarEvent event = calendarEventRepository.findByIdAndUserId(eventId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Calendar event not found"));
 
         if (requestedPayments == null) {
@@ -36,20 +37,20 @@ public class CalendarPaymentService {
 
         if (requestedPayments.isEmpty()) {
             event.clearPayments();
-            CalendarEvent savedEvent = calendarEventRepository.save(event);
+            final CalendarEvent savedEvent = calendarEventRepository.save(event);
             return materializePayments(savedEvent);
         }
 
         validateRequest(event, requestedPayments);
 
-        BigDecimal totalServiceValue = event.getServiceValueSnapshot() != null
+        final BigDecimal totalServiceValue = event.getServiceValueSnapshot() != null
                 ? event.getServiceValueSnapshot()
                 : BigDecimal.ZERO;
 
         List<PaymentInput> effectivePayments = requestedPayments;
-        int totalValueCheckedCount = (int) requestedPayments.stream().filter(PaymentInput::valueTotal).count();
+        final int totalValueCheckedCount = (int) requestedPayments.stream().filter(PaymentInput::valueTotal).count();
         if (totalValueCheckedCount == 1) {
-            PaymentInput totalValuePayment = requestedPayments.stream()
+            final PaymentInput totalValuePayment = requestedPayments.stream()
                     .filter(PaymentInput::valueTotal)
                     .findFirst()
                     .orElseThrow();
@@ -60,8 +61,8 @@ public class CalendarPaymentService {
             ));
         }
 
-        List<CalendarEventPayment> entities = new ArrayList<>();
-        for (PaymentInput input : effectivePayments) {
+        final List<CalendarEventPayment> entities = new ArrayList<>();
+        for (final PaymentInput input : effectivePayments) {
             entities.add(new CalendarEventPayment(
                     event,
                     input.paymentType(),
@@ -72,29 +73,29 @@ public class CalendarPaymentService {
         }
 
         event.replacePayments(entities);
-        CalendarEvent savedEvent = calendarEventRepository.save(event);
+        final CalendarEvent savedEvent = calendarEventRepository.save(event);
         return materializePayments(savedEvent);
     }
 
     @Transactional(readOnly = true)
-    public List<CalendarEventPayment> listPayments(Long userId, Long eventId) {
-        CalendarEvent event = calendarEventRepository.findByIdAndUserId(eventId, userId)
+    public List<CalendarEventPayment> listPayments(final Long userId, final Long eventId) {
+        final CalendarEvent event = calendarEventRepository.findByIdAndUserId(eventId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Calendar event not found"));
         return materializePayments(event);
     }
 
-    private void validateRequest(CalendarEvent event, List<PaymentInput> requestedPayments) {
+    private void validateRequest(final CalendarEvent event, final List<PaymentInput> requestedPayments) {
         if (requestedPayments.size() > MAX_PAYMENTS) {
             throw new BusinessException("At most 4 payment entries are allowed");
         }
 
-        long totalValueCount = requestedPayments.stream().filter(PaymentInput::valueTotal).count();
+        final long totalValueCount = requestedPayments.stream().filter(PaymentInput::valueTotal).count();
         if (totalValueCount > 1) {
             throw new BusinessException("Only one payment entry can be marked as total value");
         }
 
         if (totalValueCount == 1) {
-            PaymentInput totalValuePayment = requestedPayments.stream()
+            final PaymentInput totalValuePayment = requestedPayments.stream()
                     .filter(PaymentInput::valueTotal)
                     .findFirst()
                     .orElseThrow();
@@ -104,12 +105,12 @@ public class CalendarPaymentService {
             return;
         }
 
-        BigDecimal totalServiceValue = event.getServiceValueSnapshot() != null
+        final BigDecimal totalServiceValue = event.getServiceValueSnapshot() != null
                 ? event.getServiceValueSnapshot()
                 : BigDecimal.ZERO;
 
         BigDecimal sum = BigDecimal.ZERO;
-        for (PaymentInput payment : requestedPayments) {
+        for (final PaymentInput payment : requestedPayments) {
             if (payment.paymentType() == null) {
                 throw new BusinessException("Payment type is required");
             }
@@ -124,7 +125,7 @@ public class CalendarPaymentService {
         }
     }
 
-    private List<CalendarEventPayment> materializePayments(CalendarEvent event) {
+    private List<CalendarEventPayment> materializePayments(final CalendarEvent event) {
         return new ArrayList<>(event.getPayments());
     }
 

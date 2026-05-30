@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
+@SuppressWarnings({"PMD.AtLeastOneConstructor", "PMD.FieldNamingConventions", "PMD.GuardLogStatement", "PMD.PreserveStackTrace"})
 @Component
 public class RetryableGoogleCalendarClient {
 
@@ -13,7 +14,7 @@ public class RetryableGoogleCalendarClient {
     private static final int MAX_RETRIES = 3;
     private static final long BASE_DELAY_MS = 1000;
 
-    public <T> T executeWithRetry(IOSupplier<T> action) throws IOException {
+    public <T> T executeWithRetry(final IOSupplier<T> action) throws IOException {
         IOException lastException = null;
 
         for (int attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -26,7 +27,7 @@ public class RetryableGoogleCalendarClient {
             } catch (IOException e) {
                 lastException = e;
                 if (attempt < MAX_RETRIES) {
-                    long delay = BASE_DELAY_MS * (long) Math.pow(2, attempt);
+                    final long delay = BASE_DELAY_MS * (long) Math.pow(2, attempt);
                     log.warn("google_calendar_retryable_failure attempt={} max_attempts={} retry_delay_ms={}",
                             attempt + 1, MAX_RETRIES + 1, delay);
                     try {

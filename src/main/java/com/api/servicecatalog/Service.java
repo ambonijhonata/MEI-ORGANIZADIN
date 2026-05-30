@@ -9,6 +9,7 @@ import java.time.Instant;
 @Table(name = "services", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"user_id", "normalized_description"})
 })
+@SuppressWarnings({"PMD.CommentDefaultAccessModifier", "PMD.DataClass", "PMD.LongVariable", "PMD.ShortVariable", "PMD.UseExplicitTypes"})
 public class Service {
 
     @Id
@@ -36,7 +37,7 @@ public class Service {
 
     protected Service() {}
 
-    public Service(User user, String description, String normalizedDescription, BigDecimal value) {
+    public Service(final User user, final String description, final String normalizedDescription, final BigDecimal value) {
         this.user = user;
         this.description = description;
         this.normalizedDescription = normalizedDescription;
@@ -45,7 +46,7 @@ public class Service {
 
     @PrePersist
     void prePersist() {
-        var now = Instant.now();
+        final var now = Instant.now();
         this.createdAt = now;
         this.updatedAt = now;
     }
@@ -63,7 +64,7 @@ public class Service {
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 
-    public void setDescription(String description) { this.description = description; }
-    public void setNormalizedDescription(String normalizedDescription) { this.normalizedDescription = normalizedDescription; }
-    public void setValue(BigDecimal value) { this.value = value; }
+    public void setDescription(final String description) { this.description = description; }
+    public void setNormalizedDescription(final String normalizedDescription) { this.normalizedDescription = normalizedDescription; }
+    public void setValue(final BigDecimal value) { this.value = value; }
 }

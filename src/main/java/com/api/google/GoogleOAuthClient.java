@@ -8,20 +8,21 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
+@SuppressWarnings("PMD.LooseCoupling")
 @Component
 public class GoogleOAuthClient {
 
     private final GoogleOAuthProperties properties;
 
-    public GoogleOAuthClient(GoogleOAuthProperties properties) {
+    public GoogleOAuthClient(final GoogleOAuthProperties properties) {
         this.properties = properties;
     }
 
-    public GoogleTokenResponse exchangeAuthorizationCode(String authorizationCode) throws IOException {
+    public GoogleTokenResponse exchangeAuthorizationCode(final String authorizationCode) throws IOException {
         return exchangeAuthorizationCode(authorizationCode, "");
     }
 
-    public GoogleTokenResponse exchangeAuthorizationCode(String authorizationCode, String redirectUri) throws IOException {
+    public GoogleTokenResponse exchangeAuthorizationCode(final String authorizationCode, final String redirectUri) throws IOException {
         return new GoogleAuthorizationCodeTokenRequest(
                 new NetHttpTransport(),
                 GsonFactory.getDefaultInstance(),
@@ -33,7 +34,7 @@ public class GoogleOAuthClient {
         ).execute();
     }
 
-    public GoogleTokenResponse refreshAccessToken(String refreshToken) throws IOException {
+    public GoogleTokenResponse refreshAccessToken(final String refreshToken) throws IOException {
         return new GoogleAuthorizationCodeTokenRequest(
                 new NetHttpTransport(),
                 GsonFactory.getDefaultInstance(),

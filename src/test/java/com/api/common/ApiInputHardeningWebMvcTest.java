@@ -9,6 +9,7 @@ import com.api.calendar.CalendarEventPaymentRepository;
 import com.api.calendar.CalendarEventRepository;
 import com.api.calendar.CalendarPaymentService;
 import com.api.calendar.CalendarSyncService;
+import com.api.calendar.ManualAppointmentService;
 import com.api.calendar.SyncStateRepository;
 import com.api.client.Client;
 import com.api.client.ClientController;
@@ -77,6 +78,9 @@ class ApiInputHardeningWebMvcTest {
 
     @MockBean
     private CalendarPaymentService calendarPaymentService;
+
+    @MockBean
+    private ManualAppointmentService manualAppointmentService;
 
     @MockBean
     private CalendarEventPaymentRepository calendarEventPaymentRepository;

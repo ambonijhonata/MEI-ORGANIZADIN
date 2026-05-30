@@ -13,6 +13,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 
+@SuppressWarnings({"PMD.ControlStatementBraces", "PMD.LawOfDemeter", "PMD.LongVariable", "PMD.OnlyOneReturn"})
 @Component
 public class RevenueReportService {
 
@@ -21,32 +22,32 @@ public class RevenueReportService {
     private final SyncStateRepository syncStateRepository;
     private final long freshnessMinutes;
 
-    public RevenueReportService(CalendarEventRepository calendarEventRepository,
-                                 ReportPaidAmountService reportPaidAmountService,
-                                 SyncStateRepository syncStateRepository,
-                                 @Value("${sync.freshness-minutes}") long freshnessMinutes) {
+    public RevenueReportService(final CalendarEventRepository calendarEventRepository,
+                                 final ReportPaidAmountService reportPaidAmountService,
+                                 final SyncStateRepository syncStateRepository,
+                                 @Value("${sync.freshness-minutes}") final long freshnessMinutes) {
         this.calendarEventRepository = calendarEventRepository;
         this.reportPaidAmountService = reportPaidAmountService;
         this.syncStateRepository = syncStateRepository;
         this.freshnessMinutes = freshnessMinutes;
     }
 
-    public RevenueReport generateReport(Long userId, LocalDate startDate, LocalDate endDate) {
+    public RevenueReport generateReport(final Long userId, final LocalDate startDate, final LocalDate endDate) {
         return generateReport(userId, startDate, endDate, PaymentScope.ALL);
     }
 
-    public RevenueReport generateReport(Long userId, LocalDate startDate, LocalDate endDate, PaymentScope paymentScope) {
+    public RevenueReport generateReport(final Long userId, final LocalDate startDate, final LocalDate endDate, final PaymentScope paymentScope) {
         validatePeriod(startDate, endDate, 12);
 
-        Instant startInstant = startDate.atStartOfDay(ZoneOffset.UTC).toInstant();
-        Instant endInstant = endDate.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+        final Instant startInstant = startDate.atStartOfDay(ZoneOffset.UTC).toInstant();
+        final Instant endInstant = endDate.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
 
-        List<CalendarEvent> events = calendarEventRepository.findIdentifiedByUserAndPeriod(userId, startInstant, endInstant);
+        final List<CalendarEvent> events = calendarEventRepository.findIdentifiedByUserAndPeriod(userId, startInstant, endInstant);
 
-        BigDecimal totalRevenue;
+        final BigDecimal totalRevenue;
         if (paymentScope == PaymentScope.PAID_ONLY) {
-            List<Long> eventIds = events.stream().map(CalendarEvent::getId).toList();
-            Map<Long, BigDecimal> paidAmountsByEventId = reportPaidAmountService.loadPaidAmountsByEventId(eventIds);
+            final List<Long> eventIds = events.stream().map(CalendarEvent::getId).toList();
+            final Map<Long, BigDecimal> paidAmountsByEventId = reportPaidAmountService.loadPaidAmountsByEventId(eventIds);
             totalRevenue = events.stream()
                     .map(event -> reportPaidAmountService.resolvePaidOnlyEventAmount(
                             event,
@@ -60,38 +61,38 @@ public class RevenueReportService {
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
         }
 
-        SyncMetadata metadata = buildSyncMetadata(userId);
+        final SyncMetadata metadata = buildSyncMetadata(userId);
 
         return new RevenueReport(totalRevenue, startDate, endDate, metadata);
     }
 
-    private BigDecimal safeAmount(BigDecimal amount) {
+    private BigDecimal safeAmount(final BigDecimal amount) {
         return amount != null ? amount : BigDecimal.ZERO;
     }
 
-    private void validatePeriod(LocalDate startDate, LocalDate endDate, int maxMonths) {
+    private void validatePeriod(final LocalDate startDate, final LocalDate endDate, final int maxMonths) {
         if (startDate.isAfter(endDate)) {
             throw new InvalidPeriodException("Start date must be before or equal to end date");
         }
-        long monthsBetween = ChronoUnit.MONTHS.between(startDate, endDate);
+        final long monthsBetween = ChronoUnit.MONTHS.between(startDate, endDate);
         if (monthsBetween > maxMonths) {
             throw new InvalidPeriodException("Period must not exceed " + maxMonths + " months");
         }
     }
 
-    private SyncMetadata buildSyncMetadata(Long userId) {
+    private SyncMetadata buildSyncMetadata(final Long userId) {
         return syncStateRepository.findByUserId(userId)
                 .map(state -> {
-                    boolean dataUpToDate = isDataUpToDate(state);
-                    boolean reauthRequired = state.getStatus() == SyncStatus.REAUTH_REQUIRED;
+                    final boolean dataUpToDate = isDataUpToDate(state);
+                    final boolean reauthRequired = state.getStatus() == SyncStatus.REAUTH_REQUIRED;
                     return new SyncMetadata(dataUpToDate, state.getLastSyncAt(), reauthRequired);
                 })
                 .orElse(new SyncMetadata(false, null, false));
     }
 
-    private boolean isDataUpToDate(SyncState state) {
+    private boolean isDataUpToDate(final SyncState state) {
         if (state.getLastSyncAt() == null) return false;
-        Instant threshold = Instant.now().minus(freshnessMinutes, ChronoUnit.MINUTES);
+        final Instant threshold = Instant.now().minus(freshnessMinutes, ChronoUnit.MINUTES);
         return state.getLastSyncAt().isAfter(threshold);
     }
 

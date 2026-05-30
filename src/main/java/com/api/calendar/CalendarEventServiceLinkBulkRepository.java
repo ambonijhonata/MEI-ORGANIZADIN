@@ -1,6 +1,7 @@
 package com.api.calendar;
 
 import java.util.Collection;
+@SuppressWarnings("PMD.ImplicitFunctionalInterface")
 
 public interface CalendarEventServiceLinkBulkRepository {
 

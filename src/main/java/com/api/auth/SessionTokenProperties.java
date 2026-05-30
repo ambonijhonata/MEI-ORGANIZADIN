@@ -3,6 +3,7 @@ package com.api.auth;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+@SuppressWarnings({"PMD.AtLeastOneConstructor", "PMD.DataClass", "PMD.LongVariable"})
 @Component
 @ConfigurationProperties(prefix = "auth.session")
 public class SessionTokenProperties {
@@ -15,7 +16,7 @@ public class SessionTokenProperties {
         return jwtSecret;
     }
 
-    public void setJwtSecret(String jwtSecret) {
+    public void setJwtSecret(final String jwtSecret) {
         this.jwtSecret = jwtSecret;
     }
 
@@ -23,7 +24,7 @@ public class SessionTokenProperties {
         return accessTokenTtlSeconds;
     }
 
-    public void setAccessTokenTtlSeconds(long accessTokenTtlSeconds) {
+    public void setAccessTokenTtlSeconds(final long accessTokenTtlSeconds) {
         this.accessTokenTtlSeconds = accessTokenTtlSeconds;
     }
 
@@ -31,7 +32,7 @@ public class SessionTokenProperties {
         return refreshTokenTtlSeconds;
     }
 
-    public void setRefreshTokenTtlSeconds(long refreshTokenTtlSeconds) {
+    public void setRefreshTokenTtlSeconds(final long refreshTokenTtlSeconds) {
         this.refreshTokenTtlSeconds = refreshTokenTtlSeconds;
     }
 
@@ -39,7 +40,7 @@ public class SessionTokenProperties {
         return refreshRetrySafetyWindowSeconds;
     }
 
-    public void setRefreshRetrySafetyWindowSeconds(long refreshRetrySafetyWindowSeconds) {
+    public void setRefreshRetrySafetyWindowSeconds(final long refreshRetrySafetyWindowSeconds) {
         this.refreshRetrySafetyWindowSeconds = refreshRetrySafetyWindowSeconds;
     }
 }

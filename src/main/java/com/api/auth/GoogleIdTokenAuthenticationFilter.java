@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Collections;
 
+@SuppressWarnings({"PMD.CallSuperInConstructor", "PMD.FieldNamingConventions", "PMD.GuardLogStatement", "PMD.LongVariable", "PMD.UseExplicitTypes"})
 @Component
 public class GoogleIdTokenAuthenticationFilter extends OncePerRequestFilter {
 
@@ -21,22 +22,22 @@ public class GoogleIdTokenAuthenticationFilter extends OncePerRequestFilter {
     private final AccessTokenService accessTokenService;
 
     public GoogleIdTokenAuthenticationFilter(
-            AccessTokenService accessTokenService
+            final AccessTokenService accessTokenService
     ) {
         this.accessTokenService = accessTokenService;
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                     HttpServletResponse response,
-                                     FilterChain filterChain) throws ServletException, IOException {
-        String authHeader = request.getHeader("Authorization");
+    protected void doFilterInternal(final HttpServletRequest request,
+                                     final HttpServletResponse response,
+                                     final FilterChain filterChain) throws ServletException, IOException {
+        final String authHeader = request.getHeader("Authorization");
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
-            AccessTokenService.AccessTokenValidationResult accessValidation = accessTokenService.validate(token);
+            final String token = authHeader.substring(7);
+            final AccessTokenService.AccessTokenValidationResult accessValidation = accessTokenService.validate(token);
             if (accessValidation.status() == AccessTokenService.TokenStatus.VALID && accessValidation.principal() != null) {
-                var authentication = new UsernamePasswordAuthenticationToken(
+                final var authentication = new UsernamePasswordAuthenticationToken(
                         accessValidation.principal(), null, Collections.emptyList()
                 );
                 SecurityContextHolder.getContext().setAuthentication(authentication);

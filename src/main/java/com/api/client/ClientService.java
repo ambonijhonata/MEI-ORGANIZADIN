@@ -16,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+@SuppressWarnings({"PMD.LinguisticNaming", "PMD.LongVariable", "PMD.OnlyOneReturn", "PMD.UseExplicitTypes"})
 @Component
 public class ClientService {
 
@@ -24,10 +25,10 @@ public class ClientService {
     private final CalendarEventRepository calendarEventRepository;
     private final ServiceDescriptionNormalizer normalizer;
 
-    public ClientService(ClientRepository clientRepository,
-                          UserRepository userRepository,
-                          CalendarEventRepository calendarEventRepository,
-                          ServiceDescriptionNormalizer normalizer) {
+    public ClientService(final ClientRepository clientRepository,
+                          final UserRepository userRepository,
+                          final CalendarEventRepository calendarEventRepository,
+                          final ServiceDescriptionNormalizer normalizer) {
         this.clientRepository = clientRepository;
         this.userRepository = userRepository;
         this.calendarEventRepository = calendarEventRepository;
@@ -35,15 +36,15 @@ public class ClientService {
     }
 
     @Transactional
-    public Client createClient(Long userId, ClientRequest request) {
-        User user = userRepository.findById(userId)
+    public Client createClient(final Long userId, final ClientRequest request) {
+        final User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        String normalized = normalizer.normalize(request.name());
+        final String normalized = normalizer.normalize(request.name());
         if (clientRepository.existsByUserIdAndNormalizedName(userId, normalized)) {
             throw new BusinessException(request.name().trim() + " Já cadastrado.");
         }
-        Client client = new Client(user, request.name(), normalized);
+        final Client client = new Client(user, request.name(), normalized);
         client.setCpf(request.cpf());
         client.setDateOfBirth(request.dateOfBirth());
         client.setEmail(request.email());
@@ -53,7 +54,7 @@ public class ClientService {
     }
 
     @Transactional(readOnly = true)
-    public List<Client> listClients(Long userId, String name, Sort sort) {
+    public List<Client> listClients(final Long userId, final String name, final Sort sort) {
         if (name != null && !name.isBlank()) {
             return clientRepository.findByUserIdAndNameStartsWithIgnoreCase(userId, name.trim(), sort);
         }
@@ -61,8 +62,8 @@ public class ClientService {
     }
 
     @Transactional(readOnly = true)
-    public Page<Client> listClientsPaginated(Long userId, String name, int pageIndex, int itemsPerPage, Sort sort) {
-        PageRequest pageable = PageRequest.of(pageIndex - 1, itemsPerPage, sort);
+    public Page<Client> listClientsPaginated(final Long userId, final String name, final int pageIndex, final int itemsPerPage, final Sort sort) {
+        final PageRequest pageable = PageRequest.of(pageIndex - 1, itemsPerPage, sort);
         if (name != null && !name.isBlank()) {
             return clientRepository.findByUserIdAndNameStartsWithIgnoreCase(userId, name.trim(), pageable);
         }
@@ -70,17 +71,17 @@ public class ClientService {
     }
 
     @Transactional(readOnly = true)
-    public Client getClient(Long userId, Long clientId) {
+    public Client getClient(final Long userId, final Long clientId) {
         return clientRepository.findByIdAndUserId(clientId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Client not found"));
     }
 
     @Transactional
-    public Client updateClient(Long userId, Long clientId, ClientRequest request) {
-        Client client = clientRepository.findByIdAndUserId(clientId, userId)
+    public Client updateClient(final Long userId, final Long clientId, final ClientRequest request) {
+        final Client client = clientRepository.findByIdAndUserId(clientId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Client not found"));
 
-        String normalized = normalizer.normalize(request.name());
+        final String normalized = normalizer.normalize(request.name());
         if (clientRepository.existsByUserIdAndNormalizedNameAndIdNot(userId, normalized, clientId)) {
             throw new BusinessException(request.name().trim() + " Já cadastrado.");
         }
@@ -96,11 +97,11 @@ public class ClientService {
     }
 
     @Transactional
-    public void deleteClient(Long userId, Long clientId) {
-        Client client = clientRepository.findByIdAndUserId(clientId, userId)
+    public void deleteClient(final Long userId, final Long clientId) {
+        final Client client = clientRepository.findByIdAndUserId(clientId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Client not found"));
 
-        boolean hasLinkedEvents = calendarEventRepository.existsByClientId(clientId);
+        final boolean hasLinkedEvents = calendarEventRepository.existsByClientId(clientId);
         if (hasLinkedEvents) {
             throw new BusinessException("Cannot delete client with linked appointments");
         }
@@ -108,33 +109,33 @@ public class ClientService {
         clientRepository.delete(client);
     }
 
-    public Client findOrCreateByName(Long userId, User user, String clientName) {
-        String normalized = normalizer.normalize(clientName);
+    public Client findOrCreateByName(final Long userId, final User user, final String clientName) {
+        final String normalized = normalizer.normalize(clientName);
         return clientRepository.findByUserIdAndNormalizedName(userId, normalized)
                 .orElseGet(() -> clientRepository.save(new Client(user, clientName.trim(), normalized)));
     }
 
     @Transactional(readOnly = true)
-    public java.util.Optional<Client> findByNormalizedName(Long userId, String normalizedName) {
+    public java.util.Optional<Client> findByNormalizedName(final Long userId, final String normalizedName) {
         return clientRepository.findByUserIdAndNormalizedName(userId, normalizedName);
     }
 
     @Transactional(readOnly = true)
-    public Map<String, Client> clientsByNormalizedName(Long userId) {
-        Map<String, Client> clients = new LinkedHashMap<>();
-        for (Client client : clientRepository.findAllByUserId(userId)) {
+    public Map<String, Client> clientsByNormalizedName(final Long userId) {
+        final Map<String, Client> clients = new LinkedHashMap<>();
+        for (final Client client : clientRepository.findAllByUserId(userId)) {
             clients.putIfAbsent(client.getNormalizedName(), client);
         }
         return clients;
     }
 
     @Transactional
-    public BulkDeleteResult bulkDeleteClients(Long userId, List<Long> ids) {
+    public BulkDeleteResult bulkDeleteClients(final Long userId, final List<Long> ids) {
         int deleted = 0;
         int hasLink = 0;
 
-        for (Long id : ids) {
-            var optClient = clientRepository.findByIdAndUserId(id, userId);
+        for (final Long id : ids) {
+            final var optClient = clientRepository.findByIdAndUserId(id, userId);
             if (optClient.isEmpty()) {
                 continue;
             }
