@@ -10,12 +10,12 @@ import org.springframework.context.annotation.Configuration;
 @Configuration(proxyBeanMethods = false)
 public final class OpenApiConfig {
 
-    private OpenApiConfig() {
-        throw new AssertionError("No instances");
+    @SuppressWarnings("PMD.UnnecessaryConstructor")
+    public OpenApiConfig() {
     }
 
     @Bean
-    public static OpenAPI openAPI() {
+    public OpenAPI openAPI() {
         return new OpenAPI()
                 .info(new Info()
                         .title("mei-organizadin API")
