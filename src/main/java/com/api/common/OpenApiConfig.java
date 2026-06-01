@@ -7,12 +7,15 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-@SuppressWarnings("PMD.AtLeastOneConstructor")
-@Configuration
-public class OpenApiConfig {
+@Configuration(proxyBeanMethods = false)
+public final class OpenApiConfig {
+
+    private OpenApiConfig() {
+        throw new AssertionError("No instances");
+    }
 
     @Bean
-    public OpenAPI openAPI() {
+    public static OpenAPI openAPI() {
         return new OpenAPI()
                 .info(new Info()
                         .title("mei-organizadin API")
