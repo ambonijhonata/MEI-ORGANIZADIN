@@ -14,202 +14,203 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.time.Instant;
 import java.util.List;
 
-@SuppressWarnings({"PMD.AtLeastOneConstructor", "PMD.AvoidDuplicateLiterals", "PMD.FieldNamingConventions", "PMD.GuardLogStatement", "PMD.OnlyOneReturn", "PMD.ShortVariable", "PMD.TooManyMethods", "PMD.UseExplicitTypes"})
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final String VALIDATION_CODE = "VALIDATION_ERROR";
+    private static final String VALIDATION_MSG = "Validation failed";
+    private static final String INTERNAL_CODE = "INTERNAL_SERVER_ERROR";
+    private static final String INTERNAL_MESSAGE = "Unexpected internal error while processing request.";
+    private static final String INVALID_SUFFIX = " has an invalid value";
+    private static final String PAGE_FIELD = "page";
+    private static final String SIZE_FIELD = "size";
+    private static final String REQUEST_FIELD = "request";
+    private static final String PAGE_INDEX_PREFIX = "Page index";
+    private static final String PAGE_SIZE_PREFIX = "Page size";
 
-    @ExceptionHandler(AuthController.InvalidTokenException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidToken(final AuthController.InvalidTokenException ex) {
-        final var error = new ErrorResponse(
-                HttpStatus.UNAUTHORIZED.value(),
-                "INVALID_TOKEN",
-                ex.getMessage(),
-                Instant.now()
-        );
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+    public GlobalExceptionHandler() {
+        LOGGER.getName();
     }
 
-    @ExceptionHandler(AuthController.OAuthExchangeException.class)
-    public ResponseEntity<ErrorResponse> handleOAuthExchange(final AuthController.OAuthExchangeException ex) {
-        final var error = new ErrorResponse(
-                HttpStatus.BAD_GATEWAY.value(),
-                "OAUTH_EXCHANGE_FAILED",
-                ex.getMessage(),
-                Instant.now()
-        );
-        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(error);
+    @ExceptionHandler({
+            AuthController.InvalidTokenException.class,
+            AuthController.OAuthExchangeException.class,
+            AuthController.RefreshTokenException.class,
+            AuthController.RefreshRetryableException.class
+    })
+    public ResponseEntity<ErrorResponse> handleAuthExceptions(final Exception exception) {
+        final ResponseEntity<ErrorResponse> response;
+        if (exception instanceof AuthController.InvalidTokenException tokenEx) {
+            response = errorResponse(
+                    HttpStatus.UNAUTHORIZED,
+                    "INVALID_TOKEN",
+                    tokenEx.getMessage()
+            );
+        } else if (exception instanceof AuthController.OAuthExchangeException oauthEx) {
+            response = errorResponse(
+                    HttpStatus.BAD_GATEWAY,
+                    "OAUTH_EXCHANGE_FAILED",
+                    oauthEx.getMessage()
+            );
+        } else if (exception instanceof AuthController.RefreshRetryableException retryableEx) {
+            response = errorResponse(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "REFRESH_RETRYABLE",
+                    retryableEx.getMessage()
+            );
+        } else if (exception instanceof AuthController.RefreshTokenException refreshEx) {
+            response = errorResponse(
+                    HttpStatus.UNAUTHORIZED,
+                    refreshEx.getCode(),
+                    refreshEx.getMessage()
+            );
+        } else {
+            throw new IllegalStateException("Unsupported auth exception: " + exception.getClass().getName());
+        }
+
+        return response;
     }
 
-    @ExceptionHandler(AuthController.RefreshTokenException.class)
-    public ResponseEntity<ErrorResponse> handleRefreshToken(final AuthController.RefreshTokenException ex) {
-        final var error = new ErrorResponse(
-                HttpStatus.UNAUTHORIZED.value(),
-                ex.getCode(),
-                ex.getMessage(),
-                Instant.now()
-        );
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+    @ExceptionHandler({
+            ResourceNotFoundException.class,
+            BusinessException.class,
+            InvalidPeriodException.class,
+            IntegrationRevokedException.class,
+            GoogleApiAccessDeniedException.class
+    })
+    public ResponseEntity<ErrorResponse> handleApplicationExceptions(final Exception exception) {
+        final ResponseEntity<ErrorResponse> response;
+        if (exception instanceof ResourceNotFoundException notFoundEx) {
+            response = errorResponse(HttpStatus.NOT_FOUND, "NOT_FOUND", notFoundEx.getMessage());
+        } else if (exception instanceof BusinessException businessEx) {
+            response = errorResponse(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    "BUSINESS_ERROR",
+                    businessEx.getMessage()
+            );
+        } else if (exception instanceof InvalidPeriodException periodEx) {
+            response = errorResponse(
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_PERIOD",
+                    periodEx.getMessage()
+            );
+        } else if (exception instanceof IntegrationRevokedException integrationEx) {
+            response = errorResponse(
+                    HttpStatus.FORBIDDEN,
+                    "INTEGRATION_REVOKED",
+                    integrationEx.getMessage()
+            );
+        } else if (exception instanceof GoogleApiAccessDeniedException googleEx) {
+            response = errorResponse(
+                    HttpStatus.FORBIDDEN,
+                    "GOOGLE_API_FORBIDDEN",
+                    googleEx.getMessage()
+            );
+        } else {
+            throw new IllegalStateException("Unsupported application exception: " + exception.getClass().getName());
+        }
+
+        return response;
     }
 
-    @ExceptionHandler(AuthController.RefreshRetryableException.class)
-    public ResponseEntity<ErrorResponse> handleRefreshRetryable(final AuthController.RefreshRetryableException ex) {
-        final var error = new ErrorResponse(
-                HttpStatus.SERVICE_UNAVAILABLE.value(),
-                "REFRESH_RETRYABLE",
-                ex.getMessage(),
-                Instant.now()
-        );
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(error);
-    }
+    @ExceptionHandler({
+            MethodArgumentNotValidException.class,
+            InvalidRequestParameterException.class,
+            MethodArgumentTypeMismatchException.class,
+            IllegalArgumentException.class
+    })
+    public ResponseEntity<ValidationErrorResponse> handleValidationExceptions(final Exception exception) {
+        final ValidationErrorResponse response;
+        if (exception instanceof MethodArgumentNotValidException validEx) {
+            final List<FieldError> fieldErrors = validEx.getBindingResult().getFieldErrors().stream()
+                    .map(fieldError -> new FieldError(fieldError.getField(), fieldError.getDefaultMessage()))
+                    .toList();
+            response = validationErrorResponse(fieldErrors);
+        } else if (exception instanceof InvalidRequestParameterException invalidParamEx) {
+            response = validationErrorResponse(List.of(
+                    new FieldError(invalidParamEx.getField(), invalidParamEx.getMessage())
+            ));
+        } else if (exception instanceof MethodArgumentTypeMismatchException typeMismatchEx) {
+            final String fieldName = typeMismatchEx.getName() != null
+                    ? typeMismatchEx.getName()
+                    : REQUEST_FIELD;
+            response = validationErrorResponse(List.of(
+                    new FieldError(fieldName, fieldName + INVALID_SUFFIX)
+            ));
+        } else if (exception instanceof IllegalArgumentException illegalArgEx) {
+            response = resolveIllegalArgumentValidationError(illegalArgEx);
+        } else {
+            throw new IllegalStateException("Unsupported validation exception: " + exception.getClass().getName());
+        }
 
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleNotFound(final ResourceNotFoundException ex) {
-        final var error = new ErrorResponse(
-                HttpStatus.NOT_FOUND.value(),
-                "NOT_FOUND",
-                ex.getMessage(),
-                Instant.now()
-        );
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
-    }
-
-    @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ErrorResponse> handleBusiness(final BusinessException ex) {
-        final var error = new ErrorResponse(
-                HttpStatus.UNPROCESSABLE_ENTITY.value(),
-                "BUSINESS_ERROR",
-                ex.getMessage(),
-                Instant.now()
-        );
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(error);
-    }
-
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ValidationErrorResponse> handleValidation(final MethodArgumentNotValidException ex) {
-        final List<FieldError> fieldErrors = ex.getBindingResult().getFieldErrors().stream()
-                .map(fe -> new FieldError(fe.getField(), fe.getDefaultMessage()))
-                .toList();
-        final var error = new ValidationErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
-                "VALIDATION_ERROR",
-                "Validation failed",
-                fieldErrors,
-                Instant.now()
-        );
-        return ResponseEntity.badRequest().body(error);
+        return ResponseEntity.badRequest().body(response);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ErrorResponse> handleConstraintViolation(final ConstraintViolationException ex) {
-        final var error = new ErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
-                "VALIDATION_ERROR",
-                ex.getMessage(),
-                Instant.now()
-        );
-        return ResponseEntity.badRequest().body(error);
-    }
-
-    @ExceptionHandler(InvalidRequestParameterException.class)
-    public ResponseEntity<ValidationErrorResponse> handleInvalidRequestParameter(final InvalidRequestParameterException ex) {
-        final var error = new ValidationErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
-                "VALIDATION_ERROR",
-                "Validation failed",
-                List.of(new FieldError(ex.getField(), ex.getMessage())),
-                Instant.now()
-        );
-        return ResponseEntity.badRequest().body(error);
-    }
-
-    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<ValidationErrorResponse> handleArgumentTypeMismatch(final MethodArgumentTypeMismatchException ex) {
-        final String field = ex.getName() != null ? ex.getName() : "request";
-        final var error = new ValidationErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
-                "VALIDATION_ERROR",
-                "Validation failed",
-                List.of(new FieldError(field, field + " has an invalid value")),
-                Instant.now()
-        );
-        return ResponseEntity.badRequest().body(error);
-    }
-
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ValidationErrorResponse> handleIllegalArgument(final IllegalArgumentException ex) {
-        final String message = ex.getMessage() != null ? ex.getMessage() : "request has an invalid value";
-        if (message.contains("Page index")) {
-            return ResponseEntity.badRequest().body(new ValidationErrorResponse(
-                    HttpStatus.BAD_REQUEST.value(),
-                    "VALIDATION_ERROR",
-                    "Validation failed",
-                    List.of(new FieldError("page", "page must be greater than or equal to 0")),
-                    Instant.now()
-            ));
-        }
-        if (message.contains("Page size")) {
-            return ResponseEntity.badRequest().body(new ValidationErrorResponse(
-                    HttpStatus.BAD_REQUEST.value(),
-                    "VALIDATION_ERROR",
-                    "Validation failed",
-                    List.of(new FieldError("size", "size must be greater than or equal to 1")),
-                    Instant.now()
-            ));
-        }
-        throw ex;
-    }
-
-    @ExceptionHandler(InvalidPeriodException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidPeriod(final InvalidPeriodException ex) {
-        final var error = new ErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
-                "INVALID_PERIOD",
-                ex.getMessage(),
-                Instant.now()
-        );
-        return ResponseEntity.badRequest().body(error);
-    }
-
-    @ExceptionHandler(IntegrationRevokedException.class)
-    public ResponseEntity<ErrorResponse> handleIntegrationRevoked(final IntegrationRevokedException ex) {
-        final var error = new ErrorResponse(
-                HttpStatus.FORBIDDEN.value(),
-                "INTEGRATION_REVOKED",
-                ex.getMessage(),
-                Instant.now()
-        );
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
-    }
-
-    @ExceptionHandler(GoogleApiAccessDeniedException.class)
-    public ResponseEntity<ErrorResponse> handleGoogleApiAccessDenied(final GoogleApiAccessDeniedException ex) {
-        final var error = new ErrorResponse(
-                HttpStatus.FORBIDDEN.value(),
-                "GOOGLE_API_FORBIDDEN",
-                ex.getMessage(),
-                Instant.now()
-        );
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    public ResponseEntity<ErrorResponse> handleConstraintViolation(final ConstraintViolationException exception) {
+        return errorResponse(HttpStatus.BAD_REQUEST, VALIDATION_CODE, exception.getMessage());
     }
 
     @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<ErrorResponse> handleRuntime(final RuntimeException ex) {
-        log.error("api_request_failed error_type={}", ex.getClass().getSimpleName(), ex);
-        final var error = new ErrorResponse(
-                HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                "INTERNAL_SERVER_ERROR",
-                "Unexpected internal error while processing request.",
-                Instant.now()
+    public ResponseEntity<ErrorResponse> handleRuntime(final RuntimeException exception) {
+        if (LOGGER.isErrorEnabled()) {
+            LOGGER.error("api_request_failed error_type={}", exception.getClass().getSimpleName(), exception);
+        }
+        return errorResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                INTERNAL_CODE,
+                INTERNAL_MESSAGE
         );
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
 
-    public record ErrorResponse(int status, String code, String message, Instant timestamp) {}
+    private ResponseEntity<ErrorResponse> errorResponse(
+            final HttpStatus status,
+            final String code,
+            final String message
+    ) {
+        return ResponseEntity.status(status).body(new ErrorResponse(
+                status.value(),
+                code,
+                message,
+                Instant.now()
+        ));
+    }
+
+    private ValidationErrorResponse validationErrorResponse(final List<FieldError> fieldErrors) {
+        return new ValidationErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                VALIDATION_CODE,
+                VALIDATION_MSG,
+                fieldErrors,
+                Instant.now()
+        );
+    }
+
+    private ValidationErrorResponse resolveIllegalArgumentValidationError(final IllegalArgumentException exception) {
+        final String message = exception.getMessage() != null ? exception.getMessage() : "request has an invalid value";
+        final ValidationErrorResponse response;
+        if (message.contains(PAGE_INDEX_PREFIX)) {
+            response = validationErrorResponse(List.of(
+                    new FieldError(PAGE_FIELD, PAGE_FIELD + " must be greater than or equal to 0")
+            ));
+        } else if (message.contains(PAGE_SIZE_PREFIX)) {
+            response = validationErrorResponse(List.of(
+                    new FieldError(SIZE_FIELD, SIZE_FIELD + " must be greater than or equal to 1")
+            ));
+        } else {
+            throw exception;
+        }
+        return response;
+    }
+
+    public record ErrorResponse(int status, String code, String message, Instant timestamp) {
+    }
 
     public record ValidationErrorResponse(int status, String code, String message,
-                                           List<FieldError> errors, Instant timestamp) {}
+                                          List<FieldError> errors, Instant timestamp) {
+    }
 
-    public record FieldError(String field, String message) {}
+    public record FieldError(String field, String message) {
+    }
 }

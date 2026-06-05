@@ -30,7 +30,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void shouldHandleInvalidTokenWith401() {
         var ex = new AuthController.InvalidTokenException("Invalid token");
-        var response = handler.handleInvalidToken(ex);
+        var response = handler.handleAuthExceptions(ex);
 
         assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
         assertEquals(401, response.getBody().status());
@@ -42,7 +42,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void shouldHandleOAuthExchangeWith502() {
         var ex = new AuthController.OAuthExchangeException("Exchange failed");
-        var response = handler.handleOAuthExchange(ex);
+        var response = handler.handleAuthExceptions(ex);
 
         assertEquals(HttpStatus.BAD_GATEWAY, response.getStatusCode());
         assertEquals(502, response.getBody().status());
@@ -52,7 +52,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void shouldHandleRetryableRefreshWith503() {
         var ex = new AuthController.RefreshRetryableException("Refresh temporarily unavailable");
-        var response = handler.handleRefreshRetryable(ex);
+        var response = handler.handleAuthExceptions(ex);
 
         assertEquals(HttpStatus.SERVICE_UNAVAILABLE, response.getStatusCode());
         assertEquals(503, response.getBody().status());
@@ -62,7 +62,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void shouldHandleNotFoundWith404() {
         var ex = new ResourceNotFoundException("Not found");
-        var response = handler.handleNotFound(ex);
+        var response = handler.handleApplicationExceptions(ex);
 
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         assertEquals(404, response.getBody().status());
@@ -72,7 +72,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void shouldHandleBusinessWith422() {
         var ex = new BusinessException("Business rule violated");
-        var response = handler.handleBusiness(ex);
+        var response = handler.handleApplicationExceptions(ex);
 
         assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, response.getStatusCode());
         assertEquals(422, response.getBody().status());
@@ -86,7 +86,7 @@ class GlobalExceptionHandlerTest {
         when(bindingResult.getFieldErrors()).thenReturn(List.of(fieldError));
 
         MethodArgumentNotValidException ex = new MethodArgumentNotValidException(null, bindingResult);
-        var response = handler.handleValidation(ex);
+        var response = handler.handleValidationExceptions(ex);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertEquals(400, response.getBody().status());
@@ -109,7 +109,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void shouldHandleInvalidRequestParameterWith400() {
         var ex = new InvalidRequestParameterException("sortBy", "sortBy must be one of: id, name");
-        var response = handler.handleInvalidRequestParameter(ex);
+        var response = handler.handleValidationExceptions(ex);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertEquals(400, response.getBody().status());
@@ -128,7 +128,7 @@ class GlobalExceptionHandlerTest {
                 new IllegalArgumentException("invalid")
         );
 
-        var response = handler.handleArgumentTypeMismatch(ex);
+        var response = handler.handleValidationExceptions(ex);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertEquals(400, response.getBody().status());
@@ -138,7 +138,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void shouldHandleIllegalArgumentForNegativePageWith400() {
-        var response = handler.handleIllegalArgument(new IllegalArgumentException("Page index must not be less than zero"));
+        var response = handler.handleValidationExceptions(new IllegalArgumentException("Page index must not be less than zero"));
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertEquals("VALIDATION_ERROR", response.getBody().code());
@@ -148,7 +148,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void shouldHandleInvalidPeriodWith400() {
         var ex = new InvalidPeriodException("Period too long");
-        var response = handler.handleInvalidPeriod(ex);
+        var response = handler.handleApplicationExceptions(ex);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertEquals(400, response.getBody().status());
@@ -158,7 +158,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void shouldHandleIntegrationRevokedWith403() {
         var ex = new IntegrationRevokedException("Integration revoked");
-        var response = handler.handleIntegrationRevoked(ex);
+        var response = handler.handleApplicationExceptions(ex);
 
         assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
         assertEquals(403, response.getBody().status());
@@ -168,7 +168,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void shouldHandleGoogleApiAccessDeniedWith403() {
         var ex = new GoogleApiAccessDeniedException("Calendar API is not enabled");
-        var response = handler.handleGoogleApiAccessDenied(ex);
+        var response = handler.handleApplicationExceptions(ex);
 
         assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
         assertEquals(403, response.getBody().status());
