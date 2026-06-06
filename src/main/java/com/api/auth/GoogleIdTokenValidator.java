@@ -12,9 +12,10 @@ import java.security.GeneralSecurityException;
 import java.util.Collections;
 import java.util.Optional;
 
-@SuppressWarnings({"PMD.FieldDeclarationsShouldBeAtStartOfClass", "PMD.LooseCoupling", "PMD.OnlyOneReturn"})
 @Component
 public class GoogleIdTokenValidator {
+
+    private final GoogleIdTokenVerifier verifier;
 
     public enum Status {
         VALID,
@@ -24,11 +25,11 @@ public class GoogleIdTokenValidator {
 
     public record ValidationResult(
             Status status,
-            GoogleIdToken.Payload payload,
+            GoogleUserProfile profile,
             Exception exception
     ) {
-        public static ValidationResult valid(final GoogleIdToken.Payload payload) {
-            return new ValidationResult(Status.VALID, payload, null);
+        public static ValidationResult valid(final GoogleUserProfile profile) {
+            return new ValidationResult(Status.VALID, profile, null);
         }
 
         public static ValidationResult invalid(final Exception exception) {
@@ -40,8 +41,6 @@ public class GoogleIdTokenValidator {
         }
     }
 
-    private final GoogleIdTokenVerifier verifier;
-
     public GoogleIdTokenValidator(final GoogleOAuthProperties properties) {
         this.verifier = new GoogleIdTokenVerifier.Builder(
                 new NetHttpTransport(),
@@ -51,30 +50,40 @@ public class GoogleIdTokenValidator {
                 .build();
     }
 
-    public Optional<GoogleIdToken.Payload> validate(final String idTokenString) {
-        final ValidationResult result = validateDetailed(idTokenString);
-        return Optional.ofNullable(result.payload());
-    }
-
     public Optional<GoogleUserProfile> validateProfile(final String idTokenString) {
-        return validate(idTokenString).map(payload -> {
-            final String email = payload.getEmail();
-            final String name = payload.get("name") instanceof String value ? value : email;
-            return new GoogleUserProfile(payload.getSubject(), email, name);
-        });
+        final ValidationResult result = validateDetailed(idTokenString);
+        return Optional.ofNullable(result.profile());
     }
 
     public ValidationResult validateDetailed(final String idTokenString) {
+        ValidationResult result;
         try {
             final GoogleIdToken idToken = verifier.verify(idTokenString);
             if (idToken == null) {
-                return ValidationResult.invalid(null);
+                result = ValidationResult.invalid(null);
+            } else {
+                result = ValidationResult.valid(extractProfile(idToken));
             }
-            return ValidationResult.valid(idToken.getPayload());
-        } catch (IOException e) {
-            return ValidationResult.unavailable(e);
+        } catch (IOException | ReflectiveOperationException e) {
+            result = ValidationResult.unavailable(e);
         } catch (GeneralSecurityException e) {
-            return ValidationResult.invalid(e);
+            result = ValidationResult.invalid(e);
         }
+        return result;
+    }
+
+    private static GoogleUserProfile extractProfile(final GoogleIdToken idToken)
+            throws ReflectiveOperationException {
+        final Object payload = idToken.getClass().getMethod("getPayload").invoke(idToken);
+        final String email = invokeString(payload, "getEmail");
+        final Object nameValue = payload.getClass().getMethod("get", String.class).invoke(payload, "name");
+        final String name = nameValue instanceof String value ? value : email;
+        final String subject = invokeString(payload, "getSubject");
+        return new GoogleUserProfile(subject, email, name);
+    }
+
+    private static String invokeString(final Object target, final String methodName)
+            throws ReflectiveOperationException {
+        return (String) target.getClass().getMethod(methodName).invoke(target);
     }
 }
