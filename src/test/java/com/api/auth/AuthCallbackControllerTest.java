@@ -5,7 +5,6 @@ import com.api.google.GoogleOAuthProperties;
 import com.api.user.User;
 import com.api.user.UserRepository;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
-import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -81,12 +80,9 @@ class AuthCallbackControllerTest {
         request.setServerName("localhost");
         request.setServerPort(8080);
 
-        GoogleTokenResponse tokenResponse = new GoogleTokenResponse();
-        tokenResponse.setIdToken("id-token-123");
-        tokenResponse.setAccessToken("access-token");
-        tokenResponse.setRefreshToken("refresh-token");
-        tokenResponse.setExpiresInSeconds(3600L);
-        when(googleOAuthClient.exchangeAuthorizationCode(eq("auth-code"), anyString())).thenReturn(tokenResponse);
+        GoogleOAuthClient.AuthorizationCodeExchangeResult tokenResponse =
+                new GoogleOAuthClient.AuthorizationCodeExchangeResult("id-token-123", "access-token", "refresh-token", 3600L);
+        when(googleOAuthClient.exchangeAuthorizationCodeResult(eq("auth-code"), anyString())).thenReturn(tokenResponse);
 
         GoogleIdToken.Payload payload = new GoogleIdToken.Payload();
         payload.setSubject("sub-1");
@@ -117,12 +113,9 @@ class AuthCallbackControllerTest {
         request.setServerName("localhost");
         request.setServerPort(8080);
 
-        GoogleTokenResponse tokenResponse = new GoogleTokenResponse();
-        tokenResponse.setIdToken("id-token");
-        tokenResponse.setAccessToken("access");
-        tokenResponse.setRefreshToken("refresh");
-        tokenResponse.setExpiresInSeconds(3600L);
-        when(googleOAuthClient.exchangeAuthorizationCode(eq("code"), anyString())).thenReturn(tokenResponse);
+        GoogleOAuthClient.AuthorizationCodeExchangeResult tokenResponse =
+                new GoogleOAuthClient.AuthorizationCodeExchangeResult("id-token", "access", "refresh", 3600L);
+        when(googleOAuthClient.exchangeAuthorizationCodeResult(eq("code"), anyString())).thenReturn(tokenResponse);
 
         GoogleIdToken.Payload payload = new GoogleIdToken.Payload();
         payload.setSubject("sub-1");
@@ -150,7 +143,7 @@ class AuthCallbackControllerTest {
         request.setServerName("localhost");
         request.setServerPort(8080);
 
-        when(googleOAuthClient.exchangeAuthorizationCode(eq("bad-code"), anyString()))
+        when(googleOAuthClient.exchangeAuthorizationCodeResult(eq("bad-code"), anyString()))
                 .thenThrow(new IOException("network error"));
 
         Map<String, Object> result = controller.callback("bad-code", null, request);
@@ -165,12 +158,9 @@ class AuthCallbackControllerTest {
         request.setServerName("localhost");
         request.setServerPort(8080);
 
-        GoogleTokenResponse tokenResponse = new GoogleTokenResponse();
-        tokenResponse.setIdToken("bad-id-token");
-        tokenResponse.setAccessToken("access");
-        tokenResponse.setRefreshToken("refresh");
-        tokenResponse.setExpiresInSeconds(3600L);
-        when(googleOAuthClient.exchangeAuthorizationCode(eq("code"), anyString())).thenReturn(tokenResponse);
+        GoogleOAuthClient.AuthorizationCodeExchangeResult tokenResponse =
+                new GoogleOAuthClient.AuthorizationCodeExchangeResult("bad-id-token", "access", "refresh", 3600L);
+        when(googleOAuthClient.exchangeAuthorizationCodeResult(eq("code"), anyString())).thenReturn(tokenResponse);
         when(tokenValidator.validate("bad-id-token")).thenReturn(Optional.empty());
 
         assertThrows(AuthController.InvalidTokenException.class, () ->
@@ -196,12 +186,9 @@ class AuthCallbackControllerTest {
         request.setServerName("localhost");
         request.setServerPort(8080);
 
-        GoogleTokenResponse tokenResponse = new GoogleTokenResponse();
-        tokenResponse.setIdToken("id-token");
-        tokenResponse.setAccessToken("access");
-        tokenResponse.setRefreshToken("refresh");
-        tokenResponse.setExpiresInSeconds(3600L);
-        when(googleOAuthClient.exchangeAuthorizationCode(eq("code"), anyString())).thenReturn(tokenResponse);
+        GoogleOAuthClient.AuthorizationCodeExchangeResult tokenResponse =
+                new GoogleOAuthClient.AuthorizationCodeExchangeResult("id-token", "access", "refresh", 3600L);
+        when(googleOAuthClient.exchangeAuthorizationCodeResult(eq("code"), anyString())).thenReturn(tokenResponse);
 
         GoogleIdToken.Payload payload = new GoogleIdToken.Payload();
         payload.setSubject("sub-1");

@@ -3,42 +3,38 @@ package com.api.auth;
 import com.api.google.GoogleOAuthClient;
 import com.api.google.GoogleOAuthProperties;
 import com.api.user.User;
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
-import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import java.io.IOException;
+import java.time.Instant;
+import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import jakarta.servlet.http.HttpServletRequest;
-import java.io.IOException;
-import java.time.Instant;
-import java.util.Map;
-
-@SuppressWarnings({"PMD.LongVariable", "PMD.LooseCoupling", "PMD.OnlyOneReturn"})
 @RestController
 @RequestMapping("/api/auth")
 @Tag(name = "Autenticação (Teste)", description = "Endpoints auxiliares para testar o fluxo OAuth via navegador")
 public class AuthCallbackController {
 
     private final GoogleOAuthClient googleOAuthClient;
-    private final GoogleOAuthProperties googleOAuthProperties;
+    private final GoogleOAuthProperties oauthProps;
     private final GoogleIdTokenValidator tokenValidator;
     private final AuthenticatedUserResolver userResolver;
-    private final OAuthCredentialRepository oauthCredentialRepository;
+    private final OAuthCredentialRepository credentialRepo;
 
     public AuthCallbackController(final GoogleOAuthClient googleOAuthClient,
-                                   final GoogleOAuthProperties googleOAuthProperties,
-                                   final GoogleIdTokenValidator tokenValidator,
-                                   final AuthenticatedUserResolver userResolver,
-                                   final OAuthCredentialRepository oauthCredentialRepository) {
+                                  final GoogleOAuthProperties oauthProps,
+                                  final GoogleIdTokenValidator tokenValidator,
+                                  final AuthenticatedUserResolver userResolver,
+                                  final OAuthCredentialRepository credentialRepo) {
         this.googleOAuthClient = googleOAuthClient;
-        this.googleOAuthProperties = googleOAuthProperties;
+        this.oauthProps = oauthProps;
         this.tokenValidator = tokenValidator;
         this.userResolver = userResolver;
-        this.oauthCredentialRepository = oauthCredentialRepository;
+        this.credentialRepo = credentialRepo;
     }
 
     @GetMapping(value = "/google", produces = "text/html")
@@ -47,8 +43,8 @@ public class AuthCallbackController {
                     "Após autorizar, o Google redireciona para /api/auth/callback com o code.")
     public String redirectToGoogle(final HttpServletRequest request) {
         final String redirectUri = getRedirectUri(request);
-        final String authUrl = googleOAuthProperties.authUri()
-                + "?client_id=" + googleOAuthProperties.clientId()
+        final String authUrl = oauthProps.authUri()
+                + "?client_id=" + oauthProps.clientId()
                 + "&redirect_uri=" + redirectUri
                 + "&response_type=code"
                 + "&scope=openid%20email%20profile%20https://www.googleapis.com/auth/calendar.readonly"
@@ -70,47 +66,47 @@ public class AuthCallbackController {
             @RequestParam(value = "error", required = false) final String error,
             final HttpServletRequest request) {
 
+        Map<String, Object> response;
         if (error != null) {
-            return Map.of("error", error, "message", "Google retornou erro na autorização");
+            response = Map.of("error", error, "message", "Google retornou erro na autorização");
+        } else {
+            final String redirectUri = getRedirectUri(request);
+
+            try {
+                final GoogleOAuthClient.AuthorizationCodeExchangeResult tokenResponse =
+                        googleOAuthClient.exchangeAuthorizationCodeResult(code, redirectUri);
+                final String idTokenString = tokenResponse.idToken();
+                final String accessToken = tokenResponse.accessToken();
+                final String refreshToken = tokenResponse.refreshToken();
+
+                final User user = userResolver.resolveUser(
+                        tokenValidator.validate(idTokenString)
+                                .orElseThrow(() -> new AuthController.InvalidTokenException("ID Token inválido após troca"))
+                );
+                final Instant expiresAt = Instant.now().plusSeconds(tokenResponse.expiresInSeconds());
+                final OAuthCredential credential = credentialRepo.findByUserId(user.getId())
+                        .map(existing -> {
+                            existing.setAccessToken(accessToken);
+                            existing.setRefreshToken(refreshToken);
+                            existing.setExpiresAt(expiresAt);
+                            return existing;
+                        })
+                        .orElse(new OAuthCredential(user, accessToken, refreshToken, expiresAt));
+                credentialRepo.save(credential);
+
+                response = Map.of(
+                        "message", "Login realizado com sucesso!",
+                        "userId", user.getId(),
+                        "email", user.getEmail(),
+                        "name", user.getName(),
+                        "idToken", idTokenString,
+                        "instrucao", "Use o idToken acima como Bearer token no header Authorization dos outros endpoints"
+                );
+            } catch (IOException e) {
+                response = Map.of("error", "OAUTH_EXCHANGE_FAILED", "message", e.getMessage());
+            }
         }
-
-        final String redirectUri = getRedirectUri(request);
-
-        try {
-            final GoogleTokenResponse tokenResponse = googleOAuthClient.exchangeAuthorizationCode(code, redirectUri);
-
-            final String idTokenString = tokenResponse.getIdToken();
-            final String accessToken = tokenResponse.getAccessToken();
-            final String refreshToken = tokenResponse.getRefreshToken();
-
-            final GoogleIdToken.Payload payload = tokenValidator.validate(idTokenString)
-                    .orElseThrow(() -> new AuthController.InvalidTokenException("ID Token inválido após troca"));
-
-            final User user = userResolver.resolveUser(payload);
-
-            final Instant expiresAt = Instant.now().plusSeconds(tokenResponse.getExpiresInSeconds());
-            final OAuthCredential credential = oauthCredentialRepository.findByUserId(user.getId())
-                    .map(existing -> {
-                        existing.setAccessToken(accessToken);
-                        existing.setRefreshToken(refreshToken);
-                        existing.setExpiresAt(expiresAt);
-                        return existing;
-                    })
-                    .orElse(new OAuthCredential(user, accessToken, refreshToken, expiresAt));
-            oauthCredentialRepository.save(credential);
-
-            return Map.of(
-                    "message", "Login realizado com sucesso!",
-                    "userId", user.getId(),
-                    "email", user.getEmail(),
-                    "name", user.getName(),
-                    "idToken", idTokenString,
-                    "instrucao", "Use o idToken acima como Bearer token no header Authorization dos outros endpoints"
-            );
-
-        } catch (IOException e) {
-            return Map.of("error", "OAUTH_EXCHANGE_FAILED", "message", e.getMessage());
-        }
+        return response;
     }
 
     private String getRedirectUri(final HttpServletRequest request) {

@@ -14,6 +14,14 @@ public class GoogleOAuthClient {
 
     private final GoogleOAuthProperties properties;
 
+    public record AuthorizationCodeExchangeResult(
+            String idToken,
+            String accessToken,
+            String refreshToken,
+            Long expiresInSeconds
+    ) {
+    }
+
     public GoogleOAuthClient(final GoogleOAuthProperties properties) {
         this.properties = properties;
     }
@@ -32,6 +40,16 @@ public class GoogleOAuthClient {
                 authorizationCode,
                 redirectUri
         ).execute();
+    }
+
+    public AuthorizationCodeExchangeResult exchangeAuthorizationCodeResult(final String authorizationCode, final String redirectUri) throws IOException {
+        final GoogleTokenResponse tokenResponse = exchangeAuthorizationCode(authorizationCode, redirectUri);
+        return new AuthorizationCodeExchangeResult(
+                tokenResponse.getIdToken(),
+                tokenResponse.getAccessToken(),
+                tokenResponse.getRefreshToken(),
+                tokenResponse.getExpiresInSeconds()
+        );
     }
 
     public GoogleTokenResponse refreshAccessToken(final String refreshToken) throws IOException {
