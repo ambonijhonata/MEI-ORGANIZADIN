@@ -2,10 +2,8 @@ package com.api.auth;
 
 import com.api.user.User;
 import com.api.user.UserRepository;
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import org.springframework.stereotype.Component;
 
-@SuppressWarnings("PMD.LooseCoupling")
 @Component
 public class AuthenticatedUserResolver {
 
@@ -15,16 +13,15 @@ public class AuthenticatedUserResolver {
         this.userRepository = userRepository;
     }
 
-    public AuthenticatedUser resolve(final GoogleIdToken.Payload payload) {
-        final User user = resolveUser(payload);
+    public AuthenticatedUser resolve(final GoogleUserProfile profile) {
+        final User user = resolveUser(profile);
         return new AuthenticatedUser(user.getId(), user.getGoogleSub(), user.getEmail(), user.getName());
     }
 
-    public User resolveUser(final GoogleIdToken.Payload payload) {
-        final String googleSub = payload.getSubject();
-        final String email = payload.getEmail();
-        final String rawName = (String) payload.get("name");
-        final String name = rawName != null ? rawName : email;
+    public User resolveUser(final GoogleUserProfile profile) {
+        final String googleSub = profile.googleSub();
+        final String email = profile.email();
+        final String name = profile.name();
 
         return userRepository.findByGoogleSub(googleSub)
                 .map(existing -> {

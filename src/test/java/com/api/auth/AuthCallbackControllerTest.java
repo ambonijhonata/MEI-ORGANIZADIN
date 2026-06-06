@@ -4,7 +4,6 @@ import com.api.google.GoogleOAuthClient;
 import com.api.google.GoogleOAuthProperties;
 import com.api.user.User;
 import com.api.user.UserRepository;
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -84,11 +83,8 @@ class AuthCallbackControllerTest {
                 new GoogleOAuthClient.AuthorizationCodeExchangeResult("id-token-123", "access-token", "refresh-token", 3600L);
         when(googleOAuthClient.exchangeAuthorizationCodeResult(eq("auth-code"), anyString())).thenReturn(tokenResponse);
 
-        GoogleIdToken.Payload payload = new GoogleIdToken.Payload();
-        payload.setSubject("sub-1");
-        payload.setEmail("user@test.com");
-        payload.set("name", "User Name");
-        when(tokenValidator.validate("id-token-123")).thenReturn(Optional.of(payload));
+        when(tokenValidator.validateProfile("id-token-123"))
+                .thenReturn(Optional.of(new GoogleUserProfile("sub-1", "user@test.com", "User Name")));
 
         User user = mock(User.class);
         when(user.getId()).thenReturn(1L);
@@ -117,10 +113,8 @@ class AuthCallbackControllerTest {
                 new GoogleOAuthClient.AuthorizationCodeExchangeResult("id-token", "access", "refresh", 3600L);
         when(googleOAuthClient.exchangeAuthorizationCodeResult(eq("code"), anyString())).thenReturn(tokenResponse);
 
-        GoogleIdToken.Payload payload = new GoogleIdToken.Payload();
-        payload.setSubject("sub-1");
-        payload.setEmail("user@test.com");
-        when(tokenValidator.validate("id-token")).thenReturn(Optional.of(payload));
+        when(tokenValidator.validateProfile("id-token"))
+                .thenReturn(Optional.of(new GoogleUserProfile("sub-1", "user@test.com", "user@test.com")));
 
         User user = mock(User.class);
         when(user.getId()).thenReturn(1L);
@@ -161,7 +155,7 @@ class AuthCallbackControllerTest {
         GoogleOAuthClient.AuthorizationCodeExchangeResult tokenResponse =
                 new GoogleOAuthClient.AuthorizationCodeExchangeResult("bad-id-token", "access", "refresh", 3600L);
         when(googleOAuthClient.exchangeAuthorizationCodeResult(eq("code"), anyString())).thenReturn(tokenResponse);
-        when(tokenValidator.validate("bad-id-token")).thenReturn(Optional.empty());
+        when(tokenValidator.validateProfile("bad-id-token")).thenReturn(Optional.empty());
 
         assertThrows(InvalidTokenException.class, () ->
                 controller.callback("code", null, request));
@@ -190,11 +184,8 @@ class AuthCallbackControllerTest {
                 new GoogleOAuthClient.AuthorizationCodeExchangeResult("id-token", "access", "refresh", 3600L);
         when(googleOAuthClient.exchangeAuthorizationCodeResult(eq("code"), anyString())).thenReturn(tokenResponse);
 
-        GoogleIdToken.Payload payload = new GoogleIdToken.Payload();
-        payload.setSubject("sub-1");
-        payload.setEmail("new@test.com");
-        payload.set("name", "New Name");
-        when(tokenValidator.validate("id-token")).thenReturn(Optional.of(payload));
+        when(tokenValidator.validateProfile("id-token"))
+                .thenReturn(Optional.of(new GoogleUserProfile("sub-1", "new@test.com", "New Name")));
 
         User existing = mock(User.class);
         when(existing.getId()).thenReturn(1L);

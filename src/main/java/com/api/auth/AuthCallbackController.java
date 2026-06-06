@@ -79,10 +79,9 @@ public class AuthCallbackController {
                 final String accessToken = tokenResponse.accessToken();
                 final String refreshToken = tokenResponse.refreshToken();
 
-                final User user = userResolver.resolveUser(
-                        tokenValidator.validate(idTokenString)
-                                .orElseThrow(() -> new InvalidTokenException("ID Token inválido após troca"))
-                );
+                final GoogleUserProfile profile = tokenValidator.validateProfile(idTokenString)
+                        .orElseThrow(() -> new InvalidTokenException("ID Token inválido após troca"));
+                final User user = userResolver.resolveUser(profile);
                 final Instant expiresAt = Instant.now().plusSeconds(tokenResponse.expiresInSeconds());
                 final OAuthCredential credential = credentialRepo.findByUserId(user.getId())
                         .map(existing -> {
