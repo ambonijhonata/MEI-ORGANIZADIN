@@ -85,9 +85,7 @@ public class AuthCallbackController {
                 final Instant expiresAt = Instant.now().plusSeconds(tokenResponse.expiresInSeconds());
                 final OAuthCredential credential = credentialRepo.findByUserId(user.getId())
                         .map(existing -> {
-                            existing.setAccessToken(accessToken);
-                            existing.setRefreshToken(refreshToken);
-                            existing.setExpiresAt(expiresAt);
+                            existing.updateTokens(accessToken, refreshToken, expiresAt);
                             return existing;
                         })
                         .orElse(new OAuthCredential(user, accessToken, refreshToken, expiresAt));

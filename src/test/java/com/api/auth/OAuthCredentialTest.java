@@ -28,9 +28,7 @@ class OAuthCredentialTest {
         OAuthCredential cred = new OAuthCredential(user, "old-access", "old-refresh", Instant.now());
 
         Instant newExpires = Instant.now().plusSeconds(7200);
-        cred.setAccessToken("new-access");
-        cred.setRefreshToken("new-refresh");
-        cred.setExpiresAt(newExpires);
+        cred.updateTokens("new-access", "new-refresh", newExpires);
 
         assertEquals("new-access", cred.getAccessToken());
         assertEquals("new-refresh", cred.getRefreshToken());

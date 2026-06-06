@@ -56,9 +56,11 @@ public class AuthAccountService {
             final Instant expiresAt = Instant.now().plusSeconds(tokenResponse.expiresInSeconds());
             final OAuthCredential credential = credentialRepo.findByUserId(user.getId())
                     .map(existing -> {
-                        existing.setAccessToken(tokenResponse.accessToken());
-                        existing.setRefreshToken(tokenResponse.refreshToken());
-                        existing.setExpiresAt(expiresAt);
+                        existing.updateTokens(
+                                tokenResponse.accessToken(),
+                                tokenResponse.refreshToken(),
+                                expiresAt
+                        );
                         return existing;
                     })
                     .orElse(new OAuthCredential(
