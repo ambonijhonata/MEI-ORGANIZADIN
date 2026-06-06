@@ -1,54 +1,66 @@
 package com.api.auth;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.Collections;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.Collections;
-
-@SuppressWarnings({"PMD.CallSuperInConstructor", "PMD.FieldNamingConventions", "PMD.GuardLogStatement", "PMD.LongVariable", "PMD.UseExplicitTypes"})
 @Component
 public class GoogleIdTokenAuthenticationFilter extends OncePerRequestFilter {
+    private static final String AUTH_HEADER = "Authorization";
+    private static final String BEARER_PREFIX = "Bearer ";
+    private static final Logger LOGGER = LoggerFactory.getLogger(GoogleIdTokenAuthenticationFilter.class);
 
-    private static final Logger log = LoggerFactory.getLogger(GoogleIdTokenAuthenticationFilter.class);
-
-    private final AccessTokenService accessTokenService;
+    private final AccessTokenService accessTokens;
 
     public GoogleIdTokenAuthenticationFilter(
-            final AccessTokenService accessTokenService
+            final AccessTokenService accessTokens
     ) {
-        this.accessTokenService = accessTokenService;
+        super();
+        this.accessTokens = accessTokens;
     }
 
     @Override
-    protected void doFilterInternal(final HttpServletRequest request,
-                                     final HttpServletResponse response,
-                                     final FilterChain filterChain) throws ServletException, IOException {
-        final String authHeader = request.getHeader("Authorization");
+    protected void doFilterInternal(
+            final HttpServletRequest request,
+            final HttpServletResponse response,
+            final FilterChain filterChain
+    ) throws ServletException, IOException {
+        final String authHeader = request.getHeader(AUTH_HEADER);
 
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            final String token = authHeader.substring(7);
-            final AccessTokenService.AccessTokenValidationResult accessValidation = accessTokenService.validate(token);
+        if (authHeader != null && authHeader.startsWith(BEARER_PREFIX)) {
+            final String token = authHeader.substring(BEARER_PREFIX.length());
+            final AccessTokenService.AccessTokenValidationResult accessValidation = accessTokens.validate(token);
             if (accessValidation.status() == AccessTokenService.TokenStatus.VALID && accessValidation.principal() != null) {
-                final var authentication = new UsernamePasswordAuthenticationToken(
+                final UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         accessValidation.principal(), null, Collections.emptyList()
                 );
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-                log.debug("auth_access_token_validation result=valid method={} path={}", request.getMethod(), request.getRequestURI());
+                logValidationResult("valid", request);
                 filterChain.doFilter(request, response);
                 return;
             }
-            log.debug("auth_access_token_validation result={} method={} path={}",
-                    accessValidation.status(), request.getMethod(), request.getRequestURI());
+            logValidationResult(accessValidation.status().name(), request);
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private static void logValidationResult(final String validationResult, final HttpServletRequest request) {
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug(
+                    "auth_access_token_validation result={} method={} path={}",
+                    validationResult,
+                    request.getMethod(),
+                    request.getRequestURI()
+            );
+        }
     }
 }
