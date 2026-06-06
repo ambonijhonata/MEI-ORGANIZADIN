@@ -2,6 +2,7 @@ package com.api.auth;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.security.Keys;
@@ -11,9 +12,10 @@ import java.util.Date;
 import javax.crypto.SecretKey;
 import org.springframework.stereotype.Service;
 
-@SuppressWarnings({"PMD.CommentDefaultAccessModifier", "PMD.LawOfDemeter", "PMD.OnlyOneReturn"})
 @Service
 public class AccessTokenService {
+    private static final String ACCESS_TOKEN_TYPE = "access";
+
     private final SessionTokenProperties properties;
     private final SecretKey signingKey;
 
@@ -40,30 +42,60 @@ public class AccessTokenService {
     }
 
     public AccessTokenValidationResult validate(final String token) {
+        final ValidationState state = new ValidationState();
         try {
-            final Claims claims = Jwts.parser()
-                    .verifyWith(signingKey)
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
-            final String tokenType = claims.get("typ", String.class);
-            if (!"access".equals(tokenType)) {
-                return AccessTokenValidationResult.invalid("unsupported_type");
-            }
+            state.setResult(validateToken(token));
+        } catch (ExpiredJwtException ex) {
+            state.setResult(AccessTokenValidationResult.expired());
+        } catch (JwtException | IllegalArgumentException ex) {
+            state.setResult(AccessTokenValidationResult.invalid(ex.getMessage()));
+        }
+        return state.getResult();
+    }
+
+    private AccessTokenValidationResult validateToken(final String token) {
+        return resolveValidationResult(parseClaims(token));
+    }
+
+    private Claims parseClaims(final String token) {
+        final Jws<Claims> parsedClaims = Jwts.parser()
+                .verifyWith(signingKey)
+                .build()
+                .parseSignedClaims(token);
+        return parsedClaims.getPayload();
+    }
+
+    private AccessTokenValidationResult resolveValidationResult(final Claims claims) {
+        AccessTokenValidationResult result = AccessTokenValidationResult.invalid("unsupported_type");
+        final String tokenType = claims.get("typ", String.class);
+        if (isAccessTokenType(tokenType)) {
             final Long userId = claims.get("uid", Long.class);
             final String googleSub = claims.get("gsub", String.class);
             final String email = claims.get("email", String.class);
             final String name = claims.get("name", String.class);
-            if (userId == null || googleSub == null || email == null || name == null) {
-                return AccessTokenValidationResult.invalid("missing_claims");
+            result = AccessTokenValidationResult.invalid("missing_claims");
+            if (userId != null && googleSub != null && email != null && name != null) {
+                result = AccessTokenValidationResult.valid(
+                        new AuthenticatedUser(userId, googleSub, email, name)
+                );
             }
-            return AccessTokenValidationResult.valid(
-                    new AuthenticatedUser(userId, googleSub, email, name)
-            );
-        } catch (ExpiredJwtException ex) {
-            return AccessTokenValidationResult.expired();
-        } catch (JwtException | IllegalArgumentException ex) {
-            return AccessTokenValidationResult.invalid(ex.getMessage());
+        }
+        return result;
+    }
+
+    private boolean isAccessTokenType(final String tokenType) {
+        return ACCESS_TOKEN_TYPE.equals(tokenType);
+    }
+
+    private static final class ValidationState {
+        private AccessTokenValidationResult result;
+
+        private AccessTokenValidationResult getResult() {
+            return result;
+        }
+
+        private void setResult(final AccessTokenValidationResult result) {
+            this.result = result;
         }
     }
 
@@ -78,15 +110,15 @@ public class AccessTokenService {
             AuthenticatedUser principal,
             String reason
     ) {
-        static AccessTokenValidationResult valid(final AuthenticatedUser principal) {
+        /* package */ static AccessTokenValidationResult valid(final AuthenticatedUser principal) {
             return new AccessTokenValidationResult(TokenStatus.VALID, principal, null);
         }
 
-        static AccessTokenValidationResult invalid(final String reason) {
+        /* package */ static AccessTokenValidationResult invalid(final String reason) {
             return new AccessTokenValidationResult(TokenStatus.INVALID, null, reason);
         }
 
-        static AccessTokenValidationResult expired() {
+        /* package */ static AccessTokenValidationResult expired() {
             return new AccessTokenValidationResult(TokenStatus.EXPIRED, null, "expired");
         }
     }
