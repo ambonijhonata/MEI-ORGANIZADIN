@@ -1,6 +1,8 @@
 package com.api.common;
 
-import com.api.auth.AuthController;
+import com.api.auth.InvalidTokenException;
+import com.api.auth.OAuthExchangeException;
+import com.api.auth.RefreshRetryableException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,7 +31,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void shouldHandleInvalidTokenWith401() {
-        var ex = new AuthController.InvalidTokenException("Invalid token");
+        var ex = new InvalidTokenException("Invalid token");
         var response = handler.handleAuthExceptions(ex);
 
         assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
@@ -41,7 +43,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void shouldHandleOAuthExchangeWith502() {
-        var ex = new AuthController.OAuthExchangeException("Exchange failed");
+        var ex = new OAuthExchangeException("Exchange failed");
         var response = handler.handleAuthExceptions(ex);
 
         assertEquals(HttpStatus.BAD_GATEWAY, response.getStatusCode());
@@ -51,7 +53,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void shouldHandleRetryableRefreshWith503() {
-        var ex = new AuthController.RefreshRetryableException("Refresh temporarily unavailable");
+        var ex = new RefreshRetryableException("Refresh temporarily unavailable");
         var response = handler.handleAuthExceptions(ex);
 
         assertEquals(HttpStatus.SERVICE_UNAVAILABLE, response.getStatusCode());

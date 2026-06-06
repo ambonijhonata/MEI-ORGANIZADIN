@@ -56,6 +56,14 @@ public class GoogleIdTokenValidator {
         return Optional.ofNullable(result.payload());
     }
 
+    public Optional<GoogleUserProfile> validateProfile(final String idTokenString) {
+        return validate(idTokenString).map(payload -> {
+            final String email = payload.getEmail();
+            final String name = payload.get("name") instanceof String value ? value : email;
+            return new GoogleUserProfile(payload.getSubject(), email, name);
+        });
+    }
+
     public ValidationResult validateDetailed(final String idTokenString) {
         try {
             final GoogleIdToken idToken = verifier.verify(idTokenString);

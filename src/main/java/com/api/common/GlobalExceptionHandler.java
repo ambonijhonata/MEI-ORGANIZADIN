@@ -1,6 +1,9 @@
 package com.api.common;
 
-import com.api.auth.AuthController;
+import com.api.auth.InvalidTokenException;
+import com.api.auth.OAuthExchangeException;
+import com.api.auth.RefreshRetryableException;
+import com.api.auth.RefreshTokenException;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,32 +37,32 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler({
-            AuthController.InvalidTokenException.class,
-            AuthController.OAuthExchangeException.class,
-            AuthController.RefreshTokenException.class,
-            AuthController.RefreshRetryableException.class
+            InvalidTokenException.class,
+            OAuthExchangeException.class,
+            RefreshTokenException.class,
+            RefreshRetryableException.class
     })
     public ResponseEntity<ErrorResponse> handleAuthExceptions(final Exception exception) {
         final ResponseEntity<ErrorResponse> response;
-        if (exception instanceof AuthController.InvalidTokenException tokenEx) {
+        if (exception instanceof InvalidTokenException tokenEx) {
             response = errorResponse(
                     HttpStatus.UNAUTHORIZED,
                     "INVALID_TOKEN",
                     tokenEx.getMessage()
             );
-        } else if (exception instanceof AuthController.OAuthExchangeException oauthEx) {
+        } else if (exception instanceof OAuthExchangeException oauthEx) {
             response = errorResponse(
                     HttpStatus.BAD_GATEWAY,
                     "OAUTH_EXCHANGE_FAILED",
                     oauthEx.getMessage()
             );
-        } else if (exception instanceof AuthController.RefreshRetryableException retryableEx) {
+        } else if (exception instanceof RefreshRetryableException retryableEx) {
             response = errorResponse(
                     HttpStatus.SERVICE_UNAVAILABLE,
                     "REFRESH_RETRYABLE",
                     retryableEx.getMessage()
             );
-        } else if (exception instanceof AuthController.RefreshTokenException refreshEx) {
+        } else if (exception instanceof RefreshTokenException refreshEx) {
             response = errorResponse(
                     HttpStatus.UNAUTHORIZED,
                     refreshEx.getCode(),

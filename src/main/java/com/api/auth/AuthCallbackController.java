@@ -81,7 +81,7 @@ public class AuthCallbackController {
 
                 final User user = userResolver.resolveUser(
                         tokenValidator.validate(idTokenString)
-                                .orElseThrow(() -> new AuthController.InvalidTokenException("ID Token inválido após troca"))
+                                .orElseThrow(() -> new InvalidTokenException("ID Token inválido após troca"))
                 );
                 final Instant expiresAt = Instant.now().plusSeconds(tokenResponse.expiresInSeconds());
                 final OAuthCredential credential = credentialRepo.findByUserId(user.getId())

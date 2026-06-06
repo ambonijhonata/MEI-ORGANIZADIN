@@ -163,7 +163,7 @@ class AuthCallbackControllerTest {
         when(googleOAuthClient.exchangeAuthorizationCodeResult(eq("code"), anyString())).thenReturn(tokenResponse);
         when(tokenValidator.validate("bad-id-token")).thenReturn(Optional.empty());
 
-        assertThrows(AuthController.InvalidTokenException.class, () ->
+        assertThrows(InvalidTokenException.class, () ->
                 controller.callback("code", null, request));
     }
 
