@@ -128,7 +128,7 @@ class RefreshTokenServiceTest {
 
     private void setUserId(User user, Long id) {
         try {
-            var field = User.class.getDeclaredField("id");
+            final var field = User.class.getDeclaredField("id");
             field.setAccessible(true);
             field.set(user, id);
         } catch (ReflectiveOperationException ex) {
@@ -138,7 +138,7 @@ class RefreshTokenServiceTest {
 
     private void setTokenId(RefreshSessionToken token, UUID id) {
         try {
-            var field = RefreshSessionToken.class.getDeclaredField("id");
+            final var field = RefreshSessionToken.class.getDeclaredField("tokenId");
             field.setAccessible(true);
             field.set(token, id);
         } catch (ReflectiveOperationException ex) {

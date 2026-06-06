@@ -11,12 +11,11 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
 
-@SuppressWarnings({"PMD.AtLeastOneConstructor", "PMD.DataClass", "PMD.LongVariable", "PMD.ShortVariable"})
 @Entity
 @Table(name = "refresh_session_tokens")
 public class RefreshSessionToken {
     @Id
-    private UUID id;
+    private UUID tokenId;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
@@ -41,7 +40,7 @@ public class RefreshSessionToken {
     private String revokedReason;
 
     @Column(name = "replaced_by_token_id")
-    private UUID replacedByTokenId;
+    private UUID replacementId;
 
     @Column(name = "device_id", length = 128)
     private String deviceId;
@@ -55,6 +54,27 @@ public class RefreshSessionToken {
     @Column(name = "created_user_agent", length = 512)
     private String createdUserAgent;
 
+    protected RefreshSessionToken() {
+    }
+
+    private RefreshSessionToken(
+            final User user,
+            final String tokenHash,
+            final Instant issuedAt,
+            final Instant expiresAt,
+            final RefreshTokenMetadata metadata
+    ) {
+        this.tokenId = UUID.randomUUID();
+        this.user = user;
+        this.tokenHash = tokenHash;
+        this.issuedAt = issuedAt;
+        this.expiresAt = expiresAt;
+        this.deviceId = metadata.deviceId();
+        this.appVersion = metadata.appVersion();
+        this.createdIp = metadata.createdIp();
+        this.createdUserAgent = metadata.createdUserAgent();
+    }
+
     public static RefreshSessionToken issue(
             final User user,
             final String tokenHash,
@@ -62,17 +82,7 @@ public class RefreshSessionToken {
             final Instant expiresAt,
             final RefreshTokenMetadata metadata
     ) {
-        final RefreshSessionToken token = new RefreshSessionToken();
-        token.id = UUID.randomUUID();
-        token.user = user;
-        token.tokenHash = tokenHash;
-        token.issuedAt = issuedAt;
-        token.expiresAt = expiresAt;
-        token.deviceId = metadata.deviceId();
-        token.appVersion = metadata.appVersion();
-        token.createdIp = metadata.createdIp();
-        token.createdUserAgent = metadata.createdUserAgent();
-        return token;
+        return new RefreshSessionToken(user, tokenHash, issuedAt, expiresAt, metadata);
     }
 
     public boolean isExpired(final Instant now) {
@@ -84,11 +94,11 @@ public class RefreshSessionToken {
     }
 
     public boolean isReplaced() {
-        return replacedByTokenId != null;
+        return replacementId != null;
     }
 
-    public void markReplacedBy(final UUID replacementTokenId, final Instant now) {
-        this.replacedByTokenId = replacementTokenId;
+    public void markReplacedBy(final UUID replacementId, final Instant now) {
+        this.replacementId = replacementId;
         this.lastUsedAt = now;
         this.revokedAt = now;
         this.revokedReason = "ROTATED";
@@ -102,7 +112,7 @@ public class RefreshSessionToken {
     }
 
     public UUID getId() {
-        return id;
+        return tokenId;
     }
 
     public User getUser() {
@@ -134,7 +144,7 @@ public class RefreshSessionToken {
     }
 
     public UUID getReplacedByTokenId() {
-        return replacedByTokenId;
+        return replacementId;
     }
 
     public String getDeviceId() {
