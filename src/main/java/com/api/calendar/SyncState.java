@@ -135,4 +135,14 @@ public class SyncState {
             this.catalogEnrichmentRevisionRequested = Math.max(1L, this.catalogEnrichmentRevisionApplied + 1);
         }
     }
+
+    public CalendarIntegrationStatusReadModel toReadModel() {
+        final String statusName = status != null ? status.name() : SyncStatus.NEVER_SYNCED.name();
+        return new CalendarIntegrationStatusReadModel(
+                statusName,
+                lastSyncAt != null ? lastSyncAt.toString() : null,
+                errorCategory,
+                errorMessage
+        );
+    }
 }

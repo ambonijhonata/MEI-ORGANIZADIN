@@ -7,6 +7,8 @@ import com.api.calendar.CalendarController;
 import com.api.calendar.CalendarEvent;
 import com.api.calendar.CalendarEventPaymentRepository;
 import com.api.calendar.CalendarEventRepository;
+import com.api.calendar.CalendarEventQueryService;
+import com.api.calendar.CalendarFacade;
 import com.api.calendar.CalendarPaymentService;
 import com.api.calendar.CalendarSyncService;
 import com.api.calendar.ManualAppointmentService;
@@ -55,7 +57,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         ServiceCatalogController.class,
         CalendarController.class
 })
-@Import({SecurityConfig.class, GlobalExceptionHandler.class})
+@Import({
+        SecurityConfig.class,
+        GlobalExceptionHandler.class,
+        CalendarFacade.class,
+        CalendarEventQueryService.class
+})
 class ApiInputHardeningWebMvcTest {
 
     @Autowired

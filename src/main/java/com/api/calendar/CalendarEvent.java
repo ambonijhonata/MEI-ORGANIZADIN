@@ -241,6 +241,23 @@ public class CalendarEvent {
         return source == CalendarEventSource.GOOGLE && googleEventId != null && !googleEventId.isBlank();
     }
 
+    public CalendarEventReadModel toReadModel(final BigDecimal paidAmount) {
+        final BigDecimal totalAmount = serviceValueSnapshot != null ? serviceValueSnapshot : BigDecimal.ZERO;
+        final String paymentTypeName = paymentType != null ? paymentType.name() : null;
+        return new CalendarEventReadModel(
+                id,
+                googleEventId,
+                title,
+                formatInstant(eventStart),
+                formatInstant(eventEnd),
+                identified,
+                serviceDescriptionSnapshot,
+                totalAmount,
+                paymentTypeName,
+                paidAmount
+        );
+    }
+
     private void ensureLegacyAssociationBackfilledIntoLinks() {
         if (!this.serviceLinks.isEmpty() || this.service == null) {
             return;
@@ -308,6 +325,10 @@ public class CalendarEvent {
             }
         }
         return count;
+    }
+
+    private String formatInstant(final Instant value) {
+        return value != null ? value.toString() : null;
     }
 
     public Long getId() { return id; }

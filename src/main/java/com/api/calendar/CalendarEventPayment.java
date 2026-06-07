@@ -56,6 +56,17 @@ public class CalendarEventPayment {
         this.createdAt = Instant.now();
     }
 
+    public CalendarPaymentEntryReadModel toReadModel() {
+        final String paymentTypeName = paymentType != null ? paymentType.name() : null;
+        return new CalendarPaymentEntryReadModel(
+                id,
+                paymentTypeName,
+                amount,
+                valueTotal,
+                paidAt != null ? paidAt.toString() : null
+        );
+    }
+
     public Long getId() {
         return id;
     }

@@ -73,6 +73,9 @@ class CalendarPaymentsIntegrationTest {
     private CalendarEventPaymentRepository calendarEventPaymentRepository;
 
     @MockBean
+    private CalendarEventQueryService calendarEventQueryService;
+
+    @MockBean
     private SyncStateRepository syncStateRepository;
 
     @MockBean
@@ -85,7 +88,7 @@ class CalendarPaymentsIntegrationTest {
             FlywayAutoConfiguration.class,
             org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration.class
     })
-    @Import({CalendarController.class, CalendarPaymentService.class, SecurityConfig.class})
+    @Import({CalendarController.class, CalendarFacade.class, CalendarPaymentService.class, SecurityConfig.class})
     static class TestApplication {
     }
 
