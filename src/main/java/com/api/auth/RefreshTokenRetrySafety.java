@@ -42,7 +42,7 @@ final class RefreshTokenRetrySafety {
         boolean retrySafe = rotatedToken.canRetrySafely(
                 rotatedReason,
                 now,
-                properties.getRefreshRetrySafetyWindowSeconds()
+                properties.retryWindowSeconds()
         );
         if (retrySafe) {
             retrySafe = matchesRetryMetadata(rotatedToken, requestMetadata);

@@ -40,7 +40,7 @@ public class RefreshTokenService {
     public IssuedRefreshToken issueForUser(final User user, final RefreshTokenMetadata metadata) {
         final String plainToken = newRefreshToken();
         final Instant now = Instant.now();
-        final Instant expiresAt = now.plusSeconds(properties.getRefreshTokenTtlSeconds());
+        final Instant expiresAt = now.plus(properties.refreshTtl());
         final RefreshSessionToken entity = RefreshSessionToken.issue(
                 user,
                 hashToken(plainToken),
@@ -139,7 +139,7 @@ public class RefreshTokenService {
     ) {
         final User user = activeToken.getUser();
         final String plainToken = newRefreshToken();
-        final Instant expiresAt = now.plusSeconds(properties.getRefreshTokenTtlSeconds());
+        final Instant expiresAt = now.plus(properties.refreshTtl());
         final RefreshSessionToken replacement = RefreshSessionToken.issue(
                 user,
                 hashToken(plainToken),

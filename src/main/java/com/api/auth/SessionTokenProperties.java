@@ -1,46 +1,32 @@
 package com.api.auth;
 
+import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
+import org.springframework.boot.context.properties.bind.DefaultValue;
+import org.springframework.boot.context.properties.bind.Name;
 
-@SuppressWarnings({"PMD.AtLeastOneConstructor", "PMD.DataClass", "PMD.LongVariable"})
-@Component
 @ConfigurationProperties(prefix = "auth.session")
-public class SessionTokenProperties {
-    private String jwtSecret = "change-me-change-me-change-me-change-me";
-    private long accessTokenTtlSeconds = 900;
-    private long refreshTokenTtlSeconds = 2_592_000;
-    private long refreshRetrySafetyWindowSeconds = 20;
+public record SessionTokenProperties(
+        @DefaultValue(DEFAULT_SECRET) String jwtSecret,
+        @Name("access-token-ttl-seconds") @DefaultValue("900") long accessTtlSec,
+        @Name("refresh-token-ttl-seconds") @DefaultValue("2592000") long refreshTtlSec,
+        @Name("refresh-retry-safety-window-seconds") @DefaultValue("20") long retryWindowSec
+) {
+    private static final String DEFAULT_SECRET = "change-me-change-me-change-me-change-me";
 
-    public String getJwtSecret() {
-        return jwtSecret;
+    public SessionTokenProperties() {
+        this(DEFAULT_SECRET, 900, 2_592_000, 20);
     }
 
-    public void setJwtSecret(final String jwtSecret) {
-        this.jwtSecret = jwtSecret;
+    public Duration accessTtl() {
+        return Duration.ofSeconds(accessTtlSec);
     }
 
-    public long getAccessTokenTtlSeconds() {
-        return accessTokenTtlSeconds;
+    public Duration refreshTtl() {
+        return Duration.ofSeconds(refreshTtlSec);
     }
 
-    public void setAccessTokenTtlSeconds(final long accessTokenTtlSeconds) {
-        this.accessTokenTtlSeconds = accessTokenTtlSeconds;
-    }
-
-    public long getRefreshTokenTtlSeconds() {
-        return refreshTokenTtlSeconds;
-    }
-
-    public void setRefreshTokenTtlSeconds(final long refreshTokenTtlSeconds) {
-        this.refreshTokenTtlSeconds = refreshTokenTtlSeconds;
-    }
-
-    public long getRefreshRetrySafetyWindowSeconds() {
-        return refreshRetrySafetyWindowSeconds;
-    }
-
-    public void setRefreshRetrySafetyWindowSeconds(final long refreshRetrySafetyWindowSeconds) {
-        this.refreshRetrySafetyWindowSeconds = refreshRetrySafetyWindowSeconds;
+    public long retryWindowSeconds() {
+        return retryWindowSec;
     }
 }

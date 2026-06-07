@@ -21,12 +21,12 @@ public class AccessTokenService {
 
     public AccessTokenService(final SessionTokenProperties properties) {
         this.properties = properties;
-        this.signingKey = Keys.hmacShaKeyFor(properties.getJwtSecret().getBytes(StandardCharsets.UTF_8));
+        this.signingKey = Keys.hmacShaKeyFor(properties.jwtSecret().getBytes(StandardCharsets.UTF_8));
     }
 
     public IssuedAccessToken issue(final AuthenticatedUser user) {
         final Instant issuedAt = Instant.now();
-        final Instant expiresAt = issuedAt.plusSeconds(properties.getAccessTokenTtlSeconds());
+        final Instant expiresAt = issuedAt.plus(properties.accessTtl());
         final String token = Jwts.builder()
                 .subject(String.valueOf(user.userId()))
                 .claim("typ", "access")

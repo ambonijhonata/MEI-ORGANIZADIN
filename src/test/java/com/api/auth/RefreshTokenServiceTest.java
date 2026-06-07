@@ -27,9 +27,12 @@ class RefreshTokenServiceTest {
 
     @BeforeEach
     void setUp() {
-        properties = new SessionTokenProperties();
-        properties.setRefreshTokenTtlSeconds(3600);
-        properties.setRefreshRetrySafetyWindowSeconds(20);
+        properties = new SessionTokenProperties(
+                "change-me-change-me-change-me-change-me",
+                900,
+                3600,
+                20
+        );
         service = new RefreshTokenService(repository, properties);
     }
 
@@ -65,7 +68,8 @@ class RefreshTokenServiceTest {
 
     @Test
     void shouldRevokeAllActiveTokensWhenReusedTokenDetected() {
-        properties.setRefreshRetrySafetyWindowSeconds(0);
+        properties = new SessionTokenProperties(properties.jwtSecret(), properties.accessTtlSec(), 3600, 0);
+        service = new RefreshTokenService(repository, properties);
         User user = new User("sub-1", "user@test.com", "User");
         setUserId(user, 99L);
         String rawToken = "reused-token";
