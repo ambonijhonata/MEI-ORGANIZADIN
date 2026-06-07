@@ -15,6 +15,7 @@ import java.util.UUID;
 @Table(name = "refresh_session_tokens")
 public class RefreshSessionToken {
     @Id
+    @Column(name = "id")
     private UUID tokenId;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
