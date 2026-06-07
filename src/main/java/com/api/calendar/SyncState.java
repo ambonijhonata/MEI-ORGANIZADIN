@@ -4,10 +4,21 @@ import com.api.user.User;
 import jakarta.persistence.*;
 import java.time.Instant;
 
-@SuppressWarnings({"PMD.CommentDefaultAccessModifier", "PMD.LongVariable", "PMD.NullAssignment", "PMD.ShortVariable", "PMD.UseExplicitTypes"})
+@SuppressWarnings({
+        "PMD.CommentDefaultAccessModifier",
+        "PMD.LongVariable",
+        "PMD.NullAssignment",
+        "PMD.ShortVariable",
+        "PMD.TooManyMethods",
+        "PMD.UseExplicitTypes"
+})
 @Entity
 @Table(name = "sync_state")
 public class SyncState {
+    private static final SyncStatus INITIAL_STATUS = SyncStatus.NEVER_SYNCED;
+    private static final SyncStatus SYNCED_STATUS = SyncStatus.SYNCED;
+    private static final SyncStatus FAILED_STATUS = SyncStatus.SYNC_FAILED;
+    private static final SyncStatus REAUTH_REQUIRED_STATUS = SyncStatus.REAUTH_REQUIRED;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -25,7 +36,7 @@ public class SyncState {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private SyncStatus status = SyncStatus.NEVER_SYNCED;
+    private SyncStatus status = INITIAL_STATUS;
 
     @Column(name = "error_category")
     private String errorCategory;
@@ -49,7 +60,7 @@ public class SyncState {
 
     public SyncState(final User user) {
         this.user = user;
-        this.status = SyncStatus.NEVER_SYNCED;
+        this.status = INITIAL_STATUS;
     }
 
     @PrePersist
@@ -91,19 +102,19 @@ public class SyncState {
     public void markSynced(final String syncToken) {
         this.syncToken = syncToken;
         this.lastSyncAt = Instant.now();
-        this.status = SyncStatus.SYNCED;
+        this.status = SYNCED_STATUS;
         this.errorCategory = null;
         this.errorMessage = null;
     }
 
     public void markFailed(final String errorCategory, final String errorMessage) {
-        this.status = SyncStatus.SYNC_FAILED;
+        this.status = FAILED_STATUS;
         this.errorCategory = errorCategory;
         this.errorMessage = errorMessage;
     }
 
     public void markReauthRequired(final String reason) {
-        this.status = SyncStatus.REAUTH_REQUIRED;
+        this.status = REAUTH_REQUIRED_STATUS;
         this.errorCategory = "REVOKED";
         this.errorMessage = reason;
     }
@@ -136,8 +147,12 @@ public class SyncState {
         }
     }
 
+    public boolean wasSyncedAfter(final Instant threshold) {
+        return lastSyncAt != null && lastSyncAt.isAfter(threshold);
+    }
+
     public CalendarIntegrationStatusReadModel toReadModel() {
-        final String statusName = status != null ? status.name() : SyncStatus.NEVER_SYNCED.name();
+        final String statusName = status != null ? status.name() : INITIAL_STATUS.name();
         return new CalendarIntegrationStatusReadModel(
                 statusName,
                 lastSyncAt != null ? lastSyncAt.toString() : null,

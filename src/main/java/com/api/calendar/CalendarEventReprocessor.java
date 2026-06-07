@@ -46,7 +46,7 @@ public class CalendarEventReprocessor {
             final Map<String, Service> servicesByNormalizedDescription = matcher.servicesByNormalizedDescription(userId);
 
             for (final CalendarEvent event : unidentified) {
-                final EventTitleParser.ParsedTitle parsed = titleParser.parse(event.getTitle());
+                final EventTitleParser.ParsedTitle parsed = titleParser.parse(event.getLabel().getTitle());
                 final List<Service> matchedServices = resolveMatchedServices(parsed, servicesByNormalizedDescription);
                 if (!matchedServices.isEmpty()) {
                     event.associateServices(matchedServices);
@@ -108,7 +108,7 @@ public class CalendarEventReprocessor {
                 continue;
             }
 
-            final EventTitleParser.ParsedTitle parsed = titleParser.parse(event.getTitle());
+            final EventTitleParser.ParsedTitle parsed = titleParser.parse(event.getLabel().getTitle());
             final List<Service> matchedServices = resolveMatchedServices(parsed, servicesByNormalizedDescription);
             boolean changed = false;
             if (!matchedServices.isEmpty()) {

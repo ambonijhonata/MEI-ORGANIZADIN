@@ -21,8 +21,8 @@ public interface CalendarEventServiceLinkRepository extends JpaRepository<Calend
     @Query("SELECT sl FROM CalendarEventServiceLink sl " +
             "JOIN FETCH sl.calendarEvent e " +
             "WHERE e.user.id = :userId AND e.identified = true " +
-            "AND e.eventStart >= :startDate AND e.eventStart < :endDate " +
-            "ORDER BY e.eventStart ASC")
+            "AND e.timing.start >= :startDate AND e.timing.start < :endDate " +
+            "ORDER BY e.timing.start ASC")
     List<CalendarEventServiceLink> findByUserAndPeriod(@Param("userId") Long userId,
                                                         @Param("startDate") Instant startDate,
                                                         @Param("endDate") Instant endDate);
@@ -30,9 +30,9 @@ public interface CalendarEventServiceLinkRepository extends JpaRepository<Calend
     @Query("SELECT sl FROM CalendarEventServiceLink sl " +
             "JOIN FETCH sl.calendarEvent e " +
             "WHERE e.user.id = :userId AND e.identified = true " +
-            "AND e.eventStart >= :startDate AND e.eventStart < :endDate " +
+            "AND e.timing.start >= :startDate AND e.timing.start < :endDate " +
             "AND (e.paymentType IS NOT NULL OR e.payments IS NOT EMPTY) " +
-            "ORDER BY e.eventStart ASC")
+            "ORDER BY e.timing.start ASC")
     List<CalendarEventServiceLink> findByUserAndPeriodPaidOnly(@Param("userId") Long userId,
                                                                 @Param("startDate") Instant startDate,
                                                                 @Param("endDate") Instant endDate);

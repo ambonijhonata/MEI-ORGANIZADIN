@@ -22,7 +22,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
-@SuppressWarnings({"PMD.LawOfDemeter", "PMD.LongVariable", "PMD.OnlyOneReturn"})
+@SuppressWarnings({"PMD.LongVariable", "PMD.OnlyOneReturn"})
 @Component
 public class PaymentMethodRevenueReportService {
 
@@ -112,11 +112,8 @@ public class PaymentMethodRevenueReportService {
     }
 
     private boolean isDataUpToDate(final SyncState state) {
-        if (state.getLastSyncAt() == null) {
-            return false;
-        }
         final Instant threshold = Instant.now().minus(freshnessMinutes, ChronoUnit.MINUTES);
-        return state.getLastSyncAt().isAfter(threshold);
+        return state.wasSyncedAfter(threshold);
     }
 
     private BigDecimal normalizeAmount(final BigDecimal amount) {

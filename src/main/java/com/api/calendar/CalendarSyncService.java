@@ -749,10 +749,10 @@ public class CalendarSyncService {
                                        final String normalizedTitle,
                                        final Instant eventStart,
                                        final Instant eventEnd) {
-        return !Objects.equals(existingEvent.getTitle(), title)
-                || !Objects.equals(existingEvent.getNormalizedTitle(), normalizedTitle)
-                || !Objects.equals(existingEvent.getEventStart(), eventStart)
-                || !Objects.equals(existingEvent.getEventEnd(), eventEnd);
+        return !Objects.equals(existingEvent.getLabel().getTitle(), title)
+                || !Objects.equals(existingEvent.getLabel().getNormalizedTitle(), normalizedTitle)
+                || !Objects.equals(existingEvent.getTiming().getStart(), eventStart)
+                || !Objects.equals(existingEvent.getTiming().getEnd(), eventEnd);
     }
 
     private boolean hasServiceAssociationChanges(final CalendarEvent existingEvent,
@@ -770,11 +770,11 @@ public class CalendarSyncService {
 
         final Service firstMatched = matchedServices.get(0);
 
-        if (!Objects.equals(existingEvent.getServiceDescriptionSnapshot(), firstMatched.getDescription())) {
+        if (!Objects.equals(existingEvent.getSnapshot().getDescription(), firstMatched.getDescription())) {
             return true;
         }
 
-        if (!sameMoney(existingEvent.getServiceValueSnapshot(), sumValues(matchedServices))) {
+        if (!sameMoney(existingEvent.getSnapshot().getTotalValue(), sumValues(matchedServices))) {
             return true;
         }
 
@@ -786,8 +786,8 @@ public class CalendarSyncService {
         final Map<String, Integer> persistedServiceIdentities = resolvePersistedServiceIdentityCounts(existingEvent, existingServiceIdentities);
         return existingEvent.isIdentified()
                 || !persistedServiceIdentities.isEmpty()
-                || existingEvent.getServiceDescriptionSnapshot() != null
-                || existingEvent.getServiceValueSnapshot() != null;
+                || existingEvent.getSnapshot().getDescription() != null
+                || existingEvent.getSnapshot().getTotalValue() != null;
     }
 
     private boolean isEquivalentClient(final Client existingClient, final Client resolvedClient) {
@@ -1052,14 +1052,14 @@ public class CalendarSyncService {
             return fallbackCounts;
         }
 
-        if (existingEvent.getServiceDescriptionSnapshot() != null || existingEvent.getServiceValueSnapshot() != null) {
+        if (existingEvent.getSnapshot().getDescription() != null || existingEvent.getSnapshot().getTotalValue() != null) {
             incrementIdentityCount(
                     fallbackCounts,
                     serviceIdentity(
                             existingEvent.getService() != null ? existingEvent.getService().getId() : null,
                             existingEvent.getService() != null ? existingEvent.getService().getNormalizedDescription() : null,
-                            existingEvent.getServiceDescriptionSnapshot(),
-                            existingEvent.getServiceValueSnapshot()
+                            existingEvent.getSnapshot().getDescription(),
+                            existingEvent.getSnapshot().getTotalValue()
                     )
             );
         }
@@ -1321,10 +1321,10 @@ public class CalendarSyncService {
                     false,
                     false,
                     false,
-                    calendarEvent.getTitle(),
-                    calendarEvent.getNormalizedTitle(),
-                    calendarEvent.getEventStart(),
-                    calendarEvent.getEventEnd(),
+                    calendarEvent.getLabel().getTitle(),
+                    calendarEvent.getLabel().getNormalizedTitle(),
+                    calendarEvent.getTiming().getStart(),
+                    calendarEvent.getTiming().getEnd(),
                     false,
                     null,
                     false,
@@ -1345,10 +1345,10 @@ public class CalendarSyncService {
                     true,
                     true,
                     false,
-                    calendarEvent.getTitle(),
-                    calendarEvent.getNormalizedTitle(),
-                    calendarEvent.getEventStart(),
-                    calendarEvent.getEventEnd(),
+                    calendarEvent.getLabel().getTitle(),
+                    calendarEvent.getLabel().getNormalizedTitle(),
+                    calendarEvent.getTiming().getStart(),
+                    calendarEvent.getTiming().getEnd(),
                     false,
                     resolvedClient,
                     hasClient,

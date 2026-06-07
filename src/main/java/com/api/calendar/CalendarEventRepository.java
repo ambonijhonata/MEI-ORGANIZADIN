@@ -56,7 +56,7 @@ public interface CalendarEventRepository extends JpaRepository<CalendarEvent, Lo
             "AND e.source = com.api.calendar.CalendarEventSource.GOOGLE " +
             "AND e.googleEventId IS NOT NULL " +
             "AND e.googleEventId <> '' " +
-            "AND e.eventStart >= :startDate")
+            "AND e.timing.start >= :startDate")
     List<CalendarEvent> findGoogleBackedByUserIdAndEventStartGreaterThanEqual(
             @Param("userId") Long userId,
             @Param("startDate") Instant startDate
@@ -74,14 +74,24 @@ public interface CalendarEventRepository extends JpaRepository<CalendarEvent, Lo
 
     Page<CalendarEvent> findByUserId(Long userId, Pageable pageable);
 
+    @Query("SELECT e FROM CalendarEvent e WHERE e.user.id = :userId AND e.timing.start >= :eventStart AND e.timing.start < :eventEnd")
     Page<CalendarEvent> findByUserIdAndEventStartGreaterThanEqualAndEventStartLessThan(
-            Long userId, Instant eventStart, Instant eventEnd, Pageable pageable);
+            @Param("userId") Long userId,
+            @Param("eventStart") Instant eventStart,
+            @Param("eventEnd") Instant eventEnd,
+            Pageable pageable);
 
+    @Query("SELECT e FROM CalendarEvent e WHERE e.user.id = :userId AND e.timing.start >= :eventStart")
     Page<CalendarEvent> findByUserIdAndEventStartGreaterThanEqual(
-            Long userId, Instant eventStart, Pageable pageable);
+            @Param("userId") Long userId,
+            @Param("eventStart") Instant eventStart,
+            Pageable pageable);
 
+    @Query("SELECT e FROM CalendarEvent e WHERE e.user.id = :userId AND e.timing.start < :eventEnd")
     Page<CalendarEvent> findByUserIdAndEventStartLessThan(
-            Long userId, Instant eventEnd, Pageable pageable);
+            @Param("userId") Long userId,
+            @Param("eventEnd") Instant eventEnd,
+            Pageable pageable);
 
     List<CalendarEvent> findByUserIdAndIdentifiedFalse(Long userId);
 
@@ -103,16 +113,16 @@ public interface CalendarEventRepository extends JpaRepository<CalendarEvent, Lo
 
     void deleteByUserIdAndGoogleEventId(Long userId, String googleEventId);
 
-    @Query("SELECT COALESCE(SUM(e.serviceValueSnapshot), 0) FROM CalendarEvent e " +
+    @Query("SELECT COALESCE(SUM(e.snapshot.totalValue), 0) FROM CalendarEvent e " +
             "WHERE e.user.id = :userId AND e.identified = true " +
-            "AND e.eventStart >= :startDate AND e.eventStart < :endDate")
+            "AND e.timing.start >= :startDate AND e.timing.start < :endDate")
     BigDecimal sumRevenueByUserAndPeriod(@Param("userId") Long userId,
                                          @Param("startDate") Instant startDate,
                                          @Param("endDate") Instant endDate);
 
-    @Query("SELECT COALESCE(SUM(e.serviceValueSnapshot), 0) FROM CalendarEvent e " +
+    @Query("SELECT COALESCE(SUM(e.snapshot.totalValue), 0) FROM CalendarEvent e " +
             "WHERE e.user.id = :userId AND e.identified = true " +
-            "AND e.eventStart >= :startDate AND e.eventStart < :endDate " +
+            "AND e.timing.start >= :startDate AND e.timing.start < :endDate " +
             "AND (e.paymentType IS NOT NULL OR e.payments IS NOT EMPTY)")
     BigDecimal sumRevenueByUserAndPeriodPaidOnly(@Param("userId") Long userId,
                                                  @Param("startDate") Instant startDate,
@@ -120,8 +130,8 @@ public interface CalendarEventRepository extends JpaRepository<CalendarEvent, Lo
 
     @Query("SELECT e FROM CalendarEvent e " +
             "WHERE e.user.id = :userId AND e.identified = true " +
-            "AND e.eventStart >= :startDate AND e.eventStart < :endDate " +
-            "ORDER BY e.eventStart ASC")
+            "AND e.timing.start >= :startDate AND e.timing.start < :endDate " +
+            "ORDER BY e.timing.start ASC")
     List<CalendarEvent> findIdentifiedByUserAndPeriod(@Param("userId") Long userId,
                                                        @Param("startDate") Instant startDate,
                                                        @Param("endDate") Instant endDate);
@@ -129,8 +139,8 @@ public interface CalendarEventRepository extends JpaRepository<CalendarEvent, Lo
     @Query("SELECT DISTINCT e FROM CalendarEvent e " +
             "LEFT JOIN FETCH e.serviceLinks serviceLink " +
             "WHERE e.user.id = :userId AND e.identified = true " +
-            "AND e.eventStart >= :startDate AND e.eventStart < :endDate " +
-            "ORDER BY e.eventStart ASC")
+            "AND e.timing.start >= :startDate AND e.timing.start < :endDate " +
+            "ORDER BY e.timing.start ASC")
     List<CalendarEvent> findIdentifiedWithServiceLinksByUserAndPeriod(@Param("userId") Long userId,
                                                                        @Param("startDate") Instant startDate,
                                                                        @Param("endDate") Instant endDate);

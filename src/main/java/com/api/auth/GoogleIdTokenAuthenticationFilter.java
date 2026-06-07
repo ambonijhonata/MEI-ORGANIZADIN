@@ -38,7 +38,7 @@ public class GoogleIdTokenAuthenticationFilter extends OncePerRequestFilter {
         if (authHeader != null && authHeader.startsWith(BEARER_PREFIX)) {
             final String token = authHeader.substring(BEARER_PREFIX.length());
             final AccessTokenService.AccessTokenValidationResult accessValidation = accessTokens.validate(token);
-            if (accessValidation.status() == AccessTokenService.TokenStatus.VALID && accessValidation.principal() != null) {
+            if (accessValidation.isValid() && accessValidation.principal() != null) {
                 final UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         accessValidation.principal(), null, Collections.emptyList()
                 );

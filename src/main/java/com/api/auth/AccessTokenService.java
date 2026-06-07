@@ -110,6 +110,10 @@ public class AccessTokenService {
             AuthenticatedUser principal,
             String reason
     ) {
+        public boolean isValid() {
+            return status == TokenStatus.VALID;
+        }
+
         /* package */ static AccessTokenValidationResult valid(final AuthenticatedUser principal) {
             return new AccessTokenValidationResult(TokenStatus.VALID, principal, null);
         }
