@@ -22,7 +22,7 @@ public final class RefreshTokenException extends RuntimeException {
             case REVOKED -> new RefreshTokenException("REFRESH_TOKEN_REVOKED", "Refresh token is revoked");
             case REUSED -> new RefreshTokenException("REFRESH_TOKEN_REUSED", "Refresh token reuse detected");
             case EXPIRED -> new RefreshTokenException("REFRESH_TOKEN_EXPIRED", "Refresh token is expired");
-            case SUCCESS, RETRY_SAFE_SUCCESS -> new RefreshTokenException(INVALID_CODE, INVALID_MESSAGE);
+            case SUCCESS, RETRY_SAFE -> new RefreshTokenException(INVALID_CODE, INVALID_MESSAGE);
         };
     }
 }

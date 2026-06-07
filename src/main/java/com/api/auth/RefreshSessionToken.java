@@ -9,6 +9,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
 @Entity
@@ -120,6 +121,14 @@ public class RefreshSessionToken {
         return user;
     }
 
+    public Long getUserId() {
+        return user == null ? null : user.getId();
+    }
+
+    public AuthenticatedUser toAuthenticatedUser() {
+        return user.toAuthenticatedUser();
+    }
+
     public String getTokenHash() {
         return tokenHash;
     }
@@ -162,5 +171,19 @@ public class RefreshSessionToken {
 
     public String getCreatedUserAgent() {
         return createdUserAgent;
+    }
+
+    public boolean canRetrySafely(
+            final String expectedReason,
+            final Instant now,
+            final long retryWindowSecs
+    ) {
+        boolean retrySafe = retryWindowSecs > 0
+                && revokedAt != null
+                && Objects.equals(expectedReason, revokedReason);
+        if (retrySafe) {
+            retrySafe = !now.isAfter(revokedAt.plusSeconds(retryWindowSecs));
+        }
+        return retrySafe;
     }
 }

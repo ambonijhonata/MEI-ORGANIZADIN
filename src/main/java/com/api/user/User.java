@@ -1,5 +1,6 @@
 package com.api.user;
 
+import com.api.auth.AuthenticatedUser;
 import jakarta.persistence.*;
 import java.time.Instant;
 
@@ -53,6 +54,7 @@ public class User {
     public String getName() { return name; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+    public AuthenticatedUser toAuthenticatedUser() { return new AuthenticatedUser(id, googleSub, email, name); }
 
     public void setEmail(final String email) { this.email = email; }
     public void setName(final String name) { this.name = name; }

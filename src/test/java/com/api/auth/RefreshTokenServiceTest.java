@@ -2,7 +2,6 @@ package com.api.auth;
 
 import com.api.user.User;
 import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -81,13 +80,10 @@ class RefreshTokenServiceTest {
         reused.markReplacedBy(java.util.UUID.randomUUID(), Instant.now().minusSeconds(1));
 
         when(repository.findByTokenHash(hash)).thenReturn(Optional.of(reused));
-        when(repository.findActiveByUserId(eq(99L), any())).thenReturn(List.of());
-        when(repository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
-
         RefreshTokenService.RotationResult rotation = service.rotate(rawToken, RefreshTokenMetadata.empty());
 
         assertEquals(RefreshTokenService.RotationStatus.REUSED, rotation.status());
-        verify(repository).findActiveByUserId(eq(99L), any());
+        verify(repository).revokeAllActiveByUserId(eq(99L), any(), eq("REUSE_DETECTED"));
     }
 
     @Test
@@ -122,7 +118,7 @@ class RefreshTokenServiceTest {
 
         RefreshTokenService.RotationResult rotation = service.rotate(rawToken, RefreshTokenMetadata.empty());
 
-        assertEquals(RefreshTokenService.RotationStatus.RETRY_SAFE_SUCCESS, rotation.status());
+        assertEquals(RefreshTokenService.RotationStatus.RETRY_SAFE, rotation.status());
         assertNotNull(rotation.issuedToken());
     }
 

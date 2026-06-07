@@ -7,8 +7,6 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
-import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -17,14 +15,17 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-@SuppressWarnings({"PMD.AvoidDeeplyNestedIfStmts", "PMD.CognitiveComplexity", "PMD.CommentDefaultAccessModifier", "PMD.ControlStatementBraces", "PMD.FieldNamingConventions", "PMD.LawOfDemeter", "PMD.LongVariable", "PMD.OnlyOneReturn", "PMD.SimplifyBooleanReturns", "PMD.TooManyMethods"})
 @Service
 public class RefreshTokenService {
-    private static final Logger log = LoggerFactory.getLogger(RefreshTokenService.class);
-    private static final int MAX_RETRY_SAFE_CHAIN_HOPS = 4;
+    private static final Logger LOGGER = LoggerFactory.getLogger(RefreshTokenService.class);
+    private static final String EXPIRED_REASON = "EXPIRED";
+    private static final String LOGOUT_REASON = "LOGOUT";
+    private static final String REUSE_REASON = "REUSE_DETECTED";
+    private static final String ROTATED_REASON = "ROTATED";
 
     private final RefreshSessionTokenRepository repository;
     private final SessionTokenProperties properties;
+    private final RefreshTokenRetrySafety retrySafety;
 
     public RefreshTokenService(
             final RefreshSessionTokenRepository repository,
@@ -32,6 +33,7 @@ public class RefreshTokenService {
     ) {
         this.repository = repository;
         this.properties = properties;
+        this.retrySafety = new RefreshTokenRetrySafety(repository, properties, ROTATED_REASON);
     }
 
     @Transactional
@@ -57,67 +59,76 @@ public class RefreshTokenService {
 
     @Transactional
     public RotationResult rotate(final String refreshToken, final RefreshTokenMetadata metadata) {
+        final RefreshTokenMetadata requestMetadata = metadata == null ? RefreshTokenMetadata.empty() : metadata;
         final Instant now = Instant.now();
-        final Optional<RefreshSessionToken> existingOpt = repository.findByTokenHash(hashToken(refreshToken));
-        if (existingOpt.isEmpty()) {
-            log.warn("refresh_rotation_outcome outcome=invalid reason=token_not_found");
-            return RotationResult.invalid();
+        final Optional<RefreshSessionToken> tokenOpt = repository.findByTokenHash(hashToken(refreshToken));
+        final RotationResult result;
+        if (tokenOpt.isEmpty()) {
+            LOGGER.warn("refresh_rotation_outcome outcome=invalid reason=token_not_found");
+            result = RotationResult.invalid();
+        } else {
+            result = rotateExistingToken(tokenOpt.get(), requestMetadata, now);
         }
-
-        final RefreshSessionToken current = existingOpt.get();
-        if (current.isExpired(now)) {
-            current.revoke("EXPIRED", now);
-            repository.save(current);
-            log.warn("refresh_rotation_outcome outcome=expired");
-            return RotationResult.expired();
-        }
-        if (current.isRevoked()) {
-            if (current.isReplaced()) {
-                if (isRetrySafeCandidate(current, metadata, now)) {
-                    final Optional<RefreshSessionToken> retrySafeBase = resolveRetrySafeBaseToken(current, now);
-                    if (retrySafeBase.isPresent()) {
-                        log.info("refresh_rotation_outcome outcome=retry_safe_deduped");
-                        return rotateFromActiveToken(
-                                retrySafeBase.get(),
-                                metadata != null ? metadata : RefreshTokenMetadata.empty(),
-                                now,
-                                true
-                        );
-                    }
-                }
-                revokeAllActiveUserTokens(current.getUser().getId(), "REUSE_DETECTED", now);
-                log.warn("refresh_rotation_outcome outcome=reused");
-                return RotationResult.reused();
-            }
-            log.warn("refresh_rotation_outcome outcome=revoked");
-            return RotationResult.revoked();
-        }
-
-        return rotateFromActiveToken(
-                current,
-                metadata != null ? metadata : RefreshTokenMetadata.empty(),
-                now,
-                false
-        );
+        return result;
     }
 
     @Transactional
     public RevokeResult revoke(final String refreshToken, final String reason) {
-        final Optional<RefreshSessionToken> existing = repository.findByTokenHash(hashToken(refreshToken));
-        if (existing.isEmpty()) {
-            return RevokeResult.NOT_FOUND;
+        final Optional<RefreshSessionToken> tokenOpt = repository.findByTokenHash(hashToken(refreshToken));
+        final RevokeResult result;
+        if (tokenOpt.isEmpty()) {
+            result = RevokeResult.NOT_FOUND;
+        } else {
+            final RefreshSessionToken token = tokenOpt.get();
+            final String revokeReason = reason == null ? LOGOUT_REASON : reason;
+            token.revoke(revokeReason, Instant.now());
+            repository.save(token);
+            result = RevokeResult.REVOKED;
         }
-        final RefreshSessionToken token = existing.get();
-        token.revoke(reason != null ? reason : "LOGOUT", Instant.now());
-        repository.save(token);
-        return RevokeResult.REVOKED;
+        return result;
     }
 
-    @Transactional
-    public void revokeAllActiveUserTokens(final Long userId, final String reason, final Instant now) {
-        final List<RefreshSessionToken> activeTokens = repository.findActiveByUserId(userId, now);
-        activeTokens.forEach(token -> token.revoke(reason, now));
-        repository.saveAll(activeTokens);
+    private RotationResult rotateExistingToken(
+            final RefreshSessionToken currentToken,
+            final RefreshTokenMetadata requestMetadata,
+            final Instant now
+    ) {
+        final RotationResult result;
+        if (currentToken.isExpired(now)) {
+            currentToken.revoke(EXPIRED_REASON, now);
+            repository.save(currentToken);
+            LOGGER.warn("refresh_rotation_outcome outcome=expired");
+            result = RotationResult.expired();
+        } else if (currentToken.isRevoked()) {
+            if (currentToken.isReplaced()) {
+                result = handleReplacedToken(currentToken, requestMetadata, now);
+            } else {
+                LOGGER.warn("refresh_rotation_outcome outcome=revoked");
+                result = RotationResult.revoked();
+            }
+        } else {
+            result = rotateFromActiveToken(currentToken, requestMetadata, now, false);
+        }
+        return result;
+    }
+
+    private RotationResult handleReplacedToken(
+            final RefreshSessionToken rotatedToken,
+            final RefreshTokenMetadata requestMetadata,
+            final Instant now
+    ) {
+        final Optional<RefreshSessionToken> retryBase =
+                retrySafety.findRetryBase(rotatedToken, requestMetadata, now);
+        final RotationResult result;
+        if (retryBase.isPresent()) {
+            LOGGER.info("refresh_rotation_outcome outcome=retry_safe_deduped");
+            result = rotateFromActiveToken(retryBase.get(), requestMetadata, now, true);
+        } else {
+            repository.revokeAllActiveByUserId(rotatedToken.getUserId(), now, REUSE_REASON);
+            LOGGER.warn("refresh_rotation_outcome outcome=reused");
+            result = RotationResult.reused();
+        }
+        return result;
     }
 
     private RotationResult rotateFromActiveToken(
@@ -126,94 +137,35 @@ public class RefreshTokenService {
             final Instant now,
             final boolean retrySafe
     ) {
-        final String newRawToken = newRefreshToken();
-        final Instant newExpiresAt = now.plusSeconds(properties.getRefreshTokenTtlSeconds());
+        final User user = activeToken.getUser();
+        final String plainToken = newRefreshToken();
+        final Instant expiresAt = now.plusSeconds(properties.getRefreshTokenTtlSeconds());
         final RefreshSessionToken replacement = RefreshSessionToken.issue(
-                activeToken.getUser(),
-                hashToken(newRawToken),
+                user,
+                hashToken(plainToken),
                 now,
-                newExpiresAt,
+                expiresAt,
                 metadata
         );
         repository.save(replacement);
         activeToken.markReplacedBy(replacement.getId(), now);
         repository.save(activeToken);
 
+        final RotationStatus status;
+        final String outcome;
         if (retrySafe) {
-            log.info("refresh_rotation_outcome outcome=retry_safe_rotated");
-            return RotationResult.retrySafeSuccess(
-                    new IssuedRefreshToken(newRawToken, newExpiresAt, replacement.getId(), toPrincipal(activeToken.getUser()))
-            );
+            status = RotationStatus.RETRY_SAFE;
+            outcome = "retry_safe_rotated";
+        } else {
+            status = RotationStatus.SUCCESS;
+            outcome = "rotated";
         }
-
-        log.info("refresh_rotation_outcome outcome=rotated");
-        return RotationResult.success(
-                new IssuedRefreshToken(newRawToken, newExpiresAt, replacement.getId(), toPrincipal(activeToken.getUser()))
+        LOGGER.info("refresh_rotation_outcome outcome={}", outcome);
+        return new RotationResult(
+                status,
+                new IssuedRefreshToken(plainToken, expiresAt, replacement.getId(), activeToken.toAuthenticatedUser()),
+                retrySafe
         );
-    }
-
-    private AuthenticatedUser toPrincipal(final User user) {
-        return new AuthenticatedUser(
-                user.getId(),
-                user.getGoogleSub(),
-                user.getEmail(),
-                user.getName()
-        );
-    }
-
-    private boolean isRetrySafeCandidate(
-            final RefreshSessionToken rotatedToken,
-            final RefreshTokenMetadata requestMetadata,
-            final Instant now
-    ) {
-        if (!"ROTATED".equals(rotatedToken.getRevokedReason())) return false;
-        if (rotatedToken.getRevokedAt() == null) return false;
-        if (properties.getRefreshRetrySafetyWindowSeconds() <= 0) return false;
-        final Instant retryWindowLimit = rotatedToken
-                .getRevokedAt()
-                .plusSeconds(properties.getRefreshRetrySafetyWindowSeconds());
-        if (now.isAfter(retryWindowLimit)) return false;
-        return matchesRetryMetadata(rotatedToken, requestMetadata != null ? requestMetadata : RefreshTokenMetadata.empty());
-    }
-
-    private Optional<RefreshSessionToken> resolveRetrySafeBaseToken(
-            final RefreshSessionToken sourceToken,
-            final Instant now
-    ) {
-        UUID currentId = sourceToken.getReplacedByTokenId();
-        int hops = 0;
-        while (currentId != null && hops < MAX_RETRY_SAFE_CHAIN_HOPS) {
-            final Optional<RefreshSessionToken> candidateOpt = repository.findById(currentId);
-            if (candidateOpt.isEmpty()) {
-                return Optional.empty();
-            }
-            final RefreshSessionToken candidate = candidateOpt.get();
-            if (candidate.isExpired(now)) {
-                return Optional.empty();
-            }
-            if (!candidate.isRevoked()) {
-                return Optional.of(candidate);
-            }
-            if (!candidate.isReplaced()) {
-                return Optional.empty();
-            }
-            currentId = candidate.getReplacedByTokenId();
-            hops += 1;
-        }
-        return Optional.empty();
-    }
-
-    private boolean matchesRetryMetadata(final RefreshSessionToken sourceToken, final RefreshTokenMetadata metadata) {
-        if (metadata == null) return true;
-        return matchesIfProvided(metadata.deviceId(), sourceToken.getDeviceId()) &&
-                matchesIfProvided(metadata.appVersion(), sourceToken.getAppVersion()) &&
-                matchesIfProvided(metadata.createdIp(), sourceToken.getCreatedIp()) &&
-                matchesIfProvided(metadata.createdUserAgent(), sourceToken.getCreatedUserAgent());
-    }
-
-    private boolean matchesIfProvided(final String incoming, final String stored) {
-        if (incoming == null || incoming.isBlank()) return true;
-        return Objects.equals(incoming, stored);
     }
 
     public String hashToken(final String token) {
@@ -245,38 +197,38 @@ public class RefreshTokenService {
             IssuedRefreshToken issuedToken,
             boolean retrySafe
     ) {
-        static RotationResult success(final IssuedRefreshToken token) {
+        public static RotationResult success(final IssuedRefreshToken token) {
             return new RotationResult(RotationStatus.SUCCESS, token, false);
         }
 
-        static RotationResult retrySafeSuccess(final IssuedRefreshToken token) {
-            return new RotationResult(RotationStatus.RETRY_SAFE_SUCCESS, token, true);
+        public static RotationResult retrySafeSuccess(final IssuedRefreshToken token) {
+            return new RotationResult(RotationStatus.RETRY_SAFE, token, true);
         }
 
-        static RotationResult invalid() {
+        public static RotationResult invalid() {
             return new RotationResult(RotationStatus.INVALID, null, false);
         }
 
-        static RotationResult revoked() {
+        public static RotationResult revoked() {
             return new RotationResult(RotationStatus.REVOKED, null, false);
         }
 
-        static RotationResult reused() {
+        public static RotationResult reused() {
             return new RotationResult(RotationStatus.REUSED, null, false);
         }
 
-        static RotationResult expired() {
+        public static RotationResult expired() {
             return new RotationResult(RotationStatus.EXPIRED, null, false);
         }
 
-        boolean isSuccessful() {
-            return status == RotationStatus.SUCCESS || status == RotationStatus.RETRY_SAFE_SUCCESS;
+        public boolean isSuccessful() {
+            return status == RotationStatus.SUCCESS || status == RotationStatus.RETRY_SAFE;
         }
     }
 
     public enum RotationStatus {
         SUCCESS,
-        RETRY_SAFE_SUCCESS,
+        RETRY_SAFE,
         INVALID,
         REVOKED,
         REUSED,
