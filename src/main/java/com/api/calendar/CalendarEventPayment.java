@@ -1,18 +1,22 @@
 package com.api.calendar;
 
 import jakarta.persistence.*;
-
 import java.math.BigDecimal;
 import java.time.Instant;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
-@SuppressWarnings({"PMD.CommentDefaultAccessModifier", "PMD.DataClass", "PMD.ShortVariable"})
 @Entity
 @Table(name = "calendar_event_payments")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class CalendarEventPayment {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "id")
+    private Long paymentId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "calendar_event_id", nullable = false)
@@ -26,16 +30,13 @@ public class CalendarEventPayment {
     private BigDecimal amount;
 
     @Column(name = "value_total", nullable = false)
-    private boolean valueTotal;
+    private boolean coversTotalValue;
 
     @Column(name = "paid_at")
     private Instant paidAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
-
-    protected CalendarEventPayment() {
-    }
 
     public CalendarEventPayment(
             final CalendarEvent calendarEvent,
@@ -44,54 +45,60 @@ public class CalendarEventPayment {
             final boolean valueTotal,
             final Instant paidAt
     ) {
-        this.calendarEvent = calendarEvent;
-        this.paymentType = paymentType;
-        this.amount = amount;
-        this.valueTotal = valueTotal;
-        this.paidAt = paidAt;
+        relinkTo(calendarEvent);
+        refreshDetails(paymentType, amount, valueTotal, paidAt);
     }
 
     @PrePersist
-    void prePersist() {
+    protected void prePersist() {
         this.createdAt = Instant.now();
     }
 
     public CalendarPaymentEntryReadModel toReadModel() {
-        final String paymentTypeName = paymentType != null ? paymentType.name() : null;
         return new CalendarPaymentEntryReadModel(
-                id,
-                paymentTypeName,
+                paymentId,
+                paymentTypeName(),
                 amount,
-                valueTotal,
-                paidAt != null ? paidAt.toString() : null
+                coversTotalValue,
+                paidAtText()
         );
     }
 
     public Long getId() {
-        return id;
-    }
-
-    public CalendarEvent getCalendarEvent() {
-        return calendarEvent;
-    }
-
-    public PaymentType getPaymentType() {
-        return paymentType;
-    }
-
-    public BigDecimal getAmount() {
-        return amount;
+        return paymentId;
     }
 
     public boolean isValueTotal() {
-        return valueTotal;
+        return coversTotalValue;
     }
 
-    public Instant getPaidAt() {
-        return paidAt;
+    public final void relinkTo(final CalendarEvent event) {
+        this.calendarEvent = event;
     }
 
-    public Instant getCreatedAt() {
-        return createdAt;
+    public final void refreshDetails(final PaymentType type,
+                                     final BigDecimal paidAmount,
+                                     final boolean totalValuePayment,
+                                     final Instant paidTimestamp) {
+        this.paymentType = type;
+        this.amount = paidAmount;
+        this.coversTotalValue = totalValuePayment;
+        this.paidAt = paidTimestamp;
+    }
+
+    public boolean isPaid() {
+        return paidAt != null;
+    }
+
+    public BigDecimal amountOrZero() {
+        return amount != null ? amount : BigDecimal.ZERO;
+    }
+
+    public String paymentTypeName() {
+        return paymentType != null ? paymentType.name() : null;
+    }
+
+    public String paidAtText() {
+        return paidAt != null ? paidAt.toString() : null;
     }
 }
