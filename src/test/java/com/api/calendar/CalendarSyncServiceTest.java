@@ -646,6 +646,46 @@ class CalendarSyncServiceTest {
         assertEquals(1, lazyServiceLinks.rawSize());
     }
 
+    @Test
+    void shouldHandleLegacyEventsWithNullSnapshotDuringServiceComparison() throws Exception {
+        User user = new User("sub", "email@test.com", "Name");
+        SyncState syncState = new SyncState(user);
+        syncState.markSynced("sync-token");
+
+        Instant start = Instant.now();
+        Instant end = start.plusSeconds(1800);
+        Service matchedService = new Service(user, "Corte", "corte", new BigDecimal("50.00"));
+        CalendarEvent existingEvent = new CalendarEvent(user, "event-legacy", "maria - corte", "maria - corte", start, end);
+        existingEvent.associateServices(List.of(matchedService));
+        setCalendarEventId(existingEvent, 903L);
+        setSnapshotNull(existingEvent);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
+        when(syncStateRepository.save(any(SyncState.class))).thenReturn(syncState);
+        when(calendarEventRepository.findWithAssociationsByUserIdAndGoogleEventIdIn(eq(1L), anyCollection()))
+                .thenReturn(List.of(existingEvent));
+        when(matcher.servicesByNormalizedDescription(1L))
+                .thenReturn(new HashMap<>() {{
+                    put("corte", matchedService);
+                }});
+        lenient().when(normalizer.normalize(anyString())).thenAnswer(inv -> inv.getArgument(0));
+        when(titleParser.parse("maria - corte"))
+                .thenReturn(new EventTitleParser.ParsedTitle("maria", List.of("corte"), null));
+
+        Event incoming = createTestEvent("event-legacy", "maria - corte");
+        incoming.setStart(new EventDateTime().setDateTime(new DateTime(start.toEpochMilli())));
+        incoming.setEnd(new EventDateTime().setDateTime(new DateTime(end.toEpochMilli())));
+        when(googleCalendarClient.fetchEvents(1L, "sync-token"))
+                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(incoming), "next-token"));
+
+        CalendarSyncService.SyncResult result = assertDoesNotThrow(() -> syncService.synchronize(1L));
+
+        assertEquals(1, result.updated());
+        assertEquals("Corte", existingEvent.getServiceDescriptionSnapshot());
+        assertEquals(new BigDecimal("50.00"), existingEvent.getServiceValueSnapshot());
+    }
+
     private Event createTestEvent(String id, String summary) {
         return new Event()
                 .setId(id)
@@ -672,6 +712,16 @@ class CalendarSyncServiceTest {
             field.set(event, serviceLinks);
         } catch (ReflectiveOperationException e) {
             throw new AssertionError("Failed to override CalendarEvent serviceLinks for test setup", e);
+        }
+    }
+
+    private void setSnapshotNull(CalendarEvent event) {
+        try {
+            var field = CalendarEvent.class.getDeclaredField("snapshot");
+            field.setAccessible(true);
+            field.set(event, null);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("Failed to clear CalendarEvent snapshot for test setup", e);
         }
     }
 
