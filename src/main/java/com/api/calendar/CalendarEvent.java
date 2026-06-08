@@ -159,6 +159,10 @@ public class CalendarEvent {
         return source == CalendarEventSource.GOOGLE && googleEventId != null && !googleEventId.isBlank();
     }
 
+    public boolean hasPaymentType(final PaymentType type) {
+        return paymentType == type;
+    }
+
     public String getServiceDescriptionSnapshot() {
         return snapshotView().getDescription();
     }
