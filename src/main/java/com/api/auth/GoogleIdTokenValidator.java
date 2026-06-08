@@ -64,7 +64,7 @@ public class GoogleIdTokenValidator {
             } else {
                 result = ValidationResult.valid(extractProfile(idToken));
             }
-        } catch (IOException | ReflectiveOperationException e) {
+        } catch (IOException e) {
             result = ValidationResult.unavailable(e);
         } catch (GeneralSecurityException e) {
             result = ValidationResult.invalid(e);
@@ -72,18 +72,13 @@ public class GoogleIdTokenValidator {
         return result;
     }
 
-    private static GoogleUserProfile extractProfile(final GoogleIdToken idToken)
-            throws ReflectiveOperationException {
-        final Object payload = idToken.getClass().getMethod("getPayload").invoke(idToken);
-        final String email = invokeString(payload, "getEmail");
-        final Object nameValue = payload.getClass().getMethod("get", String.class).invoke(payload, "name");
+    @SuppressWarnings({"PMD.LooseCoupling", "PMD.LawOfDemeter"})
+    private static GoogleUserProfile extractProfile(final GoogleIdToken idToken) {
+        final GoogleIdToken.Payload payload = idToken.getPayload();
+        final String email = payload.getEmail();
+        final Object nameValue = payload.get("name");
         final String name = nameValue instanceof String value ? value : email;
-        final String subject = invokeString(payload, "getSubject");
+        final String subject = payload.getSubject();
         return new GoogleUserProfile(subject, email, name);
-    }
-
-    private static String invokeString(final Object target, final String methodName)
-            throws ReflectiveOperationException {
-        return (String) target.getClass().getMethod(methodName).invoke(target);
     }
 }
