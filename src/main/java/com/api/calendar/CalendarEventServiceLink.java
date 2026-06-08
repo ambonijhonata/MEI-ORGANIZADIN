@@ -11,6 +11,7 @@ public class CalendarEventServiceLink {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private Long linkId;
 
     @ManyToOne(fetch = FetchType.LAZY)
