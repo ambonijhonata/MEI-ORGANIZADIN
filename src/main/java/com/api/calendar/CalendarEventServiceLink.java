@@ -5,14 +5,13 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 
-@SuppressWarnings({"PMD.CommentDefaultAccessModifier", "PMD.DataClass", "PMD.LawOfDemeter", "PMD.LongVariable", "PMD.ShortVariable"})
 @Entity
 @Table(name = "calendar_event_services")
 public class CalendarEventServiceLink {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long linkId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "calendar_event_id", nullable = false)
@@ -23,52 +22,85 @@ public class CalendarEventServiceLink {
     private Service service;
 
     @Column(name = "occurrence_index", nullable = false)
-    private int occurrenceIndex;
+    private int occurrence;
 
     @Column(name = "service_description_snapshot", nullable = false, length = 500)
-    private String serviceDescriptionSnapshot;
+    private String serviceDesc;
 
     @Column(name = "service_value_snapshot", nullable = false, precision = 12, scale = 2)
-    private BigDecimal serviceValueSnapshot;
+    private BigDecimal serviceAmount;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
     protected CalendarEventServiceLink() {}
 
-    public CalendarEventServiceLink(final CalendarEvent calendarEvent, final Service service) {
-        this(calendarEvent, service, 0);
+    public CalendarEventServiceLink(final CalendarEvent event, final Service service) {
+        this(event, service, 0);
     }
 
-    public CalendarEventServiceLink(final CalendarEvent calendarEvent, final Service service, final int occurrenceIndex) {
-        this.calendarEvent = calendarEvent;
-        this.service = service;
-        this.occurrenceIndex = occurrenceIndex;
-        this.serviceDescriptionSnapshot = service.getDescription();
-        this.serviceValueSnapshot = service.getValue();
+    public CalendarEventServiceLink(final CalendarEvent event, final Service service, final int occurrence) {
+        this(event, service, occurrence, service.getDescription(), service.getValue());
     }
 
-    public CalendarEventServiceLink(final CalendarEvent calendarEvent,
+    public CalendarEventServiceLink(final CalendarEvent event,
                                     final Service service,
-                                    final int occurrenceIndex,
-                                    final String serviceDescriptionSnapshot,
-                                    final BigDecimal serviceValueSnapshot) {
-        this.calendarEvent = calendarEvent;
+                                    final int occurrence,
+                                    final String serviceDesc,
+                                    final BigDecimal serviceAmount) {
+        this.calendarEvent = event;
         this.service = service;
-        this.occurrenceIndex = occurrenceIndex;
-        this.serviceDescriptionSnapshot = serviceDescriptionSnapshot;
-        this.serviceValueSnapshot = serviceValueSnapshot;
+        this.occurrence = occurrence;
+        assignSnapshot(serviceDesc, serviceAmount);
     }
 
     @PrePersist
-    void prePersist() {
+    /* package */ void prePersist() {
         this.createdAt = Instant.now();
     }
 
-    public Long getId() { return id; }
+    public static CalendarEventServiceLink materialize(final CalendarEvent event,
+                                                       final Service service,
+                                                       final int occurrence,
+                                                       final String serviceDesc,
+                                                       final BigDecimal serviceAmount) {
+        return new CalendarEventServiceLink(event, service, occurrence, serviceDesc, serviceAmount);
+    }
+
+    public Long getId() { return linkId; }
     public CalendarEvent getCalendarEvent() { return calendarEvent; }
     public Service getService() { return service; }
-    public int getOccurrenceIndex() { return occurrenceIndex; }
-    public String getServiceDescriptionSnapshot() { return serviceDescriptionSnapshot; }
-    public BigDecimal getServiceValueSnapshot() { return serviceValueSnapshot; }
+    public int getOccurrenceIndex() { return occurrence; }
+    public String getServiceDescriptionSnapshot() { return serviceDesc; }
+    public BigDecimal getServiceValueSnapshot() { return serviceAmount; }
+
+    public String descriptionOrBlank() {
+        return serviceDesc != null ? serviceDesc : "";
+    }
+
+    public BigDecimal valueOrZero() {
+        return serviceAmount != null ? serviceAmount : BigDecimal.ZERO;
+    }
+
+    public boolean hasService() {
+        return service != null;
+    }
+
+    public String serviceIdentity() {
+        return CalendarEventServiceOccurrences.identityFor(service);
+    }
+
+    public boolean refersTo(final Service candidate) {
+        final String identity = serviceIdentity();
+        return identity != null && identity.equals(CalendarEventServiceOccurrences.identityFor(candidate));
+    }
+
+    public void refreshSnapshot(final String desc, final BigDecimal amount) {
+        assignSnapshot(desc, amount);
+    }
+
+    private void assignSnapshot(final String desc, final BigDecimal amount) {
+        this.serviceDesc = desc;
+        this.serviceAmount = amount;
+    }
 }

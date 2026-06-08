@@ -33,7 +33,7 @@ final class CalendarEventAssociationSupport {
             final BigDecimal totalValue = snapshot.hasValue()
                     ? snapshot.getTotalValue()
                     : owner.getService().getValue();
-            links.add(new CalendarEventServiceLink(owner, owner.getService(), 0, description, totalValue));
+            links.add(CalendarEventServiceLink.materialize(owner, owner.getService(), 0, description, totalValue));
         }
         return links;
     }

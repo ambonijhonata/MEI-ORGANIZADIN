@@ -21,7 +21,7 @@ final class CalendarEventServiceOccurrences {
     public static CalendarEventServiceOccurrences from(final List<CalendarEventServiceLink> links) {
         final Map<String, Integer> counts = new HashMap<>();
         for (final CalendarEventServiceLink link : links) {
-            final String identity = identityFor(link.getService());
+            final String identity = link.serviceIdentity();
             if (identity != null) {
                 counts.put(identity, counts.getOrDefault(identity, 0) + 1);
             }
@@ -59,10 +59,7 @@ final class CalendarEventServiceOccurrences {
     public static BigDecimal totalLinkedValue(final List<CalendarEventServiceLink> links) {
         BigDecimal total = BigDecimal.ZERO;
         for (final CalendarEventServiceLink link : links) {
-            final BigDecimal snapshotValue = link.getServiceValueSnapshot();
-            if (snapshotValue != null) {
-                total = total.add(snapshotValue);
-            }
+            total = total.add(link.valueOrZero());
         }
         return total;
     }
