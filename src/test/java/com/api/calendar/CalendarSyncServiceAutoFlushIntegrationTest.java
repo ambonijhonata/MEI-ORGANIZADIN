@@ -101,19 +101,45 @@ class CalendarSyncServiceAutoFlushIntegrationTest {
                 normalizer
         );
 
-        syncService = new CalendarSyncService(
-                googleCalendarClient,
+        CalendarSyncBatchSettings batchSettings = new CalendarSyncBatchSettings(200, false, 1);
+        CalendarSyncAssociationEvaluator associationEvaluator = new CalendarSyncAssociationEvaluator();
+        CalendarSyncExistingEventResolver existingEventResolver = new CalendarSyncExistingEventResolver(
                 calendarEventRepository,
-                syncStateRepository,
+                calendarEventServiceLinkRepository,
+                associationEvaluator
+        );
+        CalendarSyncMutationPlanner mutationPlanner = new CalendarSyncMutationPlanner(
+                clientService,
                 matcher,
                 normalizer,
-                userRepository,
                 titleParser,
-                clientService,
-                null,
+                existingEventResolver,
+                associationEvaluator
+        );
+        CalendarSyncPersistenceSupport persistenceSupport = new CalendarSyncPersistenceSupport(
+                calendarEventRepository,
                 calendarEventPaymentRepository,
                 calendarEventServiceLinkRepository,
-                new UserScopedExecutionLock()
+                batchSettings
+        );
+        persistenceSupport.setEntityManager(entityManager);
+        CalendarSyncTxSupport txSupport = new CalendarSyncTxSupport();
+        CalendarSyncFlowRunner flowRunner = new CalendarSyncFlowRunner(
+                syncStateRepository,
+                null,
+                mutationPlanner,
+                new CalendarSyncScopeReconciler(calendarEventRepository),
+                persistenceSupport,
+                batchSettings,
+                txSupport
+        );
+        syncService = new CalendarSyncService(
+                googleCalendarClient,
+                syncStateRepository,
+                userRepository,
+                new UserScopedExecutionLock(),
+                flowRunner,
+                txSupport
         );
         syncService.configureTransactionTemplate(platformTransactionManager);
     }

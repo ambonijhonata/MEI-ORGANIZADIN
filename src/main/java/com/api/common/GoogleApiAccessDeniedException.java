@@ -6,4 +6,8 @@ public class GoogleApiAccessDeniedException extends RuntimeException {
     public GoogleApiAccessDeniedException(final String message) {
         super(message);
     }
+
+    public GoogleApiAccessDeniedException(final String message, final Throwable cause) {
+        super(message, cause);
+    }
 }

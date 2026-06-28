@@ -131,6 +131,14 @@ public class SyncState {
         return this.catalogEnrichmentRevisionApplied < this.catalogEnrichmentRevisionRequested;
     }
 
+    public boolean isReauthRequired() {
+        return this.status == REAUTH_REQUIRED_STATUS;
+    }
+
+    public boolean isSyncing() {
+        return this.status == SyncStatus.SYNCING;
+    }
+
     public void markCatalogEnrichmentApplied(final long appliedRevision) {
         if (appliedRevision <= 0) {
             return;

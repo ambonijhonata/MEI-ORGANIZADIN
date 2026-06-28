@@ -127,6 +127,16 @@ public class CalendarEvent {
         return timing.getEnd();
     }
 
+    public boolean matchesCoreData(final String title,
+                                   final String normalizedTitle,
+                                   final Instant eventStart,
+                                   final Instant eventEnd) {
+        return java.util.Objects.equals(label.getTitle(), title)
+                && java.util.Objects.equals(label.getNormalizedTitle(), normalizedTitle)
+                && java.util.Objects.equals(timing.getStart(), eventStart)
+                && java.util.Objects.equals(timing.getEnd(), eventEnd);
+    }
+
     @PrePersist
     protected void prePersist() {
         this.audit.touchOnCreate();
@@ -173,6 +183,27 @@ public class CalendarEvent {
 
     public BigDecimal getServiceValueOrZero() {
         return snapshotView().totalValueOrZero();
+    }
+
+    public boolean hasServiceSnapshot(final String description, final BigDecimal totalValue) {
+        final BigDecimal currentTotal = getServiceValueSnapshot();
+        return java.util.Objects.equals(getServiceDescriptionSnapshot(), description)
+                && ((currentTotal == null && totalValue == null)
+                || (currentTotal != null
+                && totalValue != null
+                && currentTotal.compareTo(totalValue) == 0));
+    }
+
+    public boolean hasAnyServiceAssociationData() {
+        return snapshotView().getDescription() != null || snapshotView().getTotalValue() != null;
+    }
+
+    public Long getPrimaryServiceId() {
+        return service != null ? service.getId() : null;
+    }
+
+    public String getPrimaryServiceNormalizedDescription() {
+        return service != null ? service.getNormalizedDescription() : null;
     }
 
     public CalendarEventServiceSnapshot getSnapshot() {

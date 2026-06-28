@@ -52,9 +52,7 @@ class CalendarSyncServiceConcurrencyTest {
     @BeforeEach
     void setUp() {
         UserScopedExecutionLock userScopedExecutionLock = new UserScopedExecutionLock();
-        syncService = new CalendarSyncService(googleCalendarClient, calendarEventRepository,
-                syncStateRepository, matcher, normalizer, userRepository, titleParser, clientService, null,
-                calendarEventPaymentRepository, calendarEventServiceLinkRepository, userScopedExecutionLock);
+        syncService = createSyncService(userScopedExecutionLock);
         reprocessor = new CalendarEventReprocessor(
                 calendarEventRepository,
                 calendarEventServiceLinkRepository,
@@ -87,6 +85,49 @@ class CalendarSyncServiceConcurrencyTest {
         lenient().when(normalizer.normalize(anyString())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(titleParser.parse(anyString()))
                 .thenReturn(new EventTitleParser.ParsedTitle(null, List.of(), null));
+    }
+
+    private CalendarSyncService createSyncService(final UserScopedExecutionLock userScopedExecutionLock) {
+        final CalendarSyncBatchSettings batchSettings = new CalendarSyncBatchSettings(200, false, 1);
+        final CalendarSyncAssociationEvaluator associationEvaluator = new CalendarSyncAssociationEvaluator();
+        final CalendarSyncExistingEventResolver existingEventResolver = new CalendarSyncExistingEventResolver(
+                calendarEventRepository,
+                calendarEventServiceLinkRepository,
+                associationEvaluator
+        );
+        final CalendarSyncMutationPlanner mutationPlanner = new CalendarSyncMutationPlanner(
+                clientService,
+                matcher,
+                normalizer,
+                titleParser,
+                existingEventResolver,
+                associationEvaluator
+        );
+        final CalendarSyncScopeReconciler scopeReconciler = new CalendarSyncScopeReconciler(calendarEventRepository);
+        final CalendarSyncPersistenceSupport persistenceSupport = new CalendarSyncPersistenceSupport(
+                calendarEventRepository,
+                calendarEventPaymentRepository,
+                calendarEventServiceLinkRepository,
+                batchSettings
+        );
+        final CalendarSyncTxSupport txSupport = new CalendarSyncTxSupport();
+        final CalendarSyncFlowRunner flowRunner = new CalendarSyncFlowRunner(
+                syncStateRepository,
+                null,
+                mutationPlanner,
+                scopeReconciler,
+                persistenceSupport,
+                batchSettings,
+                txSupport
+        );
+        return new CalendarSyncService(
+                googleCalendarClient,
+                syncStateRepository,
+                userRepository,
+                userScopedExecutionLock,
+                flowRunner,
+                txSupport
+        );
     }
 
     @AfterEach

@@ -43,22 +43,45 @@ class CalendarSyncServiceLoadTest {
 
     @Test
     void highVolumeSyncShouldCompleteWithStableThroughput() throws Exception {
-        CalendarSyncService syncService = new CalendarSyncService(
-                googleCalendarClient,
+        CalendarSyncBatchSettings batchSettings = new CalendarSyncBatchSettings(500, false, 1);
+        CalendarSyncAssociationEvaluator associationEvaluator = new CalendarSyncAssociationEvaluator();
+        CalendarSyncExistingEventResolver existingEventResolver = new CalendarSyncExistingEventResolver(
                 calendarEventRepository,
-                syncStateRepository,
+                calendarEventServiceLinkRepository,
+                associationEvaluator
+        );
+        CalendarSyncMutationPlanner mutationPlanner = new CalendarSyncMutationPlanner(
+                clientService,
                 matcher,
                 normalizer,
-                userRepository,
                 titleParser,
-                clientService,
-                null,
+                existingEventResolver,
+                associationEvaluator
+        );
+        CalendarSyncScopeReconciler scopeReconciler = new CalendarSyncScopeReconciler(calendarEventRepository);
+        CalendarSyncPersistenceSupport persistenceSupport = new CalendarSyncPersistenceSupport(
+                calendarEventRepository,
                 calendarEventPaymentRepository,
                 calendarEventServiceLinkRepository,
+                batchSettings
+        );
+        CalendarSyncTxSupport txSupport = new CalendarSyncTxSupport();
+        CalendarSyncFlowRunner flowRunner = new CalendarSyncFlowRunner(
+                syncStateRepository,
+                null,
+                mutationPlanner,
+                scopeReconciler,
+                persistenceSupport,
+                batchSettings,
+                txSupport
+        );
+        CalendarSyncService syncService = new CalendarSyncService(
+                googleCalendarClient,
+                syncStateRepository,
+                userRepository,
                 new UserScopedExecutionLock(),
-                500,
-                false,
-                1
+                flowRunner,
+                txSupport
         );
 
         User user = new User("sub-load", "load@test.com", "Load User");

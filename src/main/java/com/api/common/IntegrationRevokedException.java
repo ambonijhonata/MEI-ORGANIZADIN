@@ -6,4 +6,8 @@ public class IntegrationRevokedException extends RuntimeException {
     public IntegrationRevokedException(final String message) {
         super(message);
     }
+
+    public IntegrationRevokedException(final String message, final Throwable cause) {
+        super(message, cause);
+    }
 }

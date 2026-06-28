@@ -59,9 +59,7 @@ class CalendarSyncServiceExtendedTest {
                 syncStateRepository,
                 userScopedExecutionLock
         );
-        syncService = new CalendarSyncService(googleCalendarClient, calendarEventRepository,
-                syncStateRepository, matcher, normalizer, userRepository, titleParser, clientService,
-                reprocessor, calendarEventPaymentRepository, calendarEventServiceLinkRepository, userScopedExecutionLock);
+        syncService = createSyncService(userScopedExecutionLock);
 
         lenient().when(calendarEventRepository.findByUserIdAndGoogleEventIdIn(anyLong(), anyCollection()))
                 .thenReturn(List.of());
@@ -78,6 +76,49 @@ class CalendarSyncServiceExtendedTest {
                 .thenReturn(List.of());
         lenient().when(calendarEventRepository.findLegacyServiceIdentityRowsByCalendarEventIdIn(anyCollection()))
                 .thenReturn(List.of());
+    }
+
+    private CalendarSyncService createSyncService(final UserScopedExecutionLock userScopedExecutionLock) {
+        final CalendarSyncBatchSettings batchSettings = new CalendarSyncBatchSettings(200, false, 1);
+        final CalendarSyncAssociationEvaluator associationEvaluator = new CalendarSyncAssociationEvaluator();
+        final CalendarSyncExistingEventResolver existingEventResolver = new CalendarSyncExistingEventResolver(
+                calendarEventRepository,
+                calendarEventServiceLinkRepository,
+                associationEvaluator
+        );
+        final CalendarSyncMutationPlanner mutationPlanner = new CalendarSyncMutationPlanner(
+                clientService,
+                matcher,
+                normalizer,
+                titleParser,
+                existingEventResolver,
+                associationEvaluator
+        );
+        final CalendarSyncScopeReconciler scopeReconciler = new CalendarSyncScopeReconciler(calendarEventRepository);
+        final CalendarSyncPersistenceSupport persistenceSupport = new CalendarSyncPersistenceSupport(
+                calendarEventRepository,
+                calendarEventPaymentRepository,
+                calendarEventServiceLinkRepository,
+                batchSettings
+        );
+        final CalendarSyncTxSupport txSupport = new CalendarSyncTxSupport();
+        final CalendarSyncFlowRunner flowRunner = new CalendarSyncFlowRunner(
+                syncStateRepository,
+                reprocessor,
+                mutationPlanner,
+                scopeReconciler,
+                persistenceSupport,
+                batchSettings,
+                txSupport
+        );
+        return new CalendarSyncService(
+                googleCalendarClient,
+                syncStateRepository,
+                userRepository,
+                userScopedExecutionLock,
+                flowRunner,
+                txSupport
+        );
     }
 
     @Test
@@ -134,7 +175,7 @@ class CalendarSyncServiceExtendedTest {
         assertEquals("Unexpected processing failure", ex.getMessage());
         assertEquals(SyncStatus.SYNC_FAILED, syncState.getStatus());
         assertEquals("INTERNAL_SYNC_ERROR", syncState.getErrorCategory());
-        assertEquals("Unexpected processing failure", syncState.getErrorMessage());
+        assertEquals("Unexpected internal error during calendar synchronization", syncState.getErrorMessage());
     }
 
     @Test
