@@ -9,7 +9,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
-@SuppressWarnings("PMD.OnlyOneReturn")
 @Component
 public class CalendarEventServiceMatcher {
 
@@ -23,11 +22,12 @@ public class CalendarEventServiceMatcher {
     }
 
     public Optional<Service> matchService(final Long userId, final String eventTitle) {
-        if (eventTitle == null || eventTitle.isBlank()) {
-            return Optional.empty();
+        Optional<Service> matchedService = Optional.empty();
+        if (eventTitle != null && !eventTitle.isBlank()) {
+            final String normalizedTitle = normalizer.normalize(eventTitle);
+            matchedService = serviceRepository.findByUserIdAndNormalizedDescription(userId, normalizedTitle);
         }
-        final String normalizedTitle = normalizer.normalize(eventTitle);
-        return serviceRepository.findByUserIdAndNormalizedDescription(userId, normalizedTitle);
+        return matchedService;
     }
 
     public Map<String, Service> servicesByNormalizedDescription(final Long userId) {
