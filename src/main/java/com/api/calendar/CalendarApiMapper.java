@@ -22,7 +22,7 @@ final class CalendarApiMapper {
                 event.serviceValue(),
                 event.paymentType(),
                 List.of(),
-                CalendarPaymentSummary.of(event.paidAmount(), event.serviceValue())
+                CalendarPaymentSummary.fromAmounts(event.paidAmount(), event.serviceValue())
         );
     }
 

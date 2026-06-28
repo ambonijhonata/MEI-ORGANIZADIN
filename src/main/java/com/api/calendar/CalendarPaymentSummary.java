@@ -1,11 +1,10 @@
 package com.api.calendar;
 
 import java.math.BigDecimal;
-@SuppressWarnings("PMD.ShortMethodName")
 
 public record CalendarPaymentSummary(BigDecimal paidAmount, BigDecimal totalAmount, CalendarPaymentStatus status) {
 
-    public static CalendarPaymentSummary of(final BigDecimal paidAmount, final BigDecimal totalAmount) {
+    public static CalendarPaymentSummary fromAmounts(final BigDecimal paidAmount, final BigDecimal totalAmount) {
         final BigDecimal safePaidAmount = paidAmount != null ? paidAmount : BigDecimal.ZERO;
         final BigDecimal safeTotalAmount = totalAmount != null ? totalAmount : BigDecimal.ZERO;
 

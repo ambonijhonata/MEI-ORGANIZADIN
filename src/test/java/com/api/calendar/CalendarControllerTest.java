@@ -121,7 +121,7 @@ class CalendarControllerTest {
                         new java.math.BigDecimal("130.00"),
                         null,
                         List.of(),
-                        CalendarPaymentSummary.of(java.math.BigDecimal.ZERO, new java.math.BigDecimal("130.00"))
+                        CalendarPaymentSummary.fromAmounts(java.math.BigDecimal.ZERO, new java.math.BigDecimal("130.00"))
                 ));
 
         ResponseEntity<CalendarApiModels.EventResponse> response =
