@@ -10,107 +10,74 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-@SuppressWarnings({"PMD.AvoidLiteralsInIfCondition", "PMD.CyclomaticComplexity", "PMD.LawOfDemeter", "PMD.LongVariable", "PMD.OnlyOneReturn"})
 @Component
 public class CalendarPaymentService {
 
     private static final int MAX_PAYMENTS = 4;
+    private static final int SINGLE_TOTAL_FLAG = 1;
 
-    private final CalendarEventRepository calendarEventRepository;
+    private final CalendarEventRepository eventRepository;
 
-    public CalendarPaymentService(final CalendarEventRepository calendarEventRepository) {
-        this.calendarEventRepository = calendarEventRepository;
+    public CalendarPaymentService(final CalendarEventRepository eventRepository) {
+        this.eventRepository = eventRepository;
     }
 
     @Transactional
     public List<CalendarEventPayment> upsertPayments(
             final Long userId,
             final Long eventId,
-            final List<PaymentInput> requestedPayments
+            final List<PaymentInput> paymentInputs
     ) {
-        final CalendarEvent event = calendarEventRepository.findByIdAndUserId(eventId, userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Calendar event not found"));
-
-        if (requestedPayments == null) {
+        final CalendarEvent event = findEvent(userId, eventId);
+        if (paymentInputs == null) {
             throw new BusinessException("Payments payload is required");
         }
 
-        if (requestedPayments.isEmpty()) {
+        final List<CalendarEventPayment> savedPayments;
+        if (paymentInputs.isEmpty()) {
             event.clearPayments();
-            final CalendarEvent savedEvent = calendarEventRepository.save(event);
-            return materializePayments(savedEvent);
+            savedPayments = saveAndMaterialize(event);
+        } else {
+            validateRequest(event, paymentInputs);
+            final List<PaymentInput> effectiveInputs = normalizeEffectiveInputs(event, paymentInputs);
+            event.replacePayments(buildPayments(event, effectiveInputs));
+            savedPayments = saveAndMaterialize(event);
         }
-
-        validateRequest(event, requestedPayments);
-
-        final BigDecimal totalServiceValue = event.getServiceValueSnapshot() != null
-                ? event.getServiceValueSnapshot()
-                : BigDecimal.ZERO;
-
-        List<PaymentInput> effectivePayments = requestedPayments;
-        final int totalValueCheckedCount = (int) requestedPayments.stream().filter(PaymentInput::valueTotal).count();
-        if (totalValueCheckedCount == 1) {
-            final PaymentInput totalValuePayment = requestedPayments.stream()
-                    .filter(PaymentInput::valueTotal)
-                    .findFirst()
-                    .orElseThrow();
-            effectivePayments = List.of(new PaymentInput(
-                    totalValuePayment.paymentType(),
-                    totalServiceValue,
-                    true
-            ));
-        }
-
-        final List<CalendarEventPayment> entities = new ArrayList<>();
-        for (final PaymentInput input : effectivePayments) {
-            entities.add(new CalendarEventPayment(
-                    event,
-                    input.paymentType(),
-                    input.amount(),
-                    input.valueTotal(),
-                    Instant.now()
-            ));
-        }
-
-        event.replacePayments(entities);
-        final CalendarEvent savedEvent = calendarEventRepository.save(event);
-        return materializePayments(savedEvent);
+        return savedPayments;
     }
 
     @Transactional(readOnly = true)
     public List<CalendarEventPayment> listPayments(final Long userId, final Long eventId) {
-        final CalendarEvent event = calendarEventRepository.findByIdAndUserId(eventId, userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Calendar event not found"));
-        return materializePayments(event);
+        return materializePayments(findEvent(userId, eventId));
     }
 
-    private void validateRequest(final CalendarEvent event, final List<PaymentInput> requestedPayments) {
-        if (requestedPayments.size() > MAX_PAYMENTS) {
+    private void validateRequest(final CalendarEvent event, final List<PaymentInput> paymentInputs) {
+        if (paymentInputs.size() > MAX_PAYMENTS) {
             throw new BusinessException("At most 4 payment entries are allowed");
         }
 
-        final long totalValueCount = requestedPayments.stream().filter(PaymentInput::valueTotal).count();
-        if (totalValueCount > 1) {
+        final long totalFlagCount = paymentInputs.stream().filter(PaymentInput::valueTotal).count();
+        if (totalFlagCount > SINGLE_TOTAL_FLAG) {
             throw new BusinessException("Only one payment entry can be marked as total value");
         }
 
-        if (totalValueCount == 1) {
-            final PaymentInput totalValuePayment = requestedPayments.stream()
+        if (totalFlagCount == SINGLE_TOTAL_FLAG) {
+            final PaymentInput totalFlagPayment = paymentInputs.stream()
                     .filter(PaymentInput::valueTotal)
                     .findFirst()
                     .orElseThrow();
-            if (totalValuePayment.paymentType() == null) {
+            if (totalFlagPayment.paymentType() == null) {
                 throw new BusinessException("Payment type is required");
             }
-            return;
+        } else {
+            validatePartialComposition(event, paymentInputs);
         }
+    }
 
-        final BigDecimal totalServiceValue = event.getServiceValueSnapshot() != null
-                ? event.getServiceValueSnapshot()
-                : BigDecimal.ZERO;
-
+    private void validatePartialComposition(final CalendarEvent event, final List<PaymentInput> paymentInputs) {
+        final BigDecimal serviceTotalValue = event.getServiceValueOrZero();
         BigDecimal sum = BigDecimal.ZERO;
-        for (final PaymentInput payment : requestedPayments) {
+        for (final PaymentInput payment : paymentInputs) {
             if (payment.paymentType() == null) {
                 throw new BusinessException("Payment type is required");
             }
@@ -120,13 +87,54 @@ public class CalendarPaymentService {
             sum = sum.add(payment.amount());
         }
 
-        if (sum.compareTo(totalServiceValue) > 0) {
+        if (sum.compareTo(serviceTotalValue) > 0) {
             throw new BusinessException("Payment composition must not exceed total service value");
         }
     }
 
+    private List<PaymentInput> normalizeEffectiveInputs(final CalendarEvent event, final List<PaymentInput> paymentInputs) {
+        final List<PaymentInput> effectiveInputs;
+        if (paymentInputs.stream().filter(PaymentInput::valueTotal).count() == SINGLE_TOTAL_FLAG) {
+            final PaymentInput totalFlagPayment = paymentInputs.stream()
+                    .filter(PaymentInput::valueTotal)
+                    .findFirst()
+                    .orElseThrow();
+            effectiveInputs = List.of(new PaymentInput(
+                    totalFlagPayment.paymentType(),
+                    event.getServiceValueOrZero(),
+                    true
+            ));
+        } else {
+            effectiveInputs = paymentInputs;
+        }
+        return effectiveInputs;
+    }
+
+    private List<CalendarEventPayment> buildPayments(final CalendarEvent event, final List<PaymentInput> paymentInputs) {
+        final List<CalendarEventPayment> payments = new ArrayList<>();
+        for (final PaymentInput paymentInput : paymentInputs) {
+            payments.add(new CalendarEventPayment(
+                    event,
+                    paymentInput.paymentType(),
+                    paymentInput.amount(),
+                    paymentInput.valueTotal(),
+                    Instant.now()
+            ));
+        }
+        return payments;
+    }
+
+    private List<CalendarEventPayment> saveAndMaterialize(final CalendarEvent event) {
+        return materializePayments(eventRepository.save(event));
+    }
+
     private List<CalendarEventPayment> materializePayments(final CalendarEvent event) {
         return new ArrayList<>(event.getPayments());
+    }
+
+    private CalendarEvent findEvent(final Long userId, final Long eventId) {
+        return eventRepository.findByIdAndUserId(eventId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Calendar event not found"));
     }
 
     public record PaymentInput(PaymentType paymentType, BigDecimal amount, boolean valueTotal) {}

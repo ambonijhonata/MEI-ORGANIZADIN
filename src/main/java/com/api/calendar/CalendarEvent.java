@@ -171,6 +171,10 @@ public class CalendarEvent {
         return snapshotView().getTotalValue();
     }
 
+    public BigDecimal getServiceValueOrZero() {
+        return snapshotView().totalValueOrZero();
+    }
+
     public CalendarEventServiceSnapshot getSnapshot() {
         return snapshotView();
     }

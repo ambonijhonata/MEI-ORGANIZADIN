@@ -151,6 +151,7 @@ class CalendarPaymentsIntegrationTest {
 
         when(event.getPayments()).thenReturn(lazyPayments);
         when(event.getServiceValueSnapshot()).thenReturn(new BigDecimal("88.00"));
+        when(event.getServiceValueOrZero()).thenReturn(new BigDecimal("88.00"));
         doAnswer(invocation -> {
             @SuppressWarnings("unchecked")
             List<CalendarEventPayment> newPayments = (List<CalendarEventPayment>) invocation.getArgument(0);
