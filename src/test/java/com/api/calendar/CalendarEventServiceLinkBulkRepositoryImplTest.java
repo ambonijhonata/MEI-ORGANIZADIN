@@ -9,7 +9,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.lang.reflect.Field;
 import java.util.List;
 
 import static org.mockito.Mockito.never;
@@ -28,11 +27,8 @@ class CalendarEventServiceLinkBulkRepositoryImplTest {
     private CalendarEventServiceLinkBulkRepositoryImpl repository;
 
     @BeforeEach
-    void setUp() throws Exception {
-        repository = new CalendarEventServiceLinkBulkRepositoryImpl();
-        Field entityManagerField = CalendarEventServiceLinkBulkRepositoryImpl.class.getDeclaredField("entityManager");
-        entityManagerField.setAccessible(true);
-        entityManagerField.set(repository, entityManager);
+    void setUp() {
+        repository = new CalendarEventServiceLinkBulkRepositoryImpl(entityManager);
     }
 
     @Test

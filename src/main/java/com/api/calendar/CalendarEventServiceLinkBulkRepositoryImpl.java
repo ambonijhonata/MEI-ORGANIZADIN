@@ -2,18 +2,19 @@ package com.api.calendar;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
-import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
 
-@SuppressWarnings("PMD.AtLeastOneConstructor")
 @Repository
 public class CalendarEventServiceLinkBulkRepositoryImpl implements CalendarEventServiceLinkBulkRepository {
 
-    @PersistenceContext
-    private EntityManager entityManager;
+    private final EntityManager entityManager;
+
+    public CalendarEventServiceLinkBulkRepositoryImpl(final EntityManager entityManager) {
+        this.entityManager = entityManager;
+    }
 
     @Override
     public void deleteInBulkByCalendarEventIdIn(final Collection<Long> calendarEventIds) {

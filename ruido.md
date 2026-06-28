@@ -28,7 +28,6 @@ Como atualizar/regenerar esta lista:
 - `API/src/main/java/com/api/calendar/CalendarEventReprocessor.java:13` - PMD.AvoidLiteralsInIfCondition, PMD.CyclomaticComplexity, PMD.LawOfDemeter, PMD.LongVariable, PMD.OnlyOneReturn
 - `API/src/main/java/com/api/calendar/CalendarEventServiceLink.java:8` - PMD.CommentDefaultAccessModifier, PMD.DataClass, PMD.LawOfDemeter, PMD.LongVariable, PMD.ShortVariable
 - `API/src/main/java/com/api/calendar/CalendarEventServiceLinkBulkRepository.java:4` - PMD.ImplicitFunctionalInterface
-- `API/src/main/java/com/api/calendar/CalendarEventServiceLinkBulkRepositoryImpl.java:11` - PMD.AtLeastOneConstructor
 - `API/src/main/java/com/api/calendar/CalendarEventServiceMatcher.java:12` - PMD.OnlyOneReturn
 - `API/src/main/java/com/api/calendar/CalendarPaymentService.java:13` - PMD.AvoidLiteralsInIfCondition, PMD.CyclomaticComplexity, PMD.LawOfDemeter, PMD.LongVariable, PMD.OnlyOneReturn
 - `API/src/main/java/com/api/calendar/CalendarPaymentSummary.java:4` - PMD.ShortMethodName
@@ -65,4 +64,3 @@ Como atualizar/regenerar esta lista:
 - `API/src/main/java/com/api/servicecatalog/ServiceDescriptionNormalizer.java:7` - PMD.AtLeastOneConstructor, PMD.LongVariable, PMD.OnlyOneReturn, PMD.ShortVariable, PMD.UseLocaleWithCaseConversions
 - `API/src/main/java/com/api/servicecatalog/ServiceRepository.java:10` - PMD.LongVariable, PMD.ShortVariable
 - `API/src/main/java/com/api/user/User.java:6` - PMD.CommentDefaultAccessModifier, PMD.DataClass, PMD.ShortClassName, PMD.ShortVariable, PMD.UseExplicitTypes
-
