@@ -1,5 +1,6 @@
 package com.api.auth;
 
+import com.api.calendar.CalendarIntegrationStatusMapper;
 import com.api.calendar.SyncState;
 import com.api.calendar.SyncStateRepository;
 import com.api.calendar.SyncStatus;
@@ -170,9 +171,10 @@ class AuthControllerTest {
         stubSessionIssuance(user);
         authController.login(request);
 
-        assertEquals(SyncStatus.SYNCED, syncState.getStatus());
-        assertNull(syncState.getErrorCategory());
-        assertNull(syncState.getErrorMessage());
+        assertFalse(syncState.isReauthRequired());
+        assertEquals(SyncStatus.SYNCED.name(), CalendarIntegrationStatusMapper.toReadModel(syncState).status());
+        assertNull(CalendarIntegrationStatusMapper.toReadModel(syncState).errorCategory());
+        assertNull(CalendarIntegrationStatusMapper.toReadModel(syncState).errorMessage());
     }
 
     @Test

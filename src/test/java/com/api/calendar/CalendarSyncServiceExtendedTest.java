@@ -139,7 +139,7 @@ class CalendarSyncServiceExtendedTest {
                 .thenThrow(new GoogleCalendarClient.OAuthRevokedException("Token revoked"));
 
         IntegrationRevokedException ex = assertThrows(IntegrationRevokedException.class, () -> syncService.synchronize(1L));
-        assertEquals(SyncStatus.REAUTH_REQUIRED, syncState.getStatus());
+        assertEquals(SyncStatus.REAUTH_REQUIRED.name(), CalendarIntegrationStatusMapper.toReadModel(syncState).status());
         assertEquals("Token revoked", ex.getMessage());
     }
 
@@ -155,8 +155,8 @@ class CalendarSyncServiceExtendedTest {
                 .thenThrow(new IOException("Network error"));
 
         assertThrows(RuntimeException.class, () -> syncService.synchronize(1L));
-        assertEquals(SyncStatus.SYNC_FAILED, syncState.getStatus());
-        assertEquals("IO_ERROR", syncState.getErrorCategory());
+        assertEquals(SyncStatus.SYNC_FAILED.name(), CalendarIntegrationStatusMapper.toReadModel(syncState).status());
+        assertEquals("IO_ERROR", CalendarIntegrationStatusMapper.toReadModel(syncState).errorCategory());
     }
 
     @Test
@@ -172,9 +172,9 @@ class CalendarSyncServiceExtendedTest {
 
         RuntimeException ex = assertThrows(RuntimeException.class, () -> syncService.synchronize(1L));
         assertEquals("Unexpected processing failure", ex.getMessage());
-        assertEquals(SyncStatus.SYNC_FAILED, syncState.getStatus());
-        assertEquals("INTERNAL_SYNC_ERROR", syncState.getErrorCategory());
-        assertEquals("Unexpected internal error during calendar synchronization", syncState.getErrorMessage());
+        assertEquals(SyncStatus.SYNC_FAILED.name(), CalendarIntegrationStatusMapper.toReadModel(syncState).status());
+        assertEquals("INTERNAL_SYNC_ERROR", CalendarIntegrationStatusMapper.toReadModel(syncState).errorCategory());
+        assertEquals("Unexpected internal error during calendar synchronization", CalendarIntegrationStatusMapper.toReadModel(syncState).errorMessage());
     }
 
     @Test
@@ -194,8 +194,8 @@ class CalendarSyncServiceExtendedTest {
                 () -> syncService.synchronize(1L)
         );
 
-        assertEquals("GOOGLE_API_FORBIDDEN", syncState.getErrorCategory());
-        assertEquals(SyncStatus.SYNC_FAILED, syncState.getStatus());
+        assertEquals("GOOGLE_API_FORBIDDEN", CalendarIntegrationStatusMapper.toReadModel(syncState).errorCategory());
+        assertEquals(SyncStatus.SYNC_FAILED.name(), CalendarIntegrationStatusMapper.toReadModel(syncState).status());
         assertTrue(ex.getMessage().contains("accessNotConfigured"));
     }
 
@@ -889,7 +889,7 @@ class CalendarSyncServiceExtendedTest {
         assertEquals(0, result.created());
         assertEquals(0, result.updated());
         assertEquals(2, existingEvent.getServiceLinks().size());
-        assertFalse(syncState.hasPendingCatalogEnrichment());
+        assertEquals(0L, syncState.resolveCatalogEnrichmentRevision(false));
         verify(calendarEventRepository).saveAll(argThat(events -> {
             if (events == null) {
                 return false;
@@ -935,7 +935,7 @@ class CalendarSyncServiceExtendedTest {
         syncService.synchronize(1L);
 
         assertEquals(2, existingEvent.getServiceLinks().size());
-        assertFalse(syncState.hasPendingCatalogEnrichment());
+        assertEquals(0L, syncState.resolveCatalogEnrichmentRevision(false));
         assertEquals(new BigDecimal("73.00"), existingEvent.getServiceValueSnapshot());
     }
 

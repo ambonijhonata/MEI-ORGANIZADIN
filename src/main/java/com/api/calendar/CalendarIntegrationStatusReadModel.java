@@ -1,6 +1,6 @@
 package com.api.calendar;
 
-record CalendarIntegrationStatusReadModel(
+public record CalendarIntegrationStatusReadModel(
         String status,
         String lastSyncAt,
         String errorCategory,

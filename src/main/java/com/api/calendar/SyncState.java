@@ -1,28 +1,36 @@
 package com.api.calendar;
 
 import com.api.user.User;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Embedded;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
 import java.time.Instant;
 
-@SuppressWarnings({
-        "PMD.CommentDefaultAccessModifier",
-        "PMD.LongVariable",
-        "PMD.NullAssignment",
-        "PMD.ShortVariable",
-        "PMD.TooManyMethods",
-        "PMD.UseExplicitTypes"
-})
 @Entity
 @Table(name = "sync_state")
+@SuppressWarnings("PMD.TooManyMethods")
 public class SyncState {
+    private static final String REVOKED_CATEGORY = "REVOKED";
     private static final SyncStatus INITIAL_STATUS = SyncStatus.NEVER_SYNCED;
+    private static final SyncStatus REAUTH_STATUS = SyncStatus.REAUTH_REQUIRED;
     private static final SyncStatus SYNCED_STATUS = SyncStatus.SYNCED;
     private static final SyncStatus FAILED_STATUS = SyncStatus.SYNC_FAILED;
-    private static final SyncStatus REAUTH_REQUIRED_STATUS = SyncStatus.REAUTH_REQUIRED;
+    private static final SyncStatus SYNCING_STATUS = SyncStatus.SYNCING;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long syncStateId;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false, unique = true)
@@ -44,11 +52,8 @@ public class SyncState {
     @Column(name = "error_message")
     private String errorMessage;
 
-    @Column(name = "catalog_enrichment_revision_requested", nullable = false)
-    private long catalogEnrichmentRevisionRequested;
-
-    @Column(name = "catalog_enrichment_revision_applied", nullable = false)
-    private long catalogEnrichmentRevisionApplied;
+    @Embedded
+    protected SyncCatalogEnrichmentState catalogEnrichment = new SyncCatalogEnrichmentState();
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -56,7 +61,8 @@ public class SyncState {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    protected SyncState() {}
+    protected SyncState() {
+    }
 
     public SyncState(final User user) {
         this.user = user;
@@ -64,108 +70,98 @@ public class SyncState {
     }
 
     @PrePersist
-    void prePersist() {
-        final var now = Instant.now();
-        this.createdAt = now;
-        this.updatedAt = now;
-    }
-
     @PreUpdate
-    void preUpdate() {
-        this.updatedAt = Instant.now();
+    protected void updateTimestamps() {
+        ensureCatalogEnrichmentInitialized();
+        final Instant currentTimestamp = Instant.now();
+        if (createdAt == null) {
+            createdAt = currentTimestamp;
+        }
+        updatedAt = currentTimestamp;
     }
 
-    public Long getId() { return id; }
-    public User getUser() { return user; }
-    public String getSyncToken() { return syncToken; }
-    public Instant getLastSyncAt() { return lastSyncAt; }
-    public SyncStatus getStatus() { return status; }
-    public String getErrorCategory() { return errorCategory; }
-    public String getErrorMessage() { return errorMessage; }
-    public long getCatalogEnrichmentRevisionRequested() { return catalogEnrichmentRevisionRequested; }
-    public long getCatalogEnrichmentRevisionApplied() { return catalogEnrichmentRevisionApplied; }
-    public Instant getCreatedAt() { return createdAt; }
-    public Instant getUpdatedAt() { return updatedAt; }
-
-    public void setSyncToken(final String syncToken) { this.syncToken = syncToken; }
-    public void setLastSyncAt(final Instant lastSyncAt) { this.lastSyncAt = lastSyncAt; }
-    public void setStatus(final SyncStatus status) { this.status = status; }
-    public void setErrorCategory(final String errorCategory) { this.errorCategory = errorCategory; }
-    public void setErrorMessage(final String errorMessage) { this.errorMessage = errorMessage; }
-    public void setCatalogEnrichmentRevisionRequested(final long catalogEnrichmentRevisionRequested) {
-        this.catalogEnrichmentRevisionRequested = Math.max(0L, catalogEnrichmentRevisionRequested);
-    }
-    public void setCatalogEnrichmentRevisionApplied(final long catalogEnrichmentRevisionApplied) {
-        this.catalogEnrichmentRevisionApplied = Math.max(0L, catalogEnrichmentRevisionApplied);
+    public void markSyncing() {
+        status = SYNCING_STATUS;
     }
 
-    public void markSynced(final String syncToken) {
-        this.syncToken = syncToken;
-        this.lastSyncAt = Instant.now();
-        this.status = SYNCED_STATUS;
-        this.errorCategory = null;
-        this.errorMessage = null;
+    public void clearSyncToken() {
+        syncToken = noText();
     }
 
-    public void markFailed(final String errorCategory, final String errorMessage) {
-        this.status = FAILED_STATUS;
-        this.errorCategory = errorCategory;
-        this.errorMessage = errorMessage;
+    public void markSynced(final String nextSyncToken) {
+        syncToken = nextSyncToken;
+        lastSyncAt = Instant.now();
+        status = SYNCED_STATUS;
+        errorCategory = noText();
+        errorMessage = noText();
+    }
+
+    public void keepSyncedWithExistingToken(final String existingSyncToken, final Instant syncedAt) {
+        lastSyncAt = syncedAt;
+        status = SYNCED_STATUS;
+        errorCategory = noText();
+        errorMessage = noText();
+        syncToken = existingSyncToken;
+    }
+
+    public void markFailed(final String category, final String message) {
+        status = FAILED_STATUS;
+        errorCategory = category;
+        errorMessage = message;
     }
 
     public void markReauthRequired(final String reason) {
-        this.status = REAUTH_REQUIRED_STATUS;
-        this.errorCategory = "REVOKED";
-        this.errorMessage = reason;
+        status = REAUTH_STATUS;
+        errorCategory = REVOKED_CATEGORY;
+        errorMessage = reason;
     }
 
     public long requestCatalogEnrichment() {
-        this.catalogEnrichmentRevisionRequested = Math.max(
-                this.catalogEnrichmentRevisionRequested + 1,
-                this.catalogEnrichmentRevisionApplied + 1
-        );
-        return this.catalogEnrichmentRevisionRequested;
-    }
-
-    public boolean hasPendingCatalogEnrichment() {
-        return this.catalogEnrichmentRevisionApplied < this.catalogEnrichmentRevisionRequested;
+        ensureCatalogEnrichmentInitialized();
+        return catalogEnrichment.request();
     }
 
     public boolean isReauthRequired() {
-        return this.status == REAUTH_REQUIRED_STATUS;
+        return status == REAUTH_STATUS;
     }
 
-    public boolean isSyncing() {
-        return this.status == SyncStatus.SYNCING;
-    }
-
-    public void markCatalogEnrichmentApplied(final long appliedRevision) {
-        if (appliedRevision <= 0) {
-            return;
+    public long resolveCatalogEnrichmentRevision(final boolean allowBackfill) {
+        ensureCatalogEnrichmentInitialized();
+        long revision = 0L;
+        if (catalogEnrichment.hasPending()) {
+            revision = catalogEnrichment.getRequestedRevision();
+        } else if (allowBackfill && catalogEnrichment.getRequestedRevision() == 0L) {
+            catalogEnrichment.ensureBackfillPending();
+            revision = catalogEnrichment.getRequestedRevision();
         }
-        this.catalogEnrichmentRevisionApplied = Math.max(
-                this.catalogEnrichmentRevisionApplied,
-                Math.min(appliedRevision, this.catalogEnrichmentRevisionRequested)
-        );
+        return revision;
     }
 
-    public void ensureCatalogEnrichmentBackfillPending() {
-        if (this.catalogEnrichmentRevisionRequested == 0) {
-            this.catalogEnrichmentRevisionRequested = Math.max(1L, this.catalogEnrichmentRevisionApplied + 1);
+    public void markCatalogEnrichmentApplied(final long revision) {
+        ensureCatalogEnrichmentInitialized();
+        catalogEnrichment.markApplied(revision);
+    }
+
+    public SyncStateSnapshot snapshot() {
+        return new SyncStateSnapshot(syncToken, status, lastSyncAt, errorCategory, errorMessage);
+    }
+
+    private void ensureCatalogEnrichmentInitialized() {
+        if (catalogEnrichment == null) {
+            catalogEnrichment = new SyncCatalogEnrichmentState();
         }
     }
 
-    public boolean wasSyncedAfter(final Instant threshold) {
-        return lastSyncAt != null && lastSyncAt.isAfter(threshold);
+    private static String noText() {
+        return null;
     }
 
-    public CalendarIntegrationStatusReadModel toReadModel() {
-        final String statusName = status != null ? status.name() : INITIAL_STATUS.name();
-        return new CalendarIntegrationStatusReadModel(
-                statusName,
-                lastSyncAt != null ? lastSyncAt.toString() : null,
-                errorCategory,
-                errorMessage
-        );
+    public record SyncStateSnapshot(
+            String syncToken,
+            SyncStatus status,
+            Instant lastSyncAt,
+            String errorCategory,
+            String errorMessage
+    ) {
     }
 }

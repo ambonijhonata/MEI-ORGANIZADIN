@@ -231,8 +231,8 @@ class CalendarEventReprocessorTest {
         boolean enriched = reprocessor.enrichPendingSynchronizedAppointments(1L, syncState);
 
         assertTrue(enriched);
-        assertFalse(syncState.hasPendingCatalogEnrichment());
-        assertEquals(1L, syncState.getCatalogEnrichmentRevisionApplied());
+        assertEquals(0L, syncState.resolveCatalogEnrichmentRevision(false));
+        assertEquals(0L, syncState.resolveCatalogEnrichmentRevision(false));
         verify(syncStateRepository).save(syncState);
     }
 

@@ -64,7 +64,7 @@ public class CalendarEventQueryService {
 
     public CalendarIntegrationStatusReadModel getIntegrationStatus(final Long userId) {
         return stateRepository.findByUserId(userId)
-                .map(SyncState::toReadModel)
+                .map(CalendarIntegrationStatusMapper::toReadModel)
                 .orElse(new CalendarIntegrationStatusReadModel(
                         SyncStatus.NEVER_SYNCED.name(), null, null, null
                 ));

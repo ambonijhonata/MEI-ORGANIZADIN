@@ -13,7 +13,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 
-@SuppressWarnings({"PMD.ControlStatementBraces", "PMD.LawOfDemeter", "PMD.LongVariable", "PMD.OnlyOneReturn"})
+@SuppressWarnings({"PMD.LongVariable"})
 @Component
 public class RevenueReportService {
 
@@ -81,19 +81,10 @@ public class RevenueReportService {
     }
 
     private SyncMetadata buildSyncMetadata(final Long userId) {
-        return syncStateRepository.findByUserId(userId)
-                .map(state -> {
-                    final boolean dataUpToDate = isDataUpToDate(state);
-                    final boolean reauthRequired = state.getStatus() == SyncStatus.REAUTH_REQUIRED;
-                    return new SyncMetadata(dataUpToDate, state.getLastSyncAt(), reauthRequired);
-                })
-                .orElse(new SyncMetadata(false, null, false));
-    }
-
-    private boolean isDataUpToDate(final SyncState state) {
-        if (state.getLastSyncAt() == null) return false;
         final Instant threshold = Instant.now().minus(freshnessMinutes, ChronoUnit.MINUTES);
-        return state.getLastSyncAt().isAfter(threshold);
+        return syncStateRepository.findByUserId(userId)
+                .map(state -> SyncStateReportMetadataFactory.create(state, threshold))
+                .orElse(new SyncMetadata(false, null, false));
     }
 
     public record RevenueReport(BigDecimal totalRevenue, LocalDate startDate, LocalDate endDate,

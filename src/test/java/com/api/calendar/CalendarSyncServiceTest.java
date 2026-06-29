@@ -184,7 +184,7 @@ class CalendarSyncServiceTest {
         assertEquals(0, result.created());
         assertEquals(0, result.updated());
         assertEquals(0, result.deleted());
-        assertEquals("old-sync-token", syncState.getSyncToken());
+        assertEquals("old-sync-token", syncState.snapshot().syncToken());
     }
 
     @Test
@@ -210,7 +210,7 @@ class CalendarSyncServiceTest {
 
         assertEquals(0, result.created());
         assertEquals(1, result.deleted());
-        assertEquals("new-token", syncState.getSyncToken());
+        assertEquals("new-token", syncState.snapshot().syncToken());
         verify(googleCalendarClient).fetchEvents(1L, "persisted-sync-token");
         verify(googleCalendarClient, never()).fetchEvents(1L, null, startDate);
         verify(calendarEventRepository).deleteAllInBatch(argThat(iterable ->
@@ -236,7 +236,7 @@ class CalendarSyncServiceTest {
         assertEquals(0, result.created());
         assertEquals(0, result.updated());
         assertEquals(0, result.deleted());
-        assertEquals("persisted-sync-token", syncState.getSyncToken());
+        assertEquals("persisted-sync-token", syncState.snapshot().syncToken());
         verify(googleCalendarClient).fetchEvents(1L, "persisted-sync-token");
         verify(googleCalendarClient, never()).fetchEvents(1L, null, startDate);
     }
@@ -261,7 +261,7 @@ class CalendarSyncServiceTest {
         CalendarSyncService.SyncResult result = syncService.synchronize(1L, startDate);
 
         assertEquals(1, result.created());
-        assertEquals("persisted-token", syncState.getSyncToken());
+        assertEquals("persisted-token", syncState.snapshot().syncToken());
         verify(googleCalendarClient).fetchEvents(1L, null, startDate);
     }
 
@@ -334,7 +334,7 @@ class CalendarSyncServiceTest {
 
         assertNotNull(result);
         assertEquals(1, result.deleted());
-        assertEquals("new-token", syncState.getSyncToken());
+        assertEquals("new-token", syncState.snapshot().syncToken());
         verify(calendarEventRepository).deleteAllInBatch(argThat(iterable -> {
             List<CalendarEvent> deletions = StreamSupport.stream(iterable.spliterator(), false).toList();
             return deletions.size() == 1 && deletions.contains(staleLocalEvent) && !deletions.contains(retainedLocalEvent);
@@ -359,7 +359,7 @@ class CalendarSyncServiceTest {
         CalendarSyncService.SyncResult result = syncService.synchronize(1L);
 
         assertNotNull(result);
-        assertNull(syncState.getSyncToken());
+        assertNull(syncState.snapshot().syncToken());
         verify(googleCalendarClient).fetchEvents(1L, "expired-token");
         verify(googleCalendarClient).fetchEvents(1L, null);
     }
@@ -439,7 +439,7 @@ class CalendarSyncServiceTest {
         CalendarSyncService.SyncResult result = syncService.synchronize(1L);
 
         assertEquals(1, result.deleted());
-        assertEquals("initial-token", syncState.getSyncToken());
+        assertEquals("initial-token", syncState.snapshot().syncToken());
         verify(calendarEventRepository).deleteAllInBatch(argThat(iterable -> {
             List<CalendarEvent> deletions = StreamSupport.stream(iterable.spliterator(), false).toList();
             return deletions.size() == 1

@@ -97,12 +97,10 @@ public class CalendarEventReprocessor {
     }
 
     private long resolveTargetRevision(final SyncState syncState, final boolean allowBackfill) {
-        long targetRevision = NO_REVISION;
-        if (syncState == null) {
-            targetRevision = allowBackfill ? INITIAL_REVISION : NO_REVISION;
-        } else if (syncState.hasPendingCatalogEnrichment()) {
-            targetRevision = syncState.getCatalogEnrichmentRevisionRequested();
-        } else if (allowBackfill && syncState.getCatalogEnrichmentRevisionRequested() == NO_REVISION) {
+        long targetRevision = syncState != null
+                ? syncState.resolveCatalogEnrichmentRevision(allowBackfill)
+                : NO_REVISION;
+        if (syncState == null && allowBackfill) {
             targetRevision = INITIAL_REVISION;
         }
         return targetRevision;

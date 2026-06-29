@@ -10,7 +10,7 @@ import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
-@SuppressWarnings({"PMD.AvoidInstantiatingObjectsInLoops", "PMD.AvoidLiteralsInIfCondition", "PMD.ControlStatementBraces", "PMD.CouplingBetweenObjects", "PMD.LawOfDemeter", "PMD.LongVariable", "PMD.OnlyOneReturn", "PMD.UseExplicitTypes"})
+@SuppressWarnings({"PMD.AvoidInstantiatingObjectsInLoops", "PMD.AvoidLiteralsInIfCondition", "PMD.CouplingBetweenObjects", "PMD.LawOfDemeter", "PMD.LongVariable", "PMD.OnlyOneReturn", "PMD.UseExplicitTypes"})
 @Component
 public class CashFlowReportService {
 
@@ -187,15 +187,8 @@ public class CashFlowReportService {
             return new RevenueReportService.SyncMetadata(false, null, false);
         }
         final SyncState state = currentState.get();
-        final boolean dataUpToDate = isDataUpToDate(state);
-        final boolean reauthRequired = state.getStatus() == SyncStatus.REAUTH_REQUIRED;
-        return new RevenueReportService.SyncMetadata(dataUpToDate, state.getLastSyncAt(), reauthRequired);
-    }
-
-    private boolean isDataUpToDate(final SyncState state) {
-        if (state.getLastSyncAt() == null) return false;
         final Instant threshold = Instant.now().minus(freshnessMinutes, ChronoUnit.MINUTES);
-        return state.getLastSyncAt().isAfter(threshold);
+        return SyncStateReportMetadataFactory.create(state, threshold);
     }
 
     public record CashFlowReport(List<DailyEntry> entries, LocalDate startDate, LocalDate endDate,

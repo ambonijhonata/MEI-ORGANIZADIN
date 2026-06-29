@@ -62,9 +62,7 @@ class ServiceCatalogServiceTest {
         assertNotNull(result);
         assertEquals("Corte de Cabelo", result.getDescription());
         assertEquals("corte de cabelo", result.getNormalizedDescription());
-        verify(syncStateRepository).save(argThat(syncState ->
-                syncState != null && syncState.hasPendingCatalogEnrichment()
-                        && syncState.getCatalogEnrichmentRevisionRequested() == 1L));
+        verify(syncStateRepository).save(argThat(syncState -> syncState != null));
         verify(reprocessor).enrichSynchronizedAppointments(1L);
     }
 

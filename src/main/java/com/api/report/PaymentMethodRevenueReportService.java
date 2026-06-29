@@ -5,9 +5,8 @@ import com.api.calendar.CalendarEventPaymentMethodTotal;
 import com.api.calendar.CalendarEventPaymentRepository;
 import com.api.calendar.CalendarEventRepository;
 import com.api.calendar.PaymentType;
-import com.api.calendar.SyncState;
 import com.api.calendar.SyncStateRepository;
-import com.api.calendar.SyncStatus;
+import com.api.calendar.SyncStateReportMetadataFactory;
 import com.api.common.InvalidPeriodException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -102,18 +101,10 @@ public class PaymentMethodRevenueReportService {
     }
 
     private RevenueReportService.SyncMetadata buildSyncMetadata(final Long userId) {
-        return syncStateRepository.findByUserId(userId)
-                .map(state -> {
-                    final boolean dataUpToDate = isDataUpToDate(state);
-                    final boolean reauthRequired = state.getStatus() == SyncStatus.REAUTH_REQUIRED;
-                    return new RevenueReportService.SyncMetadata(dataUpToDate, state.getLastSyncAt(), reauthRequired);
-                })
-                .orElse(new RevenueReportService.SyncMetadata(false, null, false));
-    }
-
-    private boolean isDataUpToDate(final SyncState state) {
         final Instant threshold = Instant.now().minus(freshnessMinutes, ChronoUnit.MINUTES);
-        return state.wasSyncedAfter(threshold);
+        return syncStateRepository.findByUserId(userId)
+                .map(state -> SyncStateReportMetadataFactory.create(state, threshold))
+                .orElse(new RevenueReportService.SyncMetadata(false, null, false));
     }
 
     private BigDecimal normalizeAmount(final BigDecimal amount) {

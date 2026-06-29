@@ -61,7 +61,7 @@ public class CalendarSyncService {
             throw new IntegrationRevokedException(REAUTH_REQUIRED);
         }
 
-        syncState.setStatus(SyncStatus.SYNCING);
+        syncState.markSyncing();
         syncStateRepo.save(syncState);
 
         return runSyncOperation(userId, user, syncState, startDate);
@@ -74,7 +74,7 @@ public class CalendarSyncService {
                                         final LocalDate startDate) {
         boolean completed = false;
         try {
-            final SyncResult result = startDate != null && !hasToken(syncState.getSyncToken())
+            final SyncResult result = startDate != null && !hasToken(syncState.snapshot().syncToken())
                     ? performStartDateSync(userId, user, syncState, startDate)
                     : performSync(userId, user, syncState);
             completed = true;
@@ -92,7 +92,7 @@ public class CalendarSyncService {
             syncStateRepo.save(syncState);
             throw new IllegalStateException("Sync failed: " + ioException.getMessage(), ioException);
         } finally {
-            if (!completed && syncState.isSyncing()) {
+            if (!completed && syncState.snapshot().status() == SyncStatus.SYNCING) {
                 syncState.markFailed(INTERNAL_ERROR, "Unexpected internal error during calendar synchronization");
                 syncStateRepo.save(syncState);
             }
@@ -100,7 +100,7 @@ public class CalendarSyncService {
     }
 
     private SyncResult performSync(final Long userId, final User user, final SyncState syncState) throws IOException {
-        final String syncToken = syncState.getSyncToken();
+        final String syncToken = syncState.snapshot().syncToken();
         final long totalStartNs = System.nanoTime();
         final boolean fullSync = !hasToken(syncToken);
         final String syncMode = fullSync ? "full_no_token" : "incremental";
@@ -137,7 +137,7 @@ public class CalendarSyncService {
                     elapsedMs(totalStartNs),
                     false,
                     hasToken(syncToken),
-                    hasToken(syncState.getSyncToken())
+                    hasToken(syncState.snapshot().syncToken())
             ));
             result = execution.result();
         } catch (GoogleCalendarClient.SyncTokenExpiredException exception) {
@@ -152,9 +152,9 @@ public class CalendarSyncService {
 
     private SyncResult performFullResync(final Long userId, final User user, final SyncState syncState)
             throws IOException {
-        final String tokenBeforeSync = syncState.getSyncToken();
+        final String tokenBeforeSync = syncState.snapshot().syncToken();
         final long totalStartNs = System.nanoTime();
-        syncState.setSyncToken(null);
+        syncState.clearSyncToken();
 
         final long fetchStartNs = System.nanoTime();
         final GoogleCalendarClient.CalendarSyncResult result = calendarClient.fetchEvents(userId, null);
@@ -166,7 +166,7 @@ public class CalendarSyncService {
                 result.events(),
                 true,
                 false,
-                syncState.getSyncToken(),
+                syncState.snapshot().syncToken(),
                 result.nextSyncToken(),
                 "full_resync_410",
                 null,
@@ -186,7 +186,7 @@ public class CalendarSyncService {
                 elapsedMs(totalStartNs),
                 true,
                 hasToken(tokenBeforeSync),
-                hasToken(syncState.getSyncToken())
+                hasToken(syncState.snapshot().syncToken())
         ));
         return execution.result();
     }
@@ -195,7 +195,7 @@ public class CalendarSyncService {
                                             final User user,
                                             final SyncState syncState,
                                             final LocalDate startDate) throws IOException {
-        final String tokenBeforeSync = syncState.getSyncToken();
+        final String tokenBeforeSync = syncState.snapshot().syncToken();
         final long totalStartNs = System.nanoTime();
         final long fetchStartNs = System.nanoTime();
         final GoogleCalendarClient.CalendarSyncResult result =
@@ -228,7 +228,7 @@ public class CalendarSyncService {
                 elapsedMs(totalStartNs),
                 false,
                 hasToken(tokenBeforeSync),
-                hasToken(syncState.getSyncToken())
+                hasToken(syncState.snapshot().syncToken())
         ));
         return execution.result();
     }
