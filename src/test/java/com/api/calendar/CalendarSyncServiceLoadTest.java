@@ -80,8 +80,7 @@ class CalendarSyncServiceLoadTest {
                 syncStateRepository,
                 userRepository,
                 new UserScopedExecutionLock(),
-                flowRunner,
-                txSupport
+                flowRunner
         );
 
         User user = new User("sub-load", "load@test.com", "Load User");

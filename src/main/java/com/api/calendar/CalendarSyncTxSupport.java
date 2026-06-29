@@ -1,20 +1,28 @@
 package com.api.calendar;
 
 import java.util.function.Supplier;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @Component
-@SuppressWarnings("PMD.AtLeastOneConstructor")
 public class CalendarSyncTxSupport {
 
-    private TransactionTemplate txTemplate;
+    private final TransactionTemplate txTemplate;
 
-    public void configure(final PlatformTransactionManager txManager) {
-        if (txManager != null) {
-            this.txTemplate = new TransactionTemplate(txManager);
-        }
+    @Autowired
+    public CalendarSyncTxSupport(final PlatformTransactionManager txManager) {
+        this(txManager == null ? null : new TransactionTemplate(txManager));
+    }
+
+    /* default */ // for non-Spring tests that do not need a real transaction manager.
+    CalendarSyncTxSupport() {
+        this((TransactionTemplate) null);
+    }
+
+    private CalendarSyncTxSupport(final TransactionTemplate txTemplate) {
+        this.txTemplate = txTemplate;
     }
 
     public void run(final Runnable work) {

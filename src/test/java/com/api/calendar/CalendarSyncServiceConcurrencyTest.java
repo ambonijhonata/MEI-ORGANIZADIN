@@ -125,8 +125,7 @@ class CalendarSyncServiceConcurrencyTest {
                 syncStateRepository,
                 userRepository,
                 userScopedExecutionLock,
-                flowRunner,
-                txSupport
+                flowRunner
         );
     }
 

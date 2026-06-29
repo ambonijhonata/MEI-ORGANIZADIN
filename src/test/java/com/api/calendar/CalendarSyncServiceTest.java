@@ -80,6 +80,11 @@ class CalendarSyncServiceTest {
     }
 
     private CalendarSyncService createSyncService(final UserScopedExecutionLock userScopedExecutionLock) {
+        return createSyncService(userScopedExecutionLock, new CalendarSyncTxSupport());
+    }
+
+    private CalendarSyncService createSyncService(final UserScopedExecutionLock userScopedExecutionLock,
+                                                  final CalendarSyncTxSupport txSupport) {
         final CalendarSyncBatchSettings batchSettings = new CalendarSyncBatchSettings(200, false, 1);
         final CalendarSyncAssociationEvaluator associationEvaluator = new CalendarSyncAssociationEvaluator();
         final CalendarSyncExistingEventResolver existingEventResolver = new CalendarSyncExistingEventResolver(
@@ -102,7 +107,6 @@ class CalendarSyncServiceTest {
                 calendarEventServiceLinkRepository,
                 batchSettings
         );
-        final CalendarSyncTxSupport txSupport = new CalendarSyncTxSupport();
         final CalendarSyncFlowRunner flowRunner = new CalendarSyncFlowRunner(
                 syncStateRepository,
                 reprocessor,
@@ -117,8 +121,7 @@ class CalendarSyncServiceTest {
                 syncStateRepository,
                 userRepository,
                 userScopedExecutionLock,
-                flowRunner,
-                txSupport
+                flowRunner
         );
     }
 
@@ -628,7 +631,7 @@ class CalendarSyncServiceTest {
 
     @Test
     void shouldUpdateLazyServiceLinksInsideActiveTransaction() throws Exception {
-        syncService.configureTransactionTemplate(new AbstractPlatformTransactionManager() {
+        CalendarSyncTxSupport txSupport = new CalendarSyncTxSupport(new AbstractPlatformTransactionManager() {
             @Override
             protected Object doGetTransaction() {
                 return new Object();
@@ -646,6 +649,7 @@ class CalendarSyncServiceTest {
             protected void doRollback(DefaultTransactionStatus status) {
             }
         });
+        syncService = createSyncService(new UserScopedExecutionLock(), txSupport);
 
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);

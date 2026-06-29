@@ -116,8 +116,7 @@ class CalendarSyncServiceExtendedTest {
                 syncStateRepository,
                 userRepository,
                 userScopedExecutionLock,
-                flowRunner,
-                txSupport
+                flowRunner
         );
     }
 

@@ -9,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.PlatformTransactionManager;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -30,25 +29,18 @@ public class CalendarSyncService {
     private final UserRepository userRepo;
     private final UserScopedExecutionLock execLock;
     private final CalendarSyncFlowRunner flowRunner;
-    private final CalendarSyncTxSupport txSupport;
 
     @Autowired
     public CalendarSyncService(final GoogleCalendarClient calendarClient,
                                final SyncStateRepository syncStateRepo,
                                final UserRepository userRepo,
                                final UserScopedExecutionLock execLock,
-                               final CalendarSyncFlowRunner flowRunner,
-                               final CalendarSyncTxSupport txSupport) {
+                               final CalendarSyncFlowRunner flowRunner) {
         this.calendarClient = calendarClient;
         this.syncStateRepo = syncStateRepo;
         this.userRepo = userRepo;
         this.execLock = execLock;
         this.flowRunner = flowRunner;
-        this.txSupport = txSupport;
-    }
-
-    public void configureTransactionTemplate(final PlatformTransactionManager txManager) {
-        txSupport.configure(txManager);
     }
 
     public SyncResult synchronize(final Long userId) {

@@ -123,7 +123,7 @@ class CalendarSyncServiceAutoFlushIntegrationTest {
                 batchSettings
         );
         persistenceSupport.setEntityManager(entityManager);
-        CalendarSyncTxSupport txSupport = new CalendarSyncTxSupport();
+        CalendarSyncTxSupport txSupport = new CalendarSyncTxSupport(platformTransactionManager);
         CalendarSyncFlowRunner flowRunner = new CalendarSyncFlowRunner(
                 syncStateRepository,
                 null,
@@ -138,10 +138,8 @@ class CalendarSyncServiceAutoFlushIntegrationTest {
                 syncStateRepository,
                 userRepository,
                 new UserScopedExecutionLock(),
-                flowRunner,
-                txSupport
+                flowRunner
         );
-        syncService.configureTransactionTemplate(platformTransactionManager);
     }
 
     @Test
