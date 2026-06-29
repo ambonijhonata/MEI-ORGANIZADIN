@@ -30,6 +30,7 @@ public class SyncState {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private Long syncStateId;
 
     @OneToOne(fetch = FetchType.LAZY)
