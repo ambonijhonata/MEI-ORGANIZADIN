@@ -89,7 +89,7 @@ public class CalendarEventReprocessor {
             }
 
             if (syncState != null) {
-                syncState.markCatalogEnrichmentApplied(targetRevision);
+                syncState.catalogEnrichmentState().markApplied(targetRevision);
                 stateRepo.save(syncState);
             }
         }
@@ -98,7 +98,7 @@ public class CalendarEventReprocessor {
 
     private long resolveTargetRevision(final SyncState syncState, final boolean allowBackfill) {
         long targetRevision = syncState != null
-                ? syncState.resolveCatalogEnrichmentRevision(allowBackfill)
+                ? syncState.catalogEnrichmentState().resolvePendingRevision(allowBackfill)
                 : NO_REVISION;
         if (syncState == null && allowBackfill) {
             targetRevision = INITIAL_REVISION;

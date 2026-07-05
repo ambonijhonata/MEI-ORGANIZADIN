@@ -15,23 +15,23 @@ class SyncStateTest {
         CalendarIntegrationStatusReadModel readModel = CalendarIntegrationStatusMapper.toReadModel(syncState);
 
         assertEquals(SyncStatus.NEVER_SYNCED.name(), readModel.status());
-        assertNull(syncState.snapshot().syncToken());
+        assertNull(syncState.operationalState().snapshot().syncToken());
         assertNull(readModel.lastSyncAt());
         assertNull(readModel.errorCategory());
         assertNull(readModel.errorMessage());
-        assertEquals(0L, syncState.resolveCatalogEnrichmentRevision(false));
-        assertEquals(0L, syncState.resolveCatalogEnrichmentRevision(false));
+        assertEquals(0L, syncState.catalogEnrichmentState().resolvePendingRevision(false));
+        assertEquals(0L, syncState.catalogEnrichmentState().resolvePendingRevision(false));
     }
 
     @Test
     void shouldMarkSynced() {
         SyncState syncState = new SyncState(user);
 
-        syncState.markSynced("token-123");
+        syncState.operationalState().markSynced("token-123");
         CalendarIntegrationStatusReadModel readModel = CalendarIntegrationStatusMapper.toReadModel(syncState);
 
         assertEquals(SyncStatus.SYNCED.name(), readModel.status());
-        assertEquals("token-123", syncState.snapshot().syncToken());
+        assertEquals("token-123", syncState.operationalState().snapshot().syncToken());
         assertNotNull(readModel.lastSyncAt());
         assertNull(readModel.errorCategory());
         assertNull(readModel.errorMessage());
@@ -40,9 +40,9 @@ class SyncStateTest {
     @Test
     void shouldClearErrorsOnMarkSynced() {
         SyncState syncState = new SyncState(user);
-        syncState.markFailed("IO_ERROR", "Connection failed");
+        syncState.operationalState().markFailed("IO_ERROR", "Connection failed");
 
-        syncState.markSynced("token-456");
+        syncState.operationalState().markSynced("token-456");
 
         assertEquals(SyncStatus.SYNCED.name(), CalendarIntegrationStatusMapper.toReadModel(syncState).status());
         assertNull(CalendarIntegrationStatusMapper.toReadModel(syncState).errorCategory());
@@ -53,7 +53,7 @@ class SyncStateTest {
     void shouldMarkFailed() {
         SyncState syncState = new SyncState(user);
 
-        syncState.markFailed("IO_ERROR", "Connection timeout");
+        syncState.operationalState().markFailed("IO_ERROR", "Connection timeout");
 
         assertEquals(SyncStatus.SYNC_FAILED.name(), CalendarIntegrationStatusMapper.toReadModel(syncState).status());
         assertEquals("IO_ERROR", CalendarIntegrationStatusMapper.toReadModel(syncState).errorCategory());
@@ -64,7 +64,7 @@ class SyncStateTest {
     void shouldMarkReauthRequired() {
         SyncState syncState = new SyncState(user);
 
-        syncState.markReauthRequired("Token revoked by user");
+        syncState.operationalState().markReauthRequired("Token revoked by user");
 
         assertEquals(SyncStatus.REAUTH_REQUIRED.name(), CalendarIntegrationStatusMapper.toReadModel(syncState).status());
         assertEquals("REVOKED", CalendarIntegrationStatusMapper.toReadModel(syncState).errorCategory());
@@ -75,12 +75,12 @@ class SyncStateTest {
     void shouldAllowDomainTransitionsDirectly() {
         SyncState syncState = new SyncState(user);
 
-        syncState.markFailed("CUSTOM", "Custom error");
-        syncState.markSyncing();
-        syncState.keepSyncedWithExistingToken("manual-token", java.time.Instant.now());
+        syncState.operationalState().markFailed("CUSTOM", "Custom error");
+        syncState.operationalState().markSyncing();
+        syncState.operationalState().keepSyncedWithExistingToken("manual-token", java.time.Instant.now());
 
         assertEquals(SyncStatus.SYNCED.name(), CalendarIntegrationStatusMapper.toReadModel(syncState).status());
-        assertEquals("manual-token", syncState.snapshot().syncToken());
+        assertEquals("manual-token", syncState.operationalState().snapshot().syncToken());
         assertNull(CalendarIntegrationStatusMapper.toReadModel(syncState).errorCategory());
         assertNull(CalendarIntegrationStatusMapper.toReadModel(syncState).errorMessage());
     }
@@ -89,35 +89,35 @@ class SyncStateTest {
     void shouldTrackPendingCatalogEnrichmentRevisions() {
         SyncState syncState = new SyncState(user);
 
-        long requestedRevision = syncState.requestCatalogEnrichment();
+        long requestedRevision = syncState.catalogEnrichmentState().request();
 
         assertEquals(1L, requestedRevision);
-        assertNotEquals(0L, syncState.resolveCatalogEnrichmentRevision(false));
-        assertEquals(1L, syncState.resolveCatalogEnrichmentRevision(false));
+        assertNotEquals(0L, syncState.catalogEnrichmentState().resolvePendingRevision(false));
+        assertEquals(1L, syncState.catalogEnrichmentState().resolvePendingRevision(false));
 
-        syncState.markCatalogEnrichmentApplied(requestedRevision);
+        syncState.catalogEnrichmentState().markApplied(requestedRevision);
 
-        assertEquals(0L, syncState.resolveCatalogEnrichmentRevision(false));
-        assertEquals(0L, syncState.resolveCatalogEnrichmentRevision(false));
+        assertEquals(0L, syncState.catalogEnrichmentState().resolvePendingRevision(false));
+        assertEquals(0L, syncState.catalogEnrichmentState().resolvePendingRevision(false));
     }
 
     @Test
     void shouldKeepNewerPendingRevisionWhenOlderOneIsApplied() {
         SyncState syncState = new SyncState(user);
 
-        syncState.requestCatalogEnrichment();
-        syncState.requestCatalogEnrichment();
-        syncState.markCatalogEnrichmentApplied(1L);
+        syncState.catalogEnrichmentState().request();
+        syncState.catalogEnrichmentState().request();
+        syncState.catalogEnrichmentState().markApplied(1L);
 
-        assertNotEquals(0L, syncState.resolveCatalogEnrichmentRevision(false));
-        assertEquals(2L, syncState.resolveCatalogEnrichmentRevision(false));
+        assertNotEquals(0L, syncState.catalogEnrichmentState().resolvePendingRevision(false));
+        assertEquals(2L, syncState.catalogEnrichmentState().resolvePendingRevision(false));
     }
 
     @Test
     void shouldSeedBackfillRevisionWhenNoneWasRequestedYet() {
         SyncState syncState = new SyncState(user);
 
-        assertEquals(1L, syncState.resolveCatalogEnrichmentRevision(true));
-        assertNotEquals(0L, syncState.resolveCatalogEnrichmentRevision(true));
+        assertEquals(1L, syncState.catalogEnrichmentState().resolvePendingRevision(true));
+        assertNotEquals(0L, syncState.catalogEnrichmentState().resolvePendingRevision(true));
     }
 }

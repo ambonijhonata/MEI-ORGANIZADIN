@@ -171,7 +171,7 @@ public class ServiceCatalogService {
     private void requestCatalogEnrichment(final Long userId, final User user) {
         final SyncState syncState = syncStateRepository.findByUserId(userId)
                 .orElseGet(() -> new SyncState(user));
-        syncState.requestCatalogEnrichment();
+        syncState.catalogEnrichmentState().request();
         syncStateRepository.save(syncState);
     }
 

@@ -235,7 +235,7 @@ class CalendarSyncServiceExtendedTest {
     void shouldUpdateExistingEventOnIncrementalSync() throws IOException {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
-        syncState.markSynced("old-token");
+        syncState.operationalState().markSynced("old-token");
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
@@ -332,7 +332,7 @@ class CalendarSyncServiceExtendedTest {
     void shouldDeleteNonExistentLocalEventGracefully() throws IOException {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
-        syncState.markSynced("token");
+        syncState.operationalState().markSynced("token");
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
@@ -352,7 +352,7 @@ class CalendarSyncServiceExtendedTest {
     void shouldSkipPersistingWhenExistingEventIsSemanticallyUnchanged() throws IOException {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
-        syncState.markSynced("old-token");
+        syncState.operationalState().markSynced("old-token");
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
@@ -389,7 +389,7 @@ class CalendarSyncServiceExtendedTest {
     void shouldSkipServiceAssociationRewriteWhenEquivalent() throws IOException {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
-        syncState.markSynced("old-token");
+        syncState.operationalState().markSynced("old-token");
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
@@ -529,7 +529,7 @@ class CalendarSyncServiceExtendedTest {
     void shouldUpdateExistingEventWhenOnlyPaymentTypeChanges() throws IOException {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
-        syncState.markSynced("old-token");
+        syncState.operationalState().markSynced("old-token");
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
@@ -583,7 +583,7 @@ class CalendarSyncServiceExtendedTest {
     void shouldReplacePersistedLinksBeforeSavingChangedAssociations() throws IOException {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
-        syncState.markSynced("sync-token");
+        syncState.operationalState().markSynced("sync-token");
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
@@ -636,7 +636,7 @@ class CalendarSyncServiceExtendedTest {
     void shouldReplaceServiceLinksBeforeDeletionCleanupWhenChunkMixesUpdatedAndDeletedEvents() throws IOException {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
-        syncState.markSynced("sync-token");
+        syncState.operationalState().markSynced("sync-token");
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
@@ -855,7 +855,7 @@ class CalendarSyncServiceExtendedTest {
     void shouldConsumePendingCatalogEnrichmentDuringSyncWithoutGoogleDelta() throws IOException {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
-        syncState.requestCatalogEnrichment();
+        syncState.catalogEnrichmentState().request();
         Service sobrancelha = serviceWithId(user, 1L, "Sobrancelha", "sobrancelha", "48.00");
         Service buco = serviceWithId(user, 2L, "Buco", "buco", "23.00");
 
@@ -889,7 +889,7 @@ class CalendarSyncServiceExtendedTest {
         assertEquals(0, result.created());
         assertEquals(0, result.updated());
         assertEquals(2, existingEvent.getServiceLinks().size());
-        assertEquals(0L, syncState.resolveCatalogEnrichmentRevision(false));
+        assertEquals(0L, syncState.catalogEnrichmentState().resolvePendingRevision(false));
         verify(calendarEventRepository).saveAll(argThat(events -> {
             if (events == null) {
                 return false;
@@ -903,7 +903,7 @@ class CalendarSyncServiceExtendedTest {
     void shouldRecoverLateServiceEnrichmentOnSyncAfterAsyncAttemptDidNotRun() throws IOException {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
-        syncState.requestCatalogEnrichment();
+        syncState.catalogEnrichmentState().request();
         Service sobrancelha = serviceWithId(user, 1L, "Sobrancelha", "sobrancelha", "48.00");
         Service tintura = serviceWithId(user, 2L, "Tintura", "tintura", "25.00");
 
@@ -935,7 +935,7 @@ class CalendarSyncServiceExtendedTest {
         syncService.synchronize(1L);
 
         assertEquals(2, existingEvent.getServiceLinks().size());
-        assertEquals(0L, syncState.resolveCatalogEnrichmentRevision(false));
+        assertEquals(0L, syncState.catalogEnrichmentState().resolvePendingRevision(false));
         assertEquals(new BigDecimal("73.00"), existingEvent.getServiceValueSnapshot());
     }
 

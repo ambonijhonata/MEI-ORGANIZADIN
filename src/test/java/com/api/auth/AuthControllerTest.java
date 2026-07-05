@@ -163,7 +163,7 @@ class AuthControllerTest {
         when(oauthCredentialRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         SyncState syncState = new SyncState(user);
-        syncState.markReauthRequired("revoked");
+        syncState.operationalState().markReauthRequired("revoked");
         when(syncStateRepository.findByUserId(any())).thenReturn(Optional.of(syncState));
         when(syncStateRepository.save(any())).thenReturn(syncState);
 
@@ -171,7 +171,7 @@ class AuthControllerTest {
         stubSessionIssuance(user);
         authController.login(request);
 
-        assertFalse(syncState.isReauthRequired());
+        assertFalse(syncState.operationalState().isReauthRequired());
         assertEquals(SyncStatus.SYNCED.name(), CalendarIntegrationStatusMapper.toReadModel(syncState).status());
         assertNull(CalendarIntegrationStatusMapper.toReadModel(syncState).errorCategory());
         assertNull(CalendarIntegrationStatusMapper.toReadModel(syncState).errorMessage());

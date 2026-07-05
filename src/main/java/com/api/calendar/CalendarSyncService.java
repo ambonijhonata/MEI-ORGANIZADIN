@@ -57,11 +57,11 @@ public class CalendarSyncService {
         final SyncState syncState = syncStateRepo.findByUserId(userId)
                 .orElseGet(() -> syncStateRepo.save(new SyncState(user)));
 
-        if (syncState.isReauthRequired()) {
+        if (syncState.operationalState().isReauthRequired()) {
             throw new IntegrationRevokedException(REAUTH_REQUIRED);
         }
 
-        syncState.markSyncing();
+        syncState.operationalState().markSyncing();
         syncStateRepo.save(syncState);
 
         return runSyncOperation(userId, user, syncState, startDate);
@@ -74,33 +74,36 @@ public class CalendarSyncService {
                                         final LocalDate startDate) {
         boolean completed = false;
         try {
-            final SyncResult result = startDate != null && !hasToken(syncState.snapshot().syncToken())
+            final SyncResult result = startDate != null && !hasToken(syncState.operationalState().snapshot().syncToken())
                     ? performStartDateSync(userId, user, syncState, startDate)
                     : performSync(userId, user, syncState);
             completed = true;
             return result;
         } catch (GoogleCalendarClient.OAuthRevokedException oauthException) {
-            syncState.markReauthRequired(oauthException.getMessage());
+            syncState.operationalState().markReauthRequired(oauthException.getMessage());
             syncStateRepo.save(syncState);
             throw new IntegrationRevokedException(oauthException.getMessage(), oauthException);
         } catch (GoogleCalendarClient.GoogleApiForbiddenException forbiddenEx) {
-            syncState.markFailed(API_FORBIDDEN, forbiddenEx.getMessage());
+            syncState.operationalState().markFailed(API_FORBIDDEN, forbiddenEx.getMessage());
             syncStateRepo.save(syncState);
             throw new GoogleApiAccessDeniedException(forbiddenEx.getMessage(), forbiddenEx);
         } catch (IOException ioException) {
-            syncState.markFailed(IO_ERROR, ioException.getMessage());
+            syncState.operationalState().markFailed(IO_ERROR, ioException.getMessage());
             syncStateRepo.save(syncState);
             throw new IllegalStateException("Sync failed: " + ioException.getMessage(), ioException);
         } finally {
-            if (!completed && syncState.snapshot().status() == SyncStatus.SYNCING) {
-                syncState.markFailed(INTERNAL_ERROR, "Unexpected internal error during calendar synchronization");
+            if (!completed && syncState.operationalState().isSyncing()) {
+                syncState.operationalState().markFailed(
+                        INTERNAL_ERROR,
+                        "Unexpected internal error during calendar synchronization"
+                );
                 syncStateRepo.save(syncState);
             }
         }
     }
 
     private SyncResult performSync(final Long userId, final User user, final SyncState syncState) throws IOException {
-        final String syncToken = syncState.snapshot().syncToken();
+        final String syncToken = syncState.operationalState().snapshot().syncToken();
         final long totalStartNs = System.nanoTime();
         final boolean fullSync = !hasToken(syncToken);
         final String syncMode = fullSync ? "full_no_token" : "incremental";
@@ -137,7 +140,7 @@ public class CalendarSyncService {
                     elapsedMs(totalStartNs),
                     false,
                     hasToken(syncToken),
-                    hasToken(syncState.snapshot().syncToken())
+                    hasToken(syncState.operationalState().snapshot().syncToken())
             ));
             result = execution.result();
         } catch (GoogleCalendarClient.SyncTokenExpiredException exception) {
@@ -152,9 +155,9 @@ public class CalendarSyncService {
 
     private SyncResult performFullResync(final Long userId, final User user, final SyncState syncState)
             throws IOException {
-        final String tokenBeforeSync = syncState.snapshot().syncToken();
+        final String tokenBeforeSync = syncState.operationalState().snapshot().syncToken();
         final long totalStartNs = System.nanoTime();
-        syncState.clearSyncToken();
+        syncState.operationalState().clearSyncToken();
 
         final long fetchStartNs = System.nanoTime();
         final GoogleCalendarClient.CalendarSyncResult result = calendarClient.fetchEvents(userId, null);
@@ -166,7 +169,7 @@ public class CalendarSyncService {
                 result.events(),
                 true,
                 false,
-                syncState.snapshot().syncToken(),
+                syncState.operationalState().snapshot().syncToken(),
                 result.nextSyncToken(),
                 "full_resync_410",
                 null,
@@ -186,7 +189,7 @@ public class CalendarSyncService {
                 elapsedMs(totalStartNs),
                 true,
                 hasToken(tokenBeforeSync),
-                hasToken(syncState.snapshot().syncToken())
+                hasToken(syncState.operationalState().snapshot().syncToken())
         ));
         return execution.result();
     }
@@ -195,7 +198,7 @@ public class CalendarSyncService {
                                             final User user,
                                             final SyncState syncState,
                                             final LocalDate startDate) throws IOException {
-        final String tokenBeforeSync = syncState.snapshot().syncToken();
+        final String tokenBeforeSync = syncState.operationalState().snapshot().syncToken();
         final long totalStartNs = System.nanoTime();
         final long fetchStartNs = System.nanoTime();
         final GoogleCalendarClient.CalendarSyncResult result =
@@ -228,7 +231,7 @@ public class CalendarSyncService {
                 elapsedMs(totalStartNs),
                 false,
                 hasToken(tokenBeforeSync),
-                hasToken(syncState.snapshot().syncToken())
+                hasToken(syncState.operationalState().snapshot().syncToken())
         ));
         return execution.result();
     }

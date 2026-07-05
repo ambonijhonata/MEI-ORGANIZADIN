@@ -105,7 +105,8 @@ public class CalendarSyncFlowRunner {
                     scope.additionalDeletions().size()
             ));
         }
-        if (reprocessor != null && request.syncState().resolveCatalogEnrichmentRevision(false) != 0L) {
+        if (reprocessor != null
+                && request.syncState().catalogEnrichmentState().resolvePendingRevision(false) != 0L) {
             reprocessor.enrichPendingSynchronizedAppointments(request.userId(), request.syncState());
         }
         updateSyncState(request.syncState(), request.tokenBeforeSync(), request.nextSyncToken(), request.syncMode());
@@ -170,13 +171,13 @@ public class CalendarSyncFlowRunner {
                                  final String nextToken,
                                  final String mode) {
         if (hasToken(nextToken)) {
-            syncState.markSynced(nextToken);
+            syncState.operationalState().markSynced(nextToken);
         } else if (hasToken(tokenBefore)) {
-            syncState.keepSyncedWithExistingToken(tokenBefore, Instant.now());
+            syncState.operationalState().keepSyncedWithExistingToken(tokenBefore, Instant.now());
             LOG.warn("calendar_sync_token_missing mode={} action=preserve_existing_token token_before_present=true",
                     mode);
         } else {
-            syncState.markSynced(null);
+            syncState.operationalState().markSynced(null);
             LOG.warn("calendar_sync_token_missing mode={} action=keep_token_empty token_before_present=false", mode);
         }
     }

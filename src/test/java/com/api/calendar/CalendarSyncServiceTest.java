@@ -151,7 +151,7 @@ class CalendarSyncServiceTest {
     void shouldPerformIncrementalSyncWithSyncToken() throws IOException {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
-        syncState.markSynced("old-sync-token");
+        syncState.operationalState().markSynced("old-sync-token");
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
@@ -171,7 +171,7 @@ class CalendarSyncServiceTest {
     void shouldPreserveExistingSyncTokenWhenIncrementalSyncReturnsNoNextToken() throws IOException {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
-        syncState.markSynced("old-sync-token");
+        syncState.operationalState().markSynced("old-sync-token");
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
@@ -184,14 +184,14 @@ class CalendarSyncServiceTest {
         assertEquals(0, result.created());
         assertEquals(0, result.updated());
         assertEquals(0, result.deleted());
-        assertEquals("old-sync-token", syncState.snapshot().syncToken());
+        assertEquals("old-sync-token", syncState.operationalState().snapshot().syncToken());
     }
 
     @Test
     void shouldPreferIncrementalSyncWhenStartDateAndSyncTokenExist() throws IOException {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
-        syncState.markSynced("persisted-sync-token");
+        syncState.operationalState().markSynced("persisted-sync-token");
         LocalDate startDate = LocalDate.of(2026, 4, 1);
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
@@ -210,7 +210,7 @@ class CalendarSyncServiceTest {
 
         assertEquals(0, result.created());
         assertEquals(1, result.deleted());
-        assertEquals("new-token", syncState.snapshot().syncToken());
+        assertEquals("new-token", syncState.operationalState().snapshot().syncToken());
         verify(googleCalendarClient).fetchEvents(1L, "persisted-sync-token");
         verify(googleCalendarClient, never()).fetchEvents(1L, null, startDate);
         verify(calendarEventRepository).deleteAllInBatch(argThat(iterable ->
@@ -222,7 +222,7 @@ class CalendarSyncServiceTest {
     void shouldPreserveExistingTokenWhenStartDateSyncRunsIncrementalWithoutNewToken() throws IOException {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
-        syncState.markSynced("persisted-sync-token");
+        syncState.operationalState().markSynced("persisted-sync-token");
         LocalDate startDate = LocalDate.of(2026, 4, 1);
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
@@ -236,7 +236,7 @@ class CalendarSyncServiceTest {
         assertEquals(0, result.created());
         assertEquals(0, result.updated());
         assertEquals(0, result.deleted());
-        assertEquals("persisted-sync-token", syncState.snapshot().syncToken());
+        assertEquals("persisted-sync-token", syncState.operationalState().snapshot().syncToken());
         verify(googleCalendarClient).fetchEvents(1L, "persisted-sync-token");
         verify(googleCalendarClient, never()).fetchEvents(1L, null, startDate);
     }
@@ -261,7 +261,7 @@ class CalendarSyncServiceTest {
         CalendarSyncService.SyncResult result = syncService.synchronize(1L, startDate);
 
         assertEquals(1, result.created());
-        assertEquals("persisted-token", syncState.snapshot().syncToken());
+        assertEquals("persisted-token", syncState.operationalState().snapshot().syncToken());
         verify(googleCalendarClient).fetchEvents(1L, null, startDate);
     }
 
@@ -269,7 +269,7 @@ class CalendarSyncServiceTest {
     void shouldDeleteLocalEventWhenGoogleEventCancelled() throws IOException {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
-        syncState.markSynced("sync-token");
+        syncState.operationalState().markSynced("sync-token");
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
@@ -295,7 +295,7 @@ class CalendarSyncServiceTest {
     void shouldThrowWhenIntegrationIsRevoked() {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
-        syncState.markReauthRequired("Token revoked");
+        syncState.operationalState().markReauthRequired("Token revoked");
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
@@ -307,7 +307,7 @@ class CalendarSyncServiceTest {
     void shouldFallbackToFullResyncOn410() throws IOException {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
-        syncState.markSynced("expired-token");
+        syncState.operationalState().markSynced("expired-token");
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
@@ -334,7 +334,7 @@ class CalendarSyncServiceTest {
 
         assertNotNull(result);
         assertEquals(1, result.deleted());
-        assertEquals("new-token", syncState.snapshot().syncToken());
+        assertEquals("new-token", syncState.operationalState().snapshot().syncToken());
         verify(calendarEventRepository).deleteAllInBatch(argThat(iterable -> {
             List<CalendarEvent> deletions = StreamSupport.stream(iterable.spliterator(), false).toList();
             return deletions.size() == 1 && deletions.contains(staleLocalEvent) && !deletions.contains(retainedLocalEvent);
@@ -345,7 +345,7 @@ class CalendarSyncServiceTest {
     void shouldNotRestoreExpiredTokenWhenFullResyncReturnsNoNextToken() throws IOException {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
-        syncState.markSynced("expired-token");
+        syncState.operationalState().markSynced("expired-token");
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
@@ -359,7 +359,7 @@ class CalendarSyncServiceTest {
         CalendarSyncService.SyncResult result = syncService.synchronize(1L);
 
         assertNotNull(result);
-        assertNull(syncState.snapshot().syncToken());
+        assertNull(syncState.operationalState().snapshot().syncToken());
         verify(googleCalendarClient).fetchEvents(1L, "expired-token");
         verify(googleCalendarClient).fetchEvents(1L, null);
     }
@@ -439,7 +439,7 @@ class CalendarSyncServiceTest {
         CalendarSyncService.SyncResult result = syncService.synchronize(1L);
 
         assertEquals(1, result.deleted());
-        assertEquals("initial-token", syncState.snapshot().syncToken());
+        assertEquals("initial-token", syncState.operationalState().snapshot().syncToken());
         verify(calendarEventRepository).deleteAllInBatch(argThat(iterable -> {
             List<CalendarEvent> deletions = StreamSupport.stream(iterable.spliterator(), false).toList();
             return deletions.size() == 1
@@ -452,7 +452,7 @@ class CalendarSyncServiceTest {
     void shouldDeletePaymentsBeforeDeletingAppointments() throws IOException {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
-        syncState.markSynced("sync-token");
+        syncState.operationalState().markSynced("sync-token");
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
@@ -484,7 +484,7 @@ class CalendarSyncServiceTest {
     void shouldCommitDeletionBatchWithMixedPaymentPresence() throws IOException {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
-        syncState.markSynced("sync-token");
+        syncState.operationalState().markSynced("sync-token");
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
@@ -594,7 +594,7 @@ class CalendarSyncServiceTest {
     void shouldAvoidDereferencingLegacyServiceProxyDuringServiceComparison() throws IOException {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
-        syncState.markSynced("sync-token");
+        syncState.operationalState().markSynced("sync-token");
 
         Instant start = Instant.now();
         Instant end = start.plusSeconds(1800);
@@ -653,7 +653,7 @@ class CalendarSyncServiceTest {
 
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
-        syncState.markSynced("sync-token");
+        syncState.operationalState().markSynced("sync-token");
 
         Instant start = Instant.now();
         Instant end = start.plusSeconds(1800);
@@ -695,7 +695,7 @@ class CalendarSyncServiceTest {
     void shouldHandleLegacyEventsWithNullSnapshotDuringServiceComparison() throws Exception {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
-        syncState.markSynced("sync-token");
+        syncState.operationalState().markSynced("sync-token");
 
         Instant start = Instant.now();
         Instant end = start.plusSeconds(1800);

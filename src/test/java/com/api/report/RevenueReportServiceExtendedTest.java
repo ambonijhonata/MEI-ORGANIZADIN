@@ -108,7 +108,7 @@ class RevenueReportServiceExtendedTest {
     void shouldMarkReauthRequired() {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
-        syncState.markReauthRequired("revoked");
+        syncState.operationalState().markReauthRequired("revoked");
 
         when(calendarEventRepository.findIdentifiedByUserAndPeriod(eq(1L), any(), any()))
                 .thenReturn(List.of());

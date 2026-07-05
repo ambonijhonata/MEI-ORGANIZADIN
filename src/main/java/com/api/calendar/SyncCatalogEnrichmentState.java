@@ -34,6 +34,17 @@ public class SyncCatalogEnrichmentState {
         return appliedRevision < requestedRevision;
     }
 
+    public long resolvePendingRevision(final boolean allowBackfill) {
+        long revision = NO_REVISION;
+        if (hasPending()) {
+            revision = requestedRevision;
+        } else if (allowBackfill && requestedRevision == NO_REVISION) {
+            ensureBackfillPending();
+            revision = requestedRevision;
+        }
+        return revision;
+    }
+
     public void markApplied(final long revisionToApply) {
         if (revisionToApply <= NO_REVISION) {
             return;

@@ -142,7 +142,7 @@ class RevenueReportServiceTest {
     void shouldMarkDataAsUpToDateWhenRecentSync() {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
-        syncState.markSynced("token");
+        syncState.operationalState().markSynced("token");
 
         when(calendarEventRepository.findIdentifiedByUserAndPeriod(eq(1L), any(), any()))
                 .thenReturn(List.of());

@@ -5,7 +5,7 @@ public final class CalendarIntegrationStatusMapper {
     }
 
     public static CalendarIntegrationStatusReadModel toReadModel(final SyncState syncState) {
-        final SyncState.SyncStateSnapshot snapshot = syncState.snapshot();
+        final SyncOperationalState.SyncStateSnapshot snapshot = syncState.operationalState().snapshot();
         return new CalendarIntegrationStatusReadModel(
                 snapshot.status() != null ? snapshot.status().name() : SyncStatus.NEVER_SYNCED.name(),
                 snapshot.lastSyncAt() != null ? snapshot.lastSyncAt().toString() : null,

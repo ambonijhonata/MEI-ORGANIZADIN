@@ -216,7 +216,7 @@ class CalendarEventReprocessorTest {
         Service buco = serviceWithId(user, 2L, "Buco", "buco", "23.00");
         event.associateServices(List.of(sobrancelha));
         SyncState syncState = new SyncState(user);
-        syncState.requestCatalogEnrichment();
+        syncState.catalogEnrichmentState().request();
 
         when(calendarEventRepository.findAllWithAssociationsByUserId(1L)).thenReturn(List.of(event));
         when(matcher.servicesByNormalizedDescription(1L)).thenReturn(new HashMap<>() {{
@@ -231,8 +231,8 @@ class CalendarEventReprocessorTest {
         boolean enriched = reprocessor.enrichPendingSynchronizedAppointments(1L, syncState);
 
         assertTrue(enriched);
-        assertEquals(0L, syncState.resolveCatalogEnrichmentRevision(false));
-        assertEquals(0L, syncState.resolveCatalogEnrichmentRevision(false));
+        assertEquals(0L, syncState.catalogEnrichmentState().resolvePendingRevision(false));
+        assertEquals(0L, syncState.catalogEnrichmentState().resolvePendingRevision(false));
         verify(syncStateRepository).save(syncState);
     }
 

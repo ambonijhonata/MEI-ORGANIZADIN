@@ -183,7 +183,7 @@ class CashFlowReportServiceExtendedTest {
     void shouldBuildSyncMetadataWithReauthRequired() {
         User user = new User("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
-        syncState.markReauthRequired("revoked");
+        syncState.operationalState().markReauthRequired("revoked");
 
         when(calendarEventRepository.findIdentifiedWithServiceLinksByUserAndPeriod(eq(1L), any(), any()))
                 .thenReturn(List.of());

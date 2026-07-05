@@ -1,6 +1,6 @@
 package com.api.auth;
 
-import com.api.calendar.SyncState;
+import com.api.calendar.SyncOperationalState;
 import com.api.calendar.SyncStateRepository;
 import com.api.google.GoogleOAuthClient;
 import com.api.user.User;
@@ -78,10 +78,10 @@ public class AuthAccountService {
 
     public void clearReauthRequiredIfPresent(final Long userId) {
         syncRepo.findByUserId(userId)
-                .filter(SyncState::isReauthRequired)
+                .filter(state -> state.operationalState().isReauthRequired())
                 .ifPresent(state -> {
-                    final SyncState.SyncStateSnapshot snapshot = state.snapshot();
-                    state.keepSyncedWithExistingToken(snapshot.syncToken(), snapshot.lastSyncAt());
+                    final SyncOperationalState.SyncStateSnapshot snapshot = state.operationalState().snapshot();
+                    state.operationalState().keepSyncedWithExistingToken(snapshot.syncToken(), snapshot.lastSyncAt());
                     syncRepo.save(state);
                 });
     }
