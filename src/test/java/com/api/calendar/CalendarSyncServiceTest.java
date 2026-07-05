@@ -70,7 +70,7 @@ class CalendarSyncServiceTest {
                 .thenReturn(List.of());
         lenient().when(calendarEventRepository.findGoogleBackedByUserIdAndEventStartGreaterThanEqual(anyLong(), any(Instant.class)))
                 .thenReturn(List.of());
-        lenient().when(clientService.clientsByNormalizedName(anyLong())).thenReturn(new HashMap<>());
+        lenient().when(clientService.listClientsByNormalizedName(anyLong())).thenReturn(new HashMap<>());
         lenient().when(matcher.servicesByNormalizedDescription(anyLong())).thenReturn(new HashMap<>());
         lenient().when(calendarEventRepository.saveAll(anyList())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(calendarEventServiceLinkRepository.findServiceIdentityRowsByCalendarEventIdIn(anyCollection()))

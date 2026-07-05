@@ -72,7 +72,7 @@ class CalendarSyncServiceConcurrencyTest {
                 .thenReturn(List.of());
         lenient().when(calendarEventRepository.findGoogleBackedByUserIdAndEventStartGreaterThanEqual(anyLong(), org.mockito.ArgumentMatchers.any(Instant.class)))
                 .thenReturn(List.of());
-        lenient().when(clientService.clientsByNormalizedName(anyLong())).thenReturn(new HashMap<>());
+        lenient().when(clientService.listClientsByNormalizedName(anyLong())).thenReturn(new HashMap<>());
         lenient().when(matcher.servicesByNormalizedDescription(anyLong())).thenReturn(new HashMap<>());
         lenient().when(calendarEventRepository.saveAll(org.mockito.ArgumentMatchers.anyList()))
                 .thenAnswer(inv -> inv.getArgument(0));

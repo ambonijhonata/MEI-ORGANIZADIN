@@ -51,7 +51,7 @@ public class CalendarSyncMutationPlanner {
 
     public CalendarSyncLookups buildLookups(final Long userId) {
         return new CalendarSyncLookups(
-                copyMap(clientService.clientsByNormalizedName(userId)),
+                copyMap(clientService.listClientsByNormalizedName(userId)),
                 copyMap(matcher.servicesByNormalizedDescription(userId))
         );
     }
