@@ -1,17 +1,27 @@
 package com.api.client;
 
 import com.api.user.User;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
 import java.time.Instant;
 import java.time.LocalDate;
 
-@SuppressWarnings({"PMD.CommentDefaultAccessModifier", "PMD.DataClass", "PMD.ShortVariable", "PMD.UseExplicitTypes"})
 @Entity
 @Table(name = "clients")
 public class Client {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @SuppressWarnings("PMD.ShortVariable")
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -50,16 +60,44 @@ public class Client {
         this.normalizedName = normalizedName;
     }
 
+    public void rename(final String updatedName, final String normalized) {
+        this.name = updatedName;
+        this.normalizedName = normalized;
+    }
+
+    public void updatePersonalInfo(
+            final String updatedCpf,
+            final LocalDate birthDate,
+            final String updatedEmail,
+            final String updatedPhone) {
+        this.cpf = updatedCpf;
+        this.dateOfBirth = birthDate;
+        this.email = updatedEmail;
+        this.phone = updatedPhone;
+    }
+
     @PrePersist
-    void prePersist() {
-        final var now = Instant.now();
-        this.createdAt = now;
-        this.updatedAt = now;
+    protected void prePersist() {
+        final Instant currentTimestamp = Instant.now();
+        this.createdAt = currentTimestamp;
+        this.updatedAt = currentTimestamp;
     }
 
     @PreUpdate
-    void preUpdate() {
+    protected void preUpdate() {
         this.updatedAt = Instant.now();
+    }
+
+    public boolean belongsTo(final Long userId) {
+        return user != null && user.getId() != null && user.getId().equals(userId);
+    }
+
+    public boolean hasContactInfo() {
+        return cpf != null || dateOfBirth != null || email != null || phone != null;
+    }
+
+    public boolean hasNormalizedName(final String normalized) {
+        return normalizedName != null && normalizedName.equals(normalized);
     }
 
     public Long getId() { return id; }
@@ -72,11 +110,4 @@ public class Client {
     public String getPhone() { return phone; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
-
-    public void setName(final String name) { this.name = name; }
-    public void setNormalizedName(final String normalizedName) { this.normalizedName = normalizedName; }
-    public void setCpf(final String cpf) { this.cpf = cpf; }
-    public void setDateOfBirth(final LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
-    public void setEmail(final String email) { this.email = email; }
-    public void setPhone(final String phone) { this.phone = phone; }
 }

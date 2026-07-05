@@ -45,10 +45,12 @@ public class ClientService {
             throw new BusinessException(request.name().trim() + " Já cadastrado.");
         }
         final Client client = new Client(user, request.name(), normalized);
-        client.setCpf(request.cpf());
-        client.setDateOfBirth(request.dateOfBirth());
-        client.setEmail(request.email());
-        client.setPhone(request.phone());
+        client.updatePersonalInfo(
+                request.cpf(),
+                request.dateOfBirth(),
+                request.email(),
+                request.phone()
+        );
 
         return clientRepository.save(client);
     }
@@ -86,12 +88,13 @@ public class ClientService {
             throw new BusinessException(request.name().trim() + " Já cadastrado.");
         }
 
-        client.setName(request.name());
-        client.setNormalizedName(normalized);
-        client.setCpf(request.cpf());
-        client.setDateOfBirth(request.dateOfBirth());
-        client.setEmail(request.email());
-        client.setPhone(request.phone());
+        client.rename(request.name(), normalized);
+        client.updatePersonalInfo(
+                request.cpf(),
+                request.dateOfBirth(),
+                request.email(),
+                request.phone()
+        );
 
         return clientRepository.save(client);
     }
