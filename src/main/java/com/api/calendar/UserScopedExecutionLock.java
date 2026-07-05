@@ -7,11 +7,14 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
-@SuppressWarnings({"PMD.AtLeastOneConstructor", "PMD.OnlyOneReturn"})
 @Component
 public class UserScopedExecutionLock {
 
-    private final ConcurrentMap<Long, ReentrantLock> userLocks = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Long, ReentrantLock> userLocks;
+
+    public UserScopedExecutionLock() {
+        this.userLocks = new ConcurrentHashMap<>();
+    }
 
     public void execute(final Long userId, final Runnable work) {
         execute(userId, () -> {
@@ -21,10 +24,16 @@ public class UserScopedExecutionLock {
     }
 
     public <T> T execute(final Long userId, final Supplier<T> work) {
+        final T result;
         if (userId == null) {
-            return work.get();
+            result = work.get();
+        } else {
+            result = executeWithLock(userId, work);
         }
+        return result;
+    }
 
+    private <T> T executeWithLock(final Long userId, final Supplier<T> work) {
         final ReentrantLock lock = userLocks.computeIfAbsent(userId, ignored -> new ReentrantLock());
         lock.lock();
         try {
