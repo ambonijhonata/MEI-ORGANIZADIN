@@ -9,7 +9,6 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
-@SuppressWarnings("PMD.ShortVariable")
 
 public interface ClientRepository extends JpaRepository<Client, Long> {
     List<Client> findAllByUserId(Long userId);
@@ -42,11 +41,11 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
             Pageable pageable
     );
 
-    Optional<Client> findByIdAndUserId(Long id, Long userId);
+    Optional<Client> findByIdAndUserId(Long clientId, Long userId);
 
     Optional<Client> findByUserIdAndNormalizedName(Long userId, String normalizedName);
 
     boolean existsByUserIdAndNormalizedName(Long userId, String normalizedName);
 
-    boolean existsByUserIdAndNormalizedNameAndIdNot(Long userId, String normalizedName, Long id);
+    boolean existsByUserIdAndNormalizedNameAndIdNot(Long userId, String normalizedName, Long clientId);
 }
