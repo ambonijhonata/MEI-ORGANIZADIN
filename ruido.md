@@ -9,7 +9,6 @@ Como atualizar/regenerar esta lista:
 
 ## Itens
 
-- `API/src/main/java/com/api/auth/AuthenticatedUserResolver.java:8` - PMD.LooseCoupling
 - `API/src/main/java/com/api/auth/GoogleIdTokenAuthenticationFilter.java:16` - PMD.CallSuperInConstructor, PMD.FieldNamingConventions, PMD.GuardLogStatement, PMD.LongVariable, PMD.UseExplicitTypes
 - `API/src/main/java/com/api/auth/GoogleIdTokenValidator.java:15` - PMD.FieldDeclarationsShouldBeAtStartOfClass, PMD.LooseCoupling, PMD.OnlyOneReturn
 - `API/src/main/java/com/api/auth/OAuthCredential.java:7` - PMD.CommentDefaultAccessModifier, PMD.DataClass, PMD.ShortVariable, PMD.UseExplicitTypes
