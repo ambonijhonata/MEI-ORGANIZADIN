@@ -31,7 +31,7 @@ Como atualizar/regenerar esta lista:
 - `API/src/main/java/com/api/calendar/CalendarSyncService.java:38` - PMD.AvoidCatchingGenericException, PMD.AvoidInstantiatingObjectsInLoops, PMD.AvoidThrowingRawExceptionTypes, PMD.CognitiveComplexity, PMD.CommentDefaultAccessModifier, PMD.CompareObjectsWithEquals, PMD.ConfusingTernary, PMD.ControlStatementBraces, PMD.CouplingBetweenObjects, PMD.CyclomaticComplexity, PMD.ExcessiveImports, PMD.ExcessiveParameterList, PMD.FieldNamingConventions, PMD.GodClass, PMD.GuardLogStatement, PMD.LawOfDemeter, PMD.LongVariable, PMD.LooseCoupling, PMD.MethodArgumentCouldBeFinal, PMD.NPathComplexity, PMD.OnlyOneReturn, PMD.PreserveStackTrace, PMD.SimplifyBooleanReturns, PMD.TooManyMethods, PMD.UnusedAssignment
 - `API/src/main/java/com/api/calendar/EventTitleParser.java:13` - PMD.AtLeastOneConstructor, PMD.AvoidLiteralsInIfCondition, PMD.LongVariable, PMD.NullAssignment, PMD.OnlyOneReturn, PMD.ShortVariable
 - `API/src/main/java/com/api/calendar/ManualAppointmentService.java:25` - PMD.CyclomaticComplexity, PMD.LongVariable
-- `API/src/main/java/com/api/calendar/SyncState.java:7` - PMD.CommentDefaultAccessModifier, PMD.LongVariable, PMD.NullAssignment, PMD.ShortVariable, PMD.UseExplicitTypes
+- `API/src/main/java/com/api/calendar/SyncState.java:22` - PMD.TooManyMethods
 - `API/src/main/java/com/api/calendar/UserScopedExecutionLock.java:10` - PMD.AtLeastOneConstructor, PMD.OnlyOneReturn
 - `API/src/main/java/com/api/client/Client.java:8` - PMD.CommentDefaultAccessModifier, PMD.DataClass, PMD.ShortVariable, PMD.UseExplicitTypes
 - `API/src/main/java/com/api/client/ClientController.java:24` - PMD.AvoidDuplicateLiterals, PMD.CommentDefaultAccessModifier, PMD.LawOfDemeter, PMD.LinguisticNaming, PMD.LongVariable, PMD.ShortVariable, PMD.UseExplicitTypes
@@ -47,7 +47,6 @@ Como atualizar/regenerar esta lista:
 - `API/src/main/java/com/api/common/PageRequestSanitizer.java:9` - PMD.AvoidLiteralsInIfCondition, PMD.LawOfDemeter, PMD.LongVariable, PMD.OnlyOneReturn, PMD.PrematureDeclaration, PMD.UseExplicitTypes, PMD.UseObjectForClearerAPI
 - `API/src/main/java/com/api/common/ResourceNotFoundException.java:2` - PMD.MissingSerialVersionUID
 - `API/src/main/java/com/api/google/GoogleCalendarClient.java:25` - PMD.AvoidInstantiatingObjectsInLoops, PMD.AvoidLiteralsInIfCondition, PMD.CognitiveComplexity, PMD.CommentDefaultAccessModifier, PMD.CyclomaticComplexity, PMD.LawOfDemeter, PMD.LongVariable, PMD.LooseCoupling, PMD.MissingSerialVersionUID, PMD.OnlyOneReturn, PMD.PreserveStackTrace, PMD.ShortVariable, PMD.UnusedAssignment
-- `API/src/main/java/com/api/google/GoogleOAuthClient.java:11` - PMD.LooseCoupling
 - `API/src/main/java/com/api/google/RetryableGoogleCalendarClient.java:9` - PMD.AtLeastOneConstructor, PMD.FieldNamingConventions, PMD.GuardLogStatement, PMD.PreserveStackTrace
 - `API/src/main/java/com/api/health/HealthController.java:7` - PMD.AtLeastOneConstructor
 - `API/src/main/java/com/api/report/CashFlowReportService.java:13` - PMD.AvoidInstantiatingObjectsInLoops, PMD.AvoidLiteralsInIfCondition, PMD.ControlStatementBraces, PMD.CouplingBetweenObjects, PMD.LawOfDemeter, PMD.LongVariable, PMD.OnlyOneReturn, PMD.UseExplicitTypes
