@@ -176,9 +176,9 @@ class GoogleCalendarClientTest {
         private final Calendar calendarService;
 
         private TestableGoogleCalendarClient(
-                GoogleOAuthProperties properties,
-                OAuthCredentialRepository oauthCredentialRepository,
-                Calendar calendarService
+                final GoogleOAuthProperties properties,
+                final OAuthCredentialRepository oauthCredentialRepository,
+                final Calendar calendarService
         ) {
             super(
                     properties,
@@ -190,7 +190,7 @@ class GoogleCalendarClientTest {
         }
 
         @Override
-        Calendar buildCalendarService(OAuthCredential credential) {
+        protected Calendar buildCalendarService(final OAuthCredential credential) {
             return calendarService;
         }
     }
