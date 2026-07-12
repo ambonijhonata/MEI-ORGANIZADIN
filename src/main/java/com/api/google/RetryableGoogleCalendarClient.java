@@ -1,18 +1,25 @@
 package com.api.google;
 
+import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
-
-@SuppressWarnings({"PMD.AtLeastOneConstructor", "PMD.FieldNamingConventions", "PMD.GuardLogStatement", "PMD.PreserveStackTrace"})
 @Component
 public class RetryableGoogleCalendarClient {
 
-    private static final Logger log = LoggerFactory.getLogger(RetryableGoogleCalendarClient.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(RetryableGoogleCalendarClient.class);
     private static final int MAX_RETRIES = 3;
     private static final long BASE_DELAY_MS = 1000;
+    private final RetrySleeper retrySleeper;
+
+    public RetryableGoogleCalendarClient() {
+        this(Thread::sleep);
+    }
+
+    private RetryableGoogleCalendarClient(final RetrySleeper retrySleeper) {
+        this.retrySleeper = retrySleeper;
+    }
 
     public <T> T executeWithRetry(final IOSupplier<T> action) throws IOException {
         IOException lastException = null;
@@ -28,13 +35,13 @@ public class RetryableGoogleCalendarClient {
                 lastException = e;
                 if (attempt < MAX_RETRIES) {
                     final long delay = BASE_DELAY_MS * (long) Math.pow(2, attempt);
-                    log.warn("google_calendar_retryable_failure attempt={} max_attempts={} retry_delay_ms={}",
-                            attempt + 1, MAX_RETRIES + 1, delay);
+                    logRetryFailure(attempt, delay);
                     try {
-                        Thread.sleep(delay);
+                        retrySleeper.sleep(delay);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
-                        throw new IOException("Retry interrupted", ie);
+                        e.addSuppressed(ie);
+                        throw e;
                     }
                 }
             }
@@ -46,5 +53,17 @@ public class RetryableGoogleCalendarClient {
     @FunctionalInterface
     public interface IOSupplier<T> {
         T get() throws IOException;
+    }
+
+    @FunctionalInterface
+    private interface RetrySleeper {
+        void sleep(long delayMs) throws InterruptedException;
+    }
+
+    private void logRetryFailure(final int attempt, final long delay) {
+        if (LOGGER.isWarnEnabled()) {
+            LOGGER.warn("google_calendar_retryable_failure attempt={} max_attempts={} retry_delay_ms={}",
+                    attempt + 1, MAX_RETRIES + 1, delay);
+        }
     }
 }
