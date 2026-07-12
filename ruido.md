@@ -47,7 +47,6 @@ Como atualizar/regenerar esta lista:
 - `API/src/main/java/com/api/common/PageRequestSanitizer.java:9` - PMD.AvoidLiteralsInIfCondition, PMD.LawOfDemeter, PMD.LongVariable, PMD.OnlyOneReturn, PMD.PrematureDeclaration, PMD.UseExplicitTypes, PMD.UseObjectForClearerAPI
 - `API/src/main/java/com/api/common/ResourceNotFoundException.java:2` - PMD.MissingSerialVersionUID
 - `API/src/main/java/com/api/google/GoogleCalendarClient.java:25` - PMD.AvoidInstantiatingObjectsInLoops, PMD.AvoidLiteralsInIfCondition, PMD.CognitiveComplexity, PMD.CommentDefaultAccessModifier, PMD.CyclomaticComplexity, PMD.LawOfDemeter, PMD.LongVariable, PMD.LooseCoupling, PMD.MissingSerialVersionUID, PMD.OnlyOneReturn, PMD.PreserveStackTrace, PMD.ShortVariable, PMD.UnusedAssignment
-- `API/src/main/java/com/api/health/HealthController.java:7` - PMD.AtLeastOneConstructor
 - `API/src/main/java/com/api/report/CashFlowReportService.java:13` - PMD.AvoidInstantiatingObjectsInLoops, PMD.AvoidLiteralsInIfCondition, PMD.ControlStatementBraces, PMD.CouplingBetweenObjects, PMD.LawOfDemeter, PMD.LongVariable, PMD.OnlyOneReturn, PMD.UseExplicitTypes
 - `API/src/main/java/com/api/report/PaymentMethodRevenueReportService.java:25` - PMD.LawOfDemeter, PMD.LongVariable, PMD.OnlyOneReturn
 - `API/src/main/java/com/api/report/ReportController.java:18` - PMD.LongVariable
