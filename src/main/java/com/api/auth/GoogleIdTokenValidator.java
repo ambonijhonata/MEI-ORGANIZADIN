@@ -1,5 +1,7 @@
 package com.api.auth;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.api.google.GoogleOAuthProperties;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
@@ -8,14 +10,19 @@ import com.google.api.client.json.gson.GsonFactory;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
-import java.util.Collections;
+import java.util.Base64;
+import java.util.List;
 import java.util.Optional;
 
 @Component
 public class GoogleIdTokenValidator {
 
+    private static final String NAME_FIELD = "name";
+    private static final int JWT_PAYLOAD_INDEX = 1;
     private final GoogleIdTokenVerifier verifier;
+    private final ObjectMapper objectMapper;
 
     public enum Status {
         VALID,
@@ -41,13 +48,14 @@ public class GoogleIdTokenValidator {
         }
     }
 
-    public GoogleIdTokenValidator(final GoogleOAuthProperties properties) {
+    public GoogleIdTokenValidator(final GoogleOAuthProperties properties, final ObjectMapper objectMapper) {
         this.verifier = new GoogleIdTokenVerifier.Builder(
                 new NetHttpTransport(),
                 GsonFactory.getDefaultInstance()
         )
-                .setAudience(Collections.singletonList(properties.clientId()))
+                .setAudience(List.of(properties.clientId()))
                 .build();
+        this.objectMapper = objectMapper;
     }
 
     public Optional<GoogleUserProfile> validateProfile(final String idTokenString) {
@@ -62,23 +70,41 @@ public class GoogleIdTokenValidator {
             if (idToken == null) {
                 result = ValidationResult.invalid(null);
             } else {
-                result = ValidationResult.valid(extractProfile(idToken));
+                result = ValidationResult.valid(extractProfile(idTokenString));
             }
         } catch (IOException e) {
             result = ValidationResult.unavailable(e);
-        } catch (GeneralSecurityException e) {
+        } catch (GeneralSecurityException | IllegalArgumentException e) {
             result = ValidationResult.invalid(e);
         }
         return result;
     }
 
-    @SuppressWarnings({"PMD.LooseCoupling", "PMD.LawOfDemeter"})
-    private static GoogleUserProfile extractProfile(final GoogleIdToken idToken) {
-        final GoogleIdToken.Payload payload = idToken.getPayload();
-        final String email = payload.getEmail();
-        final Object nameValue = payload.get("name");
-        final String name = nameValue instanceof String value ? value : email;
-        final String subject = payload.getSubject();
-        return new GoogleUserProfile(subject, email, name);
+    private GoogleUserProfile extractProfile(final String idTokenString) {
+        final JsonNode payload = readPayload(idTokenString);
+        final String email = payload.path("email").asText();
+        return new GoogleUserProfile(
+                payload.path("sub").asText(),
+                email,
+                resolveName(payload.path(NAME_FIELD).textValue(), email)
+        );
+    }
+
+    private JsonNode readPayload(final String idTokenString) {
+        final String[] jwtSegments = idTokenString.split("\\.");
+        if (jwtSegments.length <= JWT_PAYLOAD_INDEX) {
+            throw new IllegalArgumentException("Invalid Google ID token payload");
+        }
+
+        try {
+            final byte[] payloadBytes = Base64.getUrlDecoder().decode(jwtSegments[JWT_PAYLOAD_INDEX]);
+            return objectMapper.readTree(new String(payloadBytes, StandardCharsets.UTF_8));
+        } catch (IOException | IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid Google ID token payload", e);
+        }
+    }
+
+    private static String resolveName(final String nameValue, final String email) {
+        return nameValue == null || nameValue.isBlank() ? email : nameValue;
     }
 }
