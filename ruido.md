@@ -9,7 +9,6 @@ Como atualizar/regenerar esta lista:
 
 ## Itens
 
-- `API/src/main/java/com/api/auth/OAuthCredential.java:7` - PMD.CommentDefaultAccessModifier, PMD.DataClass, PMD.ShortVariable, PMD.UseExplicitTypes
 - `API/src/main/java/com/api/auth/RefreshSessionToken.java:14` - PMD.AtLeastOneConstructor, PMD.DataClass, PMD.LongVariable, PMD.ShortVariable
 - `API/src/main/java/com/api/auth/RefreshTokenService.java:20` - PMD.AvoidDeeplyNestedIfStmts, PMD.CognitiveComplexity, PMD.CommentDefaultAccessModifier, PMD.ControlStatementBraces, PMD.FieldNamingConventions, PMD.LawOfDemeter, PMD.LongVariable, PMD.OnlyOneReturn, PMD.SimplifyBooleanReturns, PMD.TooManyMethods
 - `API/src/main/java/com/api/auth/SecurityConfig.java:19` - PMD.LambdaCanBeMethodReference, PMD.LongVariable, PMD.SignatureDeclareThrowsException

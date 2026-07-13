@@ -4,14 +4,13 @@ import com.api.user.User;
 import jakarta.persistence.*;
 import java.time.Instant;
 
-@SuppressWarnings({"PMD.CommentDefaultAccessModifier", "PMD.ShortVariable"})
 @Entity
 @Table(name = "oauth_credentials")
 public class OAuthCredential {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long credentialId;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false, unique = true)
@@ -42,14 +41,14 @@ public class OAuthCredential {
     }
 
     @PrePersist
-    void prePersist() {
+    protected void prePersist() {
         final Instant now = Instant.now();
         this.createdAt = now;
         this.updatedAt = now;
     }
 
     @PreUpdate
-    void preUpdate() {
+    protected void preUpdate() {
         this.updatedAt = Instant.now();
     }
 
@@ -68,7 +67,7 @@ public class OAuthCredential {
         return user != null && user.getId() != null && user.getId().equals(userId);
     }
 
-    public Long getId() { return id; }
+    public Long getId() { return credentialId; }
     public User getUser() { return user; }
     public String getAccessToken() { return accessToken; }
     public String getRefreshToken() { return refreshToken; }
