@@ -10,6 +10,7 @@ public class OAuthCredential {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private Long credentialId;
 
     @OneToOne(fetch = FetchType.LAZY)
