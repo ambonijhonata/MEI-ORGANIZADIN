@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -24,15 +25,16 @@ class RetryableGoogleCalendarClientTest {
 
     @Test
     void shouldRetryAndSucceedOnSecondAttempt() throws IOException {
-        var counter = new int[]{0};
+        final AtomicInteger attempts = new AtomicInteger();
         String result = retryClient.executeWithRetry(() -> {
-            counter[0]++;
-            if (counter[0] == 1) throw new IOException("transient error");
+            if (attempts.incrementAndGet() == 1) {
+                throw new IOException("transient error");
+            }
             return "recovered";
         });
 
         assertEquals("recovered", result);
-        assertEquals(2, counter[0]);
+        assertEquals(2, attempts.get());
     }
 
     @Test
@@ -46,37 +48,56 @@ class RetryableGoogleCalendarClientTest {
 
     @Test
     void shouldNotRetryOAuthRevokedException() {
-        var counter = new int[]{0};
+        final AtomicInteger attempts = new AtomicInteger();
         assertThrows(GoogleCalendarClient.OAuthRevokedException.class, () ->
                 retryClient.executeWithRetry(() -> {
-                    counter[0]++;
+                    attempts.incrementAndGet();
                     throw new GoogleCalendarClient.OAuthRevokedException("revoked");
                 })
         );
-        assertEquals(1, counter[0]);
+        assertEquals(1, attempts.get());
     }
 
     @Test
     void shouldNotRetrySyncTokenExpiredException() {
-        var counter = new int[]{0};
+        final AtomicInteger attempts = new AtomicInteger();
         assertThrows(GoogleCalendarClient.SyncTokenExpiredException.class, () ->
                 retryClient.executeWithRetry(() -> {
-                    counter[0]++;
+                    attempts.incrementAndGet();
                     throw new GoogleCalendarClient.SyncTokenExpiredException("expired");
                 })
         );
-        assertEquals(1, counter[0]);
+        assertEquals(1, attempts.get());
     }
 
     @Test
     void shouldNotRetryGoogleApiForbiddenException() {
-        var counter = new int[]{0};
+        final AtomicInteger attempts = new AtomicInteger();
         assertThrows(GoogleCalendarClient.GoogleApiForbiddenException.class, () ->
                 retryClient.executeWithRetry(() -> {
-                    counter[0]++;
+                    attempts.incrementAndGet();
                     throw new GoogleCalendarClient.GoogleApiForbiddenException("access denied");
                 })
         );
-        assertEquals(1, counter[0]);
+        assertEquals(1, attempts.get());
+    }
+
+    @Test
+    void shouldPreserveIOExceptionAndInterruptThreadWhenSleepIsInterrupted() {
+        retryClient = new RetryableGoogleCalendarClient(delayMs -> {
+            throw new InterruptedException("sleep interrupted");
+        });
+
+        IOException exception = assertThrows(IOException.class, () ->
+                retryClient.executeWithRetry(() -> {
+                    throw new IOException("transient error");
+                })
+        );
+
+        assertEquals("transient error", exception.getMessage());
+        assertEquals(1, exception.getSuppressed().length);
+        assertInstanceOf(InterruptedException.class, exception.getSuppressed()[0]);
+        assertTrue(Thread.currentThread().isInterrupted());
+        Thread.interrupted();
     }
 }
