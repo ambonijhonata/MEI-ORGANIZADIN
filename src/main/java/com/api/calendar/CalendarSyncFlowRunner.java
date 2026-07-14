@@ -1,5 +1,6 @@
 package com.api.calendar;
 
+import com.api.google.GoogleCalendarSyncEvent;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -9,7 +10,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 @Component
-@SuppressWarnings("PMD.LooseCoupling")
 public class CalendarSyncFlowRunner {
 
     private static final Logger LOG = LoggerFactory.getLogger(CalendarSyncFlowRunner.class);
@@ -116,7 +116,7 @@ public class CalendarSyncFlowRunner {
     private List<CalendarSyncMutations> processChunks(final CalendarSyncExecutionRequest request,
                                                       final CalendarSyncLookups lookups) {
         final List<CalendarSyncMutations> chunks = new ArrayList<>();
-        final List<com.google.api.services.calendar.model.Event> googleEvents = request.googleEvents();
+        final List<GoogleCalendarSyncEvent> googleEvents = request.googleEvents();
         if (googleEvents != null && !googleEvents.isEmpty()) {
             final int chunkSize = Math.max(1, batch.batchSize());
             for (int start = 0; start < googleEvents.size(); start += chunkSize) {
@@ -128,7 +128,7 @@ public class CalendarSyncFlowRunner {
 
     private CalendarSyncMutations processChunk(final CalendarSyncExecutionRequest request,
                                                final CalendarSyncLookups lookups,
-                                               final List<com.google.api.services.calendar.model.Event> googleEvents,
+                                               final List<GoogleCalendarSyncEvent> googleEvents,
                                                final int start,
                                                final int chunkSize) {
         final int end = Math.min(start + chunkSize, googleEvents.size());

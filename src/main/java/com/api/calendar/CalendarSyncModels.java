@@ -1,10 +1,9 @@
 package com.api.calendar;
 
 import com.api.client.Client;
+import com.api.google.GoogleCalendarSyncEvent;
 import com.api.servicecatalog.Service;
 import com.api.user.User;
-import com.google.api.services.calendar.model.Event;
-
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -17,23 +16,21 @@ record CalendarSyncLookups(
         Map<String, Service> servicesByNormalizedDescription
 ) {}
 
-@SuppressWarnings("PMD.LooseCoupling")
 record CalendarSyncChunkRequest(
         Long userId,
         User user,
-        List<Event> googleEvents,
+        List<GoogleCalendarSyncEvent> googleEvents,
         CalendarSyncLookups lookups,
         boolean fullSync,
         boolean allowDeletes,
         Map<String, String> normCache
 ) {}
 
-@SuppressWarnings("PMD.LooseCoupling")
 record CalendarSyncExecutionRequest(
         Long userId,
         User user,
         SyncState syncState,
-        List<Event> googleEvents,
+        List<GoogleCalendarSyncEvent> googleEvents,
         boolean fullSync,
         boolean allowDeletes,
         String tokenBeforeSync,

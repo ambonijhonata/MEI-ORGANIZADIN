@@ -1,6 +1,6 @@
 package com.api.calendar;
 
-import com.google.api.services.calendar.model.Event;
+import com.api.google.GoogleCalendarSyncEvent;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -14,7 +14,6 @@ import java.util.Set;
 @SuppressWarnings({
         "PMD.LongVariable",
         "PMD.OnlyOneReturn",
-        "PMD.LooseCoupling",
         "PMD.AvoidInstantiatingObjectsInLoops"
 })
 public class CalendarSyncExistingEventResolver {
@@ -33,7 +32,7 @@ public class CalendarSyncExistingEventResolver {
     }
 
     public Map<String, CalendarEvent> loadExistingEventsByGoogleEventId(final Long userId,
-                                                                        final List<Event> googleEvents,
+                                                                        final List<GoogleCalendarSyncEvent> googleEvents,
                                                                         final boolean fullSync) {
         final Set<String> googleEventIds = extractGoogleEventIds(googleEvents);
         if (googleEventIds.isEmpty()) {
@@ -94,14 +93,14 @@ public class CalendarSyncExistingEventResolver {
         return existingEvents == null ? List.of() : existingEvents;
     }
 
-    private Set<String> extractGoogleEventIds(final List<Event> googleEvents) {
+    private Set<String> extractGoogleEventIds(final List<GoogleCalendarSyncEvent> googleEvents) {
         final Set<String> googleEventIds = new HashSet<>();
         if (googleEvents == null) {
             return googleEventIds;
         }
-        for (final Event googleEvent : googleEvents) {
-            if (googleEvent != null && googleEvent.getId() != null && !googleEvent.getId().isBlank()) {
-                googleEventIds.add(googleEvent.getId());
+        for (final GoogleCalendarSyncEvent googleEvent : googleEvents) {
+            if (googleEvent != null && googleEvent.hasUsableId()) {
+                googleEventIds.add(googleEvent.googleEventId());
             }
         }
         return googleEventIds;

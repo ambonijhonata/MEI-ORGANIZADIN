@@ -2,6 +2,7 @@ package com.api.calendar;
 
 import com.api.client.ClientService;
 import com.api.google.GoogleCalendarClient;
+import com.api.google.GoogleCalendarTestEvents;
 import com.api.servicecatalog.ServiceDescriptionNormalizer;
 import com.api.user.User;
 import com.api.user.UserRepository;
@@ -117,7 +118,7 @@ class CalendarSyncServiceLoadTest {
                         .setEnd(new EventDateTime().setDateTime(new DateTime(System.currentTimeMillis() + (i * 60_000L) + 3_600_000L))))
                 .toList();
         when(googleCalendarClient.fetchEvents(1L, null))
-                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(events, "token-load"));
+                .thenReturn(GoogleCalendarTestEvents.toSyncResult(events, "token-load"));
 
         long startNs = System.nanoTime();
         syncService.synchronize(1L);

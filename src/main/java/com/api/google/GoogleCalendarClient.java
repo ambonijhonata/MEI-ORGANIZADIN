@@ -7,7 +7,6 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.calendar.Calendar;
-import com.google.api.services.calendar.model.Event;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
@@ -76,8 +75,11 @@ public class GoogleCalendarClient {
                 .orElseThrow(() -> new IntegrationRevokedException(NO_CREDS_MSG));
     }
 
-    @SuppressWarnings("PMD.LooseCoupling")
-    public record CalendarSyncResult(List<Event> events, String nextSyncToken) {
+    public record CalendarSyncResult(List<GoogleCalendarSyncEvent> events, String nextSyncToken) {
+
+        public CalendarSyncResult {
+            events = events == null ? List.of() : List.copyOf(events);
+        }
     }
 
     public static class SyncTokenExpiredException extends IOException {

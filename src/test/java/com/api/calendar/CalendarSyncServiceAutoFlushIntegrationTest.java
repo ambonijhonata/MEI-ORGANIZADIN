@@ -4,6 +4,7 @@ import com.api.MeiOrganizadinApplication;
 import com.api.client.ClientRepository;
 import com.api.client.ClientService;
 import com.api.google.GoogleCalendarClient;
+import com.api.google.GoogleCalendarTestEvents;
 import com.api.servicecatalog.Service;
 import com.api.servicecatalog.ServiceDescriptionNormalizer;
 import com.api.servicecatalog.ServiceRepository;
@@ -161,7 +162,7 @@ class CalendarSyncServiceAutoFlushIntegrationTest {
         entityManager.clear();
 
         when(googleCalendarClient.fetchEvents(eq(user.getId()), isNull()))
-                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(
+                .thenReturn(GoogleCalendarTestEvents.toSyncResult(List.of(
                         timedEvent("google-event-1", "barba", "2026-05-08T12:00:00Z", "2026-05-08T13:00:00Z"),
                         timedEvent("google-event-2", "maria - barba", "2026-05-08T14:00:00Z", "2026-05-08T15:00:00Z")
                 ), "token-sync"));

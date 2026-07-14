@@ -3,6 +3,7 @@ package com.api.google;
 import com.google.api.client.util.DateTime;
 import com.google.api.services.calendar.Calendar;
 import com.google.api.services.calendar.model.Event;
+import com.google.api.services.calendar.model.EventDateTime;
 import com.google.api.services.calendar.model.Events;
 import java.io.IOException;
 import java.time.Instant;
@@ -42,7 +43,7 @@ final class GoogleCalendarRequestExecutor {
             request.setPageToken(batch.getNextPageToken());
         } while (batch.getNextPageToken() != null);
 
-        return new GoogleCalendarClient.CalendarSyncResult(allEvents, batch.getNextSyncToken());
+        return new GoogleCalendarClient.CalendarSyncResult(mapEvents(allEvents), batch.getNextSyncToken());
     }
 
     private RequestPlan buildPlan(final String syncTok, final LocalDate startDate) {
@@ -91,6 +92,41 @@ final class GoogleCalendarRequestExecutor {
     private List<Event> readItems(final Events batch) {
         final List<Event> items = batch.getItems();
         return items == null ? Collections.emptyList() : items;
+    }
+
+    private List<GoogleCalendarSyncEvent> mapEvents(final List<Event> googleEvents) {
+        final List<GoogleCalendarSyncEvent> snapshots;
+        if (googleEvents == null || googleEvents.isEmpty()) {
+            snapshots = List.of();
+        } else {
+            final List<GoogleCalendarSyncEvent> mappedSnapshots = new ArrayList<>(googleEvents.size());
+            for (final Event googleEvent : googleEvents) {
+                if (googleEvent != null) {
+                    mappedSnapshots.add(new GoogleCalendarSyncEvent(
+                            googleEvent.getId(),
+                            googleEvent.getSummary(),
+                            googleEvent.getStatus(),
+                            extractInstant(googleEvent.getStart()),
+                            extractInstant(googleEvent.getEnd())
+                    ));
+                }
+            }
+            snapshots = List.copyOf(mappedSnapshots);
+        }
+        return snapshots;
+    }
+
+    @SuppressWarnings("PMD.LawOfDemeter")
+    private Instant extractInstant(final EventDateTime eventDateTime) {
+        Instant extractedInstant = Instant.now();
+        if (eventDateTime != null) {
+            if (eventDateTime.getDateTime() != null) {
+                extractedInstant = Instant.ofEpochMilli(eventDateTime.getDateTime().getValue());
+            } else if (eventDateTime.getDate() != null) {
+                extractedInstant = Instant.ofEpochMilli(eventDateTime.getDate().getValue());
+            }
+        }
+        return extractedInstant;
     }
 
     private record RequestPlan(String syncTok, DateTime timeMin) {

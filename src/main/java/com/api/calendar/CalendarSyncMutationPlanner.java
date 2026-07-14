@@ -2,14 +2,12 @@ package com.api.calendar;
 
 import com.api.client.Client;
 import com.api.client.ClientService;
+import com.api.google.GoogleCalendarSyncEvent;
 import com.api.servicecatalog.Service;
 import com.api.servicecatalog.ServiceDescriptionNormalizer;
 import com.api.user.User;
-import com.google.api.services.calendar.model.Event;
-import com.google.api.services.calendar.model.EventDateTime;
 import org.springframework.stereotype.Component;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -20,11 +18,9 @@ import java.util.Objects;
 @SuppressWarnings({
         "PMD.LongVariable",
         "PMD.OnlyOneReturn",
-        "PMD.LooseCoupling",
         "PMD.CouplingBetweenObjects",
         "PMD.CognitiveComplexity",
-        "PMD.CyclomaticComplexity",
-        "PMD.LawOfDemeter"
+        "PMD.CyclomaticComplexity"
 })
 public class CalendarSyncMutationPlanner {
 
@@ -76,12 +72,12 @@ public class CalendarSyncMutationPlanner {
         int updated = 0;
         int deleted = 0;
 
-        for (final Event googleEvent : request.googleEvents()) {
+        for (final GoogleCalendarSyncEvent googleEvent : request.googleEvents()) {
             if (!isUsableGoogleEvent(googleEvent)) {
                 continue;
             }
 
-            final CalendarEvent existingEvent = existingEventsByGoogleEventId.get(googleEvent.getId());
+            final CalendarEvent existingEvent = existingEventsByGoogleEventId.get(googleEvent.googleEventId());
             if (isDeletedEvent(googleEvent)) {
                 if (existingEvent != null && request.allowDeletes()) {
                     deletions.add(existingEvent);
@@ -124,17 +120,17 @@ public class CalendarSyncMutationPlanner {
 
     private CalendarEventMutationPlan processEvent(final Long userId,
                                                    final User user,
-                                                   final Event googleEvent,
+                                                   final GoogleCalendarSyncEvent googleEvent,
                                                    final CalendarEvent existingEvent,
                                                    final Map<String, Client> clientsByNormalizedName,
                                                    final Map<String, Service> servicesByNormalizedDescription,
                                                    final Map<String, Integer> existingServiceIdentities,
                                                    final Map<String, String> normCache) {
-        final String googleEventId = googleEvent.getId();
-        final String title = googleEvent.getSummary();
+        final String googleEventId = googleEvent.googleEventId();
+        final String title = googleEvent.summary();
         final String normalizedTitle = normalizeWithCache(title, normCache);
-        final Instant eventStart = extractInstant(googleEvent.getStart());
-        final Instant eventEnd = extractInstant(googleEvent.getEnd());
+        final java.time.Instant eventStart = googleEvent.start();
+        final java.time.Instant eventEnd = googleEvent.end();
         final EventTitleParser.ParsedTitle parsedTitle = titleParser.parse(title);
         final Client resolvedClient = resolveClient(
                 userId,
@@ -228,19 +224,6 @@ public class CalendarSyncMutationPlanner {
         return matchedServices;
     }
 
-    private Instant extractInstant(final EventDateTime eventDateTime) {
-        if (eventDateTime == null) {
-            return Instant.now();
-        }
-        if (eventDateTime.getDateTime() != null) {
-            return Instant.ofEpochMilli(eventDateTime.getDateTime().getValue());
-        }
-        if (eventDateTime.getDate() != null) {
-            return Instant.ofEpochMilli(eventDateTime.getDate().getValue());
-        }
-        return Instant.now();
-    }
-
     private String normalizeWithCache(final String rawValue, final Map<String, String> normalizationCache) {
         if (rawValue == null) {
             return normalizer.normalize(null);
@@ -248,12 +231,12 @@ public class CalendarSyncMutationPlanner {
         return normalizationCache.computeIfAbsent(rawValue, normalizer::normalize);
     }
 
-    private boolean isDeletedEvent(final Event event) {
-        return "cancelled".equals(event.getStatus());
+    private boolean isDeletedEvent(final GoogleCalendarSyncEvent event) {
+        return event.isCancelled();
     }
 
-    private boolean isUsableGoogleEvent(final Event googleEvent) {
-        return googleEvent != null && googleEvent.getId() != null && !googleEvent.getId().isBlank();
+    private boolean isUsableGoogleEvent(final GoogleCalendarSyncEvent googleEvent) {
+        return googleEvent != null && googleEvent.hasUsableId();
     }
 
     private <K, V> Map<K, V> copyMap(final Map<K, V> source) {

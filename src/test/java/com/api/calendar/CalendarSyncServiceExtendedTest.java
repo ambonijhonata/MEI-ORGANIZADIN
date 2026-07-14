@@ -5,6 +5,7 @@ import com.api.client.ClientService;
 import com.api.common.GoogleApiAccessDeniedException;
 import com.api.common.IntegrationRevokedException;
 import com.api.google.GoogleCalendarClient;
+import com.api.google.GoogleCalendarTestEvents;
 import com.api.servicecatalog.Service;
 import com.api.servicecatalog.ServiceDescriptionNormalizer;
 import com.api.user.User;
@@ -210,7 +211,7 @@ class CalendarSyncServiceExtendedTest {
 
         Event event = createTestEvent("e1", "maria - corte + barba");
         when(googleCalendarClient.fetchEvents(eq(1L), isNull()))
-                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "token"));
+                .thenReturn(GoogleCalendarTestEvents.toSyncResult(List.of(event), "token"));
         when(normalizer.normalize(anyString())).thenReturn("maria - corte + barba");
         when(titleParser.parse("maria - corte + barba"))
                 .thenReturn(new EventTitleParser.ParsedTitle("maria", List.of("corte", "barba"), null));
@@ -243,7 +244,7 @@ class CalendarSyncServiceExtendedTest {
 
         Event event = createTestEvent("e1", "corte");
         when(googleCalendarClient.fetchEvents(1L, "old-token"))
-                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "new-token"));
+                .thenReturn(GoogleCalendarTestEvents.toSyncResult(List.of(event), "new-token"));
         when(normalizer.normalize(anyString())).thenReturn("corte");
 
         CalendarEvent existingEvent = new CalendarEvent(user, "e1", "old", "old",
@@ -269,7 +270,7 @@ class CalendarSyncServiceExtendedTest {
 
         Event event = createTestEvent("e1", "corte");
         when(googleCalendarClient.fetchEvents(eq(1L), isNull()))
-                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "token"));
+                .thenReturn(GoogleCalendarTestEvents.toSyncResult(List.of(event), "token"));
         when(normalizer.normalize(anyString())).thenReturn("corte");
         when(titleParser.parse("corte")).thenReturn(new EventTitleParser.ParsedTitle(null, List.of("corte"), null));
 
@@ -295,7 +296,7 @@ class CalendarSyncServiceExtendedTest {
                 .setEnd(new EventDateTime().setDate(new DateTime("2026-03-16")));
 
         when(googleCalendarClient.fetchEvents(eq(1L), isNull()))
-                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "token"));
+                .thenReturn(GoogleCalendarTestEvents.toSyncResult(List.of(event), "token"));
         when(normalizer.normalize(anyString())).thenReturn("test");
         when(titleParser.parse("test")).thenReturn(new EventTitleParser.ParsedTitle(null, List.of("test"), null));
 
@@ -319,7 +320,7 @@ class CalendarSyncServiceExtendedTest {
                 .setStatus("confirmed");
 
         when(googleCalendarClient.fetchEvents(eq(1L), isNull()))
-                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "token"));
+                .thenReturn(GoogleCalendarTestEvents.toSyncResult(List.of(event), "token"));
         when(normalizer.normalize(anyString())).thenReturn("test");
         when(titleParser.parse("test")).thenReturn(new EventTitleParser.ParsedTitle(null, List.of("test"), null));
 
@@ -340,7 +341,7 @@ class CalendarSyncServiceExtendedTest {
 
         Event deletedEvent = new Event().setId("gone-1").setStatus("cancelled");
         when(googleCalendarClient.fetchEvents(1L, "token"))
-                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(deletedEvent), "new-token"));
+                .thenReturn(GoogleCalendarTestEvents.toSyncResult(List.of(deletedEvent), "new-token"));
 
         CalendarSyncService.SyncResult result = syncService.synchronize(1L);
 
@@ -360,7 +361,7 @@ class CalendarSyncServiceExtendedTest {
 
         Event event = createTestEvent("e1", "corte");
         when(googleCalendarClient.fetchEvents(1L, "old-token"))
-                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "new-token"));
+                .thenReturn(GoogleCalendarTestEvents.toSyncResult(List.of(event), "new-token"));
         when(normalizer.normalize("corte")).thenReturn("corte");
         when(titleParser.parse("corte")).thenReturn(new EventTitleParser.ParsedTitle(null, List.of("corte"), null));
 
@@ -397,7 +398,7 @@ class CalendarSyncServiceExtendedTest {
 
         Event event = createTestEvent("e1", "maria - corte + barba");
         when(googleCalendarClient.fetchEvents(1L, "old-token"))
-                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "new-token"));
+                .thenReturn(GoogleCalendarTestEvents.toSyncResult(List.of(event), "new-token"));
 
         when(normalizer.normalize("maria - corte + barba")).thenReturn("maria - corte + barba");
         when(normalizer.normalize("maria")).thenReturn("maria");
@@ -449,7 +450,7 @@ class CalendarSyncServiceExtendedTest {
 
         Event event = createTestEvent("e1", "maria - corte + inexistente + barba");
         when(googleCalendarClient.fetchEvents(eq(1L), isNull()))
-                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "token"));
+                .thenReturn(GoogleCalendarTestEvents.toSyncResult(List.of(event), "token"));
         when(normalizer.normalize(anyString())).thenAnswer(inv -> {
             String value = inv.getArgument(0);
             return value == null ? "" : value.toLowerCase();
@@ -497,7 +498,7 @@ class CalendarSyncServiceExtendedTest {
 
         Event event = createTestEvent("e1", "maria - corte (pix)");
         when(googleCalendarClient.fetchEvents(eq(1L), isNull()))
-                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "token"));
+                .thenReturn(GoogleCalendarTestEvents.toSyncResult(List.of(event), "token"));
         when(normalizer.normalize(anyString())).thenAnswer(inv -> {
             String value = inv.getArgument(0);
             return value == null ? "" : value.toLowerCase();
@@ -537,7 +538,7 @@ class CalendarSyncServiceExtendedTest {
 
         Event event = createTestEvent("e1", "maria - corte (pix)");
         when(googleCalendarClient.fetchEvents(1L, "old-token"))
-                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "new-token"));
+                .thenReturn(GoogleCalendarTestEvents.toSyncResult(List.of(event), "new-token"));
         when(normalizer.normalize(anyString())).thenAnswer(inv -> {
             String value = inv.getArgument(0);
             return value == null ? "" : value.toLowerCase();
@@ -591,7 +592,7 @@ class CalendarSyncServiceExtendedTest {
 
         Event event = createTestEvent("e1", "maria - barba");
         when(googleCalendarClient.fetchEvents(1L, "sync-token"))
-                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "next-token"));
+                .thenReturn(GoogleCalendarTestEvents.toSyncResult(List.of(event), "next-token"));
         when(normalizer.normalize(anyString())).thenAnswer(inv -> inv.getArgument(0));
         when(titleParser.parse("maria - barba"))
                 .thenReturn(new EventTitleParser.ParsedTitle("maria", List.of("barba"), null));
@@ -645,7 +646,7 @@ class CalendarSyncServiceExtendedTest {
         Event updatedGoogleEvent = createTestEvent("keep-1", "maria - barba");
         Event deletedGoogleEvent = new Event().setId("deleted-1").setStatus("cancelled");
         when(googleCalendarClient.fetchEvents(1L, "sync-token"))
-                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(
+                .thenReturn(GoogleCalendarTestEvents.toSyncResult(
                         List.of(updatedGoogleEvent, deletedGoogleEvent),
                         "next-token"
                 ));
@@ -732,9 +733,9 @@ class CalendarSyncServiceExtendedTest {
 
         Event event = createTestEvent("e1", "rodrigo - sobrancelha");
         when(googleCalendarClient.fetchEvents(1L, null))
-                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "token-1"));
+                .thenReturn(GoogleCalendarTestEvents.toSyncResult(List.of(event), "token-1"));
         when(googleCalendarClient.fetchEvents(1L, "token-1"))
-                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "token-2"));
+                .thenReturn(GoogleCalendarTestEvents.toSyncResult(List.of(event), "token-2"));
         when(normalizer.normalize(anyString())).thenAnswer(inv -> inv.getArgument(0));
         when(titleParser.parse("rodrigo - sobrancelha"))
                 .thenReturn(new EventTitleParser.ParsedTitle("rodrigo", List.of("sobrancelha"), null));
@@ -801,9 +802,9 @@ class CalendarSyncServiceExtendedTest {
 
         Event event = createTestEvent("e1", "fulano - sobrancelha + buco + tintura");
         when(googleCalendarClient.fetchEvents(1L, null))
-                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "token-1"));
+                .thenReturn(GoogleCalendarTestEvents.toSyncResult(List.of(event), "token-1"));
         when(googleCalendarClient.fetchEvents(1L, "token-1"))
-                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "token-2"));
+                .thenReturn(GoogleCalendarTestEvents.toSyncResult(List.of(event), "token-2"));
         when(normalizer.normalize(anyString())).thenAnswer(inv -> inv.getArgument(0));
         when(titleParser.parse("fulano - sobrancelha + buco + tintura"))
                 .thenReturn(new EventTitleParser.ParsedTitle("fulano", List.of("sobrancelha", "buco", "tintura"), null));
@@ -873,7 +874,7 @@ class CalendarSyncServiceExtendedTest {
         when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
         when(syncStateRepository.save(any(SyncState.class))).thenReturn(syncState);
         when(googleCalendarClient.fetchEvents(1L, null))
-                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(), "token-1"));
+                .thenReturn(GoogleCalendarTestEvents.toSyncResult(List.of(), "token-1"));
         when(calendarEventRepository.findAllWithAssociationsByUserId(1L)).thenReturn(List.of(existingEvent));
         when(matcher.servicesByNormalizedDescription(1L)).thenReturn(new HashMap<>() {{
             put("sobrancelha", sobrancelha);
@@ -921,7 +922,7 @@ class CalendarSyncServiceExtendedTest {
         when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(syncState));
         when(syncStateRepository.save(any(SyncState.class))).thenReturn(syncState);
         when(googleCalendarClient.fetchEvents(1L, null))
-                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(), "token-1"));
+                .thenReturn(GoogleCalendarTestEvents.toSyncResult(List.of(), "token-1"));
         when(calendarEventRepository.findAllWithAssociationsByUserId(1L)).thenReturn(List.of(existingEvent));
         when(matcher.servicesByNormalizedDescription(1L)).thenReturn(new HashMap<>() {{
             put("sobrancelha", sobrancelha);
@@ -951,7 +952,7 @@ class CalendarSyncServiceExtendedTest {
 
         Event event = createTestEvent("e-dup", "maria - sobrancelha + sobrancelha");
         when(googleCalendarClient.fetchEvents(eq(1L), isNull()))
-                .thenReturn(new GoogleCalendarClient.CalendarSyncResult(List.of(event), "token"));
+                .thenReturn(GoogleCalendarTestEvents.toSyncResult(List.of(event), "token"));
         when(normalizer.normalize("maria - sobrancelha + sobrancelha")).thenReturn("maria - sobrancelha + sobrancelha");
         when(normalizer.normalize("maria")).thenReturn("maria");
         when(normalizer.normalize("sobrancelha")).thenReturn("sobrancelha");

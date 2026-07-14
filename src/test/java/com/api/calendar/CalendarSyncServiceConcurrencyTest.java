@@ -2,6 +2,7 @@ package com.api.calendar;
 
 import com.api.client.ClientService;
 import com.api.google.GoogleCalendarClient;
+import com.api.google.GoogleCalendarTestEvents;
 import com.api.servicecatalog.ServiceDescriptionNormalizer;
 import com.api.user.User;
 import com.api.user.UserRepository;
@@ -150,7 +151,7 @@ class CalendarSyncServiceConcurrencyTest {
             } finally {
                 inFlight.decrementAndGet();
             }
-            return new GoogleCalendarClient.CalendarSyncResult(List.of(), "token");
+            return GoogleCalendarTestEvents.toSyncResult(List.of(), "token");
         });
 
         CountDownLatch startGate = new CountDownLatch(1);
@@ -189,7 +190,7 @@ class CalendarSyncServiceConcurrencyTest {
             } finally {
                 inFlight.decrementAndGet();
             }
-            return new GoogleCalendarClient.CalendarSyncResult(List.of(), "token");
+            return GoogleCalendarTestEvents.toSyncResult(List.of(), "token");
         });
 
         CountDownLatch startGate = new CountDownLatch(1);
@@ -226,7 +227,7 @@ class CalendarSyncServiceConcurrencyTest {
             } finally {
                 inFlight.decrementAndGet();
             }
-            return new GoogleCalendarClient.CalendarSyncResult(List.of(), "token");
+            return GoogleCalendarTestEvents.toSyncResult(List.of(), "token");
         });
         when(matcher.servicesByNormalizedDescription(1L)).thenAnswer(inv -> {
             int current = inFlight.incrementAndGet();

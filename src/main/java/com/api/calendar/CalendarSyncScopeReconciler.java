@@ -1,6 +1,6 @@
 package com.api.calendar;
 
-import com.google.api.services.calendar.model.Event;
+import com.api.google.GoogleCalendarSyncEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.Set;
 
 @Component
-@SuppressWarnings({"PMD.LongVariable", "PMD.OnlyOneReturn", "PMD.LooseCoupling"})
+@SuppressWarnings({"PMD.LongVariable", "PMD.OnlyOneReturn"})
 public class CalendarSyncScopeReconciler {
     private static final Logger LOG = LoggerFactory.getLogger(CalendarSyncScopeReconciler.class);
 
@@ -27,7 +27,7 @@ public class CalendarSyncScopeReconciler {
     }
 
     public CalendarScopeReconciliationResult reconcile(final Long userId,
-                                                       final List<Event> googleEvents,
+                                                       final List<GoogleCalendarSyncEvent> googleEvents,
                                                        final CalendarSyncMutations mutations,
                                                        final boolean fullSync,
                                                        final String syncMode,
@@ -55,7 +55,7 @@ public class CalendarSyncScopeReconciler {
     }
 
     private CalendarSyncMutations withScopeReconciliation(final CalendarSyncMutations mutations,
-                                                          final List<Event> googleEvents,
+                                                          final List<GoogleCalendarSyncEvent> googleEvents,
                                                           final List<CalendarEvent> localScopedEvents,
                                                           final String mode) {
         if (localScopedEvents == null || localScopedEvents.isEmpty()) {
@@ -113,17 +113,16 @@ public class CalendarSyncScopeReconciler {
         return localScopedByGoogleEventId;
     }
 
-    private Set<String> extractActiveGoogleEventIds(final List<Event> googleEvents) {
+    private Set<String> extractActiveGoogleEventIds(final List<GoogleCalendarSyncEvent> googleEvents) {
         final Set<String> activeGoogleEventIds = new HashSet<>();
         if (googleEvents == null) {
             return activeGoogleEventIds;
         }
-        for (final Event googleEvent : googleEvents) {
+        for (final GoogleCalendarSyncEvent googleEvent : googleEvents) {
             if (googleEvent != null
-                    && googleEvent.getId() != null
-                    && !googleEvent.getId().isBlank()
-                    && !"cancelled".equals(googleEvent.getStatus())) {
-                activeGoogleEventIds.add(googleEvent.getId());
+                    && googleEvent.hasUsableId()
+                    && !googleEvent.isCancelled()) {
+                activeGoogleEventIds.add(googleEvent.googleEventId());
             }
         }
         return activeGoogleEventIds;
