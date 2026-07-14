@@ -91,11 +91,11 @@ class CashFlowReportServiceExtendedTest {
         Instant day = LocalDate.of(2026, 3, 10).atStartOfDay(ZoneOffset.UTC).toInstant().plusSeconds(3600);
         CalendarEvent legacyEvent = org.mockito.Mockito.mock(CalendarEvent.class);
         when(legacyEvent.getId()).thenReturn(21L);
-        when(legacyEvent.getEventStart()).thenReturn(day);
+        when(legacyEvent.getEventDateUtc()).thenReturn(day.atZone(ZoneOffset.UTC).toLocalDate());
         when(legacyEvent.getPaymentType()).thenReturn(PaymentType.DINHEIRO);
         when(legacyEvent.getServiceLinks()).thenReturn(List.of());
         when(legacyEvent.getServiceDescriptionSnapshot()).thenReturn("Sobrancelha");
-        when(legacyEvent.getServiceValueSnapshot()).thenReturn(new BigDecimal("23.00"));
+        when(legacyEvent.getServiceValueOrZero()).thenReturn(new BigDecimal("23.00"));
 
         when(calendarEventRepository.findIdentifiedWithServiceLinksByUserAndPeriod(eq(1L), any(), any()))
                 .thenReturn(List.of(legacyEvent));
@@ -386,7 +386,7 @@ class CashFlowReportServiceExtendedTest {
                                              PaymentType paymentType,
                                              List<CalendarEventServiceLink> links) {
         CalendarEvent event = org.mockito.Mockito.mock(CalendarEvent.class);
-        when(event.getEventStart()).thenReturn(eventStart);
+        when(event.getEventDateUtc()).thenReturn(eventStart.atZone(ZoneOffset.UTC).toLocalDate());
         if (id != null) {
             when(event.getId()).thenReturn(id);
         }

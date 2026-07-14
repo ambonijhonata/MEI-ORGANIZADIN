@@ -6,6 +6,7 @@ import com.api.user.User;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AccessLevel;
@@ -125,6 +126,10 @@ public class CalendarEvent {
 
     public Instant getEventEnd() {
         return timing.getEnd();
+    }
+
+    public LocalDate getEventDateUtc() {
+        return timing.startDateUtc();
     }
 
     public boolean matchesCoreData(final String title,

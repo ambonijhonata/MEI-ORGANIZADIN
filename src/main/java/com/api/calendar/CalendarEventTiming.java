@@ -3,6 +3,8 @@ package com.api.calendar;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -41,5 +43,9 @@ public class CalendarEventTiming {
 
     public String endText() {
         return end != null ? end.toString() : null;
+    }
+
+    public LocalDate startDateUtc() {
+        return start != null ? start.atZone(ZoneOffset.UTC).toLocalDate() : null;
     }
 }

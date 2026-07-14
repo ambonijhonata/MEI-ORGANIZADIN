@@ -202,7 +202,7 @@ class CashFlowReportServiceTest {
                                              com.api.calendar.PaymentType paymentType,
                                              Map<String, BigDecimal> services) {
         CalendarEvent event = org.mockito.Mockito.mock(CalendarEvent.class);
-        when(event.getEventStart()).thenReturn(eventStart);
+        when(event.getEventDateUtc()).thenReturn(eventStart.atZone(ZoneOffset.UTC).toLocalDate());
         if (id != null) {
             when(event.getId()).thenReturn(id);
         }
