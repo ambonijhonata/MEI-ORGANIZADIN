@@ -1,6 +1,9 @@
 package com.api.report;
 
 import com.api.auth.AuthenticatedUser;
+import com.api.report.CashFlowReportService.CashFlowReport;
+import com.api.report.PaymentMethodRevenueReportService.PaymentMethodRevenueReport;
+import com.api.report.RevenueReportService.RevenueReport;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -15,22 +18,21 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 
-@SuppressWarnings("PMD.LongVariable")
 @RestController
 @RequestMapping("/api/reports")
 @Tag(name = "Relatórios Financeiros", description = "Relatórios de faturamento e fluxo de caixa")
 public class ReportController {
 
-    private final RevenueReportService revenueReportService;
-    private final CashFlowReportService cashFlowReportService;
-    private final PaymentMethodRevenueReportService paymentMethodRevenueReportService;
+    private final RevenueReportService revSvc;
+    private final CashFlowReportService cashSvc;
+    private final PaymentMethodRevenueReportService payMethodSvc;
 
-    public ReportController(final RevenueReportService revenueReportService,
-                             final CashFlowReportService cashFlowReportService,
-                             final PaymentMethodRevenueReportService paymentMethodRevenueReportService) {
-        this.revenueReportService = revenueReportService;
-        this.cashFlowReportService = cashFlowReportService;
-        this.paymentMethodRevenueReportService = paymentMethodRevenueReportService;
+    public ReportController(final RevenueReportService revSvc,
+                            final CashFlowReportService cashSvc,
+                            final PaymentMethodRevenueReportService payMethodSvc) {
+        this.revSvc = revSvc;
+        this.cashSvc = cashSvc;
+        this.payMethodSvc = payMethodSvc;
     }
 
     @GetMapping("/revenue")
@@ -39,12 +41,12 @@ public class ReportController {
                     @ApiResponse(responseCode = "200", description = "Relatório gerado"),
                     @ApiResponse(responseCode = "400", description = "Período inválido (excede 12 meses ou datas invertidas)")
             })
-    public ResponseEntity<RevenueReportService.RevenueReport> getRevenueReport(
+    public ResponseEntity<RevenueReport> getRevenueReport(
             @AuthenticationPrincipal final AuthenticatedUser user,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) @Parameter(example = "2026-01-01") final LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) @Parameter(example = "2026-03-01") final LocalDate endDate,
             @RequestParam(defaultValue = "ALL") final PaymentScope paymentScope) {
-        final RevenueReportService.RevenueReport report = revenueReportService.generateReport(
+        final RevenueReport report = revSvc.generateReport(
                 user.userId(), startDate, endDate, paymentScope);
         return ResponseEntity.ok(report);
     }
@@ -55,12 +57,12 @@ public class ReportController {
                     @ApiResponse(responseCode = "200", description = "Relatório gerado"),
                     @ApiResponse(responseCode = "400", description = "Período inválido (excede 1 mês ou datas invertidas)")
             })
-    public ResponseEntity<CashFlowReportService.CashFlowReport> getCashFlowReport(
+    public ResponseEntity<CashFlowReport> getCashFlowReport(
             @AuthenticationPrincipal final AuthenticatedUser user,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) @Parameter(example = "2026-03-10") final LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) @Parameter(example = "2026-03-14") final LocalDate endDate,
             @RequestParam(defaultValue = "ALL") final PaymentScope paymentScope) {
-        final CashFlowReportService.CashFlowReport report = cashFlowReportService.generateReport(
+        final CashFlowReport report = cashSvc.generateReport(
                 user.userId(), startDate, endDate, paymentScope);
         return ResponseEntity.ok(report);
     }
@@ -74,12 +76,12 @@ public class ReportController {
                     @ApiResponse(responseCode = "400", description = "Período inválido (excede 12 meses ou datas invertidas)")
             }
     )
-    public ResponseEntity<PaymentMethodRevenueReportService.PaymentMethodRevenueReport> getRevenueByPaymentMethodReport(
+    public ResponseEntity<PaymentMethodRevenueReport> getRevenueByMethodReport(
             @AuthenticationPrincipal final AuthenticatedUser user,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) @Parameter(example = "2026-01-01") final LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) @Parameter(example = "2026-03-01") final LocalDate endDate) {
-        final PaymentMethodRevenueReportService.PaymentMethodRevenueReport report =
-                paymentMethodRevenueReportService.generateReport(user.userId(), startDate, endDate);
+        final PaymentMethodRevenueReport report =
+                payMethodSvc.generateReport(user.userId(), startDate, endDate);
         return ResponseEntity.ok(report);
     }
 }
