@@ -1,10 +1,11 @@
 package com.api.report;
 
-import com.api.calendar.*;
+import com.api.calendar.CalendarEvent;
+import com.api.calendar.CalendarEventRepository;
+import com.api.calendar.SyncState;
+import com.api.calendar.SyncStateRepository;
+import com.api.calendar.SyncStateReportMetadataFactory;
 import com.api.common.InvalidPeriodException;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -12,58 +13,73 @@ import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
-@SuppressWarnings({"PMD.LongVariable"})
 @Component
 public class RevenueReportService {
 
-    private final CalendarEventRepository calendarEventRepository;
-    private final ReportPaidAmountService reportPaidAmountService;
-    private final SyncStateRepository syncStateRepository;
-    private final long freshnessMinutes;
+    private static final int MAX_PERIOD_MONTHS = 12;
 
-    public RevenueReportService(final CalendarEventRepository calendarEventRepository,
-                                 final ReportPaidAmountService reportPaidAmountService,
-                                 final SyncStateRepository syncStateRepository,
-                                 @Value("${sync.freshness-minutes}") final long freshnessMinutes) {
-        this.calendarEventRepository = calendarEventRepository;
-        this.reportPaidAmountService = reportPaidAmountService;
-        this.syncStateRepository = syncStateRepository;
-        this.freshnessMinutes = freshnessMinutes;
+    private final CalendarEventRepository eventRepo;
+    private final ReportPaidAmountService paidAmtSvc;
+    private final SyncStateRepository stateRepo;
+    private final long syncFreshnessMins;
+
+    public RevenueReportService(final CalendarEventRepository eventRepo,
+                                final ReportPaidAmountService paidAmtSvc,
+                                final SyncStateRepository stateRepo,
+                                @Value("${sync.freshness-minutes}") final long syncFreshnessMins) {
+        this.eventRepo = eventRepo;
+        this.paidAmtSvc = paidAmtSvc;
+        this.stateRepo = stateRepo;
+        this.syncFreshnessMins = syncFreshnessMins;
     }
 
     public RevenueReport generateReport(final Long userId, final LocalDate startDate, final LocalDate endDate) {
         return generateReport(userId, startDate, endDate, PaymentScope.ALL);
     }
 
-    public RevenueReport generateReport(final Long userId, final LocalDate startDate, final LocalDate endDate, final PaymentScope paymentScope) {
-        validatePeriod(startDate, endDate, 12);
+    public RevenueReport generateReport(final Long userId,
+                                        final LocalDate startDate,
+                                        final LocalDate endDate,
+                                        final PaymentScope paymentScope) {
+        validatePeriod(startDate, endDate, MAX_PERIOD_MONTHS);
 
         final Instant startInstant = startDate.atStartOfDay(ZoneOffset.UTC).toInstant();
         final Instant endInstant = endDate.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
-
-        final List<CalendarEvent> events = calendarEventRepository.findIdentifiedByUserAndPeriod(userId, startInstant, endInstant);
-
-        final BigDecimal totalRevenue;
-        if (paymentScope == PaymentScope.PAID_ONLY) {
-            final List<Long> eventIds = events.stream().map(CalendarEvent::getId).toList();
-            final Map<Long, BigDecimal> paidAmountsByEventId = reportPaidAmountService.loadPaidAmountsByEventId(eventIds);
-            totalRevenue = events.stream()
-                    .map(event -> reportPaidAmountService.resolvePaidOnlyEventAmount(
-                            event,
-                            safeAmount(event.getServiceValueSnapshot()),
-                            paidAmountsByEventId
-                    ))
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-        } else {
-            totalRevenue = events.stream()
-                    .map(event -> safeAmount(event.getServiceValueSnapshot()))
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-        }
-
+        final List<CalendarEvent> events = eventRepo.findIdentifiedByUserAndPeriod(userId, startInstant, endInstant);
+        final BigDecimal totalRevenue = resolveTotalRevenue(events, paymentScope);
         final SyncMetadata metadata = buildSyncMetadata(userId);
 
         return new RevenueReport(totalRevenue, startDate, endDate, metadata);
+    }
+
+    private BigDecimal resolveTotalRevenue(final List<CalendarEvent> events, final PaymentScope paymentScope) {
+        BigDecimal totalRevenue = sumAllRevenue(events);
+        if (paymentScope == PaymentScope.PAID_ONLY) {
+            totalRevenue = sumPaidOnlyRevenue(events);
+        }
+        return totalRevenue;
+    }
+
+    private BigDecimal sumAllRevenue(final List<CalendarEvent> events) {
+        return events.stream()
+                .map(this::eventServiceAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal sumPaidOnlyRevenue(final List<CalendarEvent> events) {
+        final List<Long> eventIds = events.stream().map(CalendarEvent::getId).toList();
+        final Map<Long, BigDecimal> paidByEvent = paidAmtSvc.loadPaidAmountsByEventId(eventIds);
+        return events.stream()
+                .map(event -> paidAmtSvc.resolvePaidOnlyEventAmount(event, eventServiceAmount(event), paidByEvent))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal eventServiceAmount(final CalendarEvent event) {
+        return safeAmount(event.getServiceValueSnapshot());
     }
 
     private BigDecimal safeAmount(final BigDecimal amount) {
@@ -81,10 +97,13 @@ public class RevenueReportService {
     }
 
     private SyncMetadata buildSyncMetadata(final Long userId) {
-        final Instant threshold = Instant.now().minus(freshnessMinutes, ChronoUnit.MINUTES);
-        return syncStateRepository.findByUserId(userId)
-                .map(state -> SyncStateReportMetadataFactory.create(state, threshold))
-                .orElse(new SyncMetadata(false, null, false));
+        final Instant threshold = Instant.now().minus(syncFreshnessMins, ChronoUnit.MINUTES);
+        final Optional<SyncState> stateOpt = stateRepo.findByUserId(userId);
+        SyncMetadata metadata = new SyncMetadata(false, null, false);
+        if (stateOpt.isPresent()) {
+            metadata = SyncStateReportMetadataFactory.create(stateOpt.get(), threshold);
+        }
+        return metadata;
     }
 
     public record RevenueReport(BigDecimal totalRevenue, LocalDate startDate, LocalDate endDate,
