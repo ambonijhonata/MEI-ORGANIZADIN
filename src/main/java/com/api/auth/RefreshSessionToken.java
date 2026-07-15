@@ -1,6 +1,6 @@
 package com.api.auth;
 
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -21,7 +21,7 @@ public class RefreshSessionToken {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    private ApplicationUser user;
 
     @Column(name = "token_hash", nullable = false, unique = true, length = 128)
     private String tokenHash;
@@ -60,7 +60,7 @@ public class RefreshSessionToken {
     }
 
     private RefreshSessionToken(
-            final User user,
+            final ApplicationUser user,
             final String tokenHash,
             final Instant issuedAt,
             final Instant expiresAt,
@@ -78,7 +78,7 @@ public class RefreshSessionToken {
     }
 
     public static RefreshSessionToken issue(
-            final User user,
+            final ApplicationUser user,
             final String tokenHash,
             final Instant issuedAt,
             final Instant expiresAt,
@@ -117,7 +117,7 @@ public class RefreshSessionToken {
         return tokenId;
     }
 
-    public User getUser() {
+    public ApplicationUser getUser() {
         return user;
     }
 

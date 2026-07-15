@@ -1,6 +1,6 @@
 package com.api.auth;
 
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import com.api.user.UserRepository;
 import org.springframework.stereotype.Component;
 
@@ -14,21 +14,19 @@ public class AuthenticatedUserResolver {
     }
 
     public AuthenticatedUser resolve(final GoogleUserProfile profile) {
-        final User user = resolveUser(profile);
-        return new AuthenticatedUser(user.getId(), user.getGoogleSub(), user.getEmail(), user.getName());
+        return resolveUser(profile).toAuthenticatedUser();
     }
 
-    public User resolveUser(final GoogleUserProfile profile) {
+    public ApplicationUser resolveUser(final GoogleUserProfile profile) {
         final String googleSub = profile.googleSub();
         final String email = profile.email();
         final String name = profile.name();
 
         return userRepository.findByGoogleSub(googleSub)
                 .map(existing -> {
-                    existing.setEmail(email);
-                    existing.setName(name);
+                    existing.updateProfile(email, name);
                     return userRepository.save(existing);
                 })
-                .orElseGet(() -> userRepository.save(new User(googleSub, email, name)));
+                .orElseGet(() -> userRepository.save(new ApplicationUser(googleSub, email, name)));
     }
 }

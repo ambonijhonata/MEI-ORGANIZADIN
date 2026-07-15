@@ -2,7 +2,7 @@ package com.api.calendar;
 
 import com.api.client.Client;
 import com.api.servicecatalog.Service;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -32,7 +32,7 @@ public class CalendarEvent {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    private ApplicationUser user;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "source", nullable = false, length = 20)
@@ -81,12 +81,12 @@ public class CalendarEvent {
     @Embedded
     private final CalendarEventAudit audit = CalendarEventAudit.empty();
 
-    public CalendarEvent(final User user, final String googleEventId, final String title, final String normalizedTitle,
+    public CalendarEvent(final ApplicationUser user, final String googleEventId, final String title, final String normalizedTitle,
                          final Instant eventStart, final Instant eventEnd) {
         this(user, CalendarEventSource.GOOGLE, googleEventId, title, normalizedTitle, eventStart, eventEnd);
     }
 
-    public CalendarEvent(final User user,
+    public CalendarEvent(final ApplicationUser user,
                          final CalendarEventSource source,
                          final String googleEventId,
                          final String title,
@@ -100,7 +100,7 @@ public class CalendarEvent {
         this.timing = CalendarEventTiming.create(eventStart, eventEnd);
     }
 
-    public static CalendarEvent manual(final User user,
+    public static CalendarEvent manual(final ApplicationUser user,
                                        final String title,
                                        final String normalizedTitle,
                                        final Instant eventStart,

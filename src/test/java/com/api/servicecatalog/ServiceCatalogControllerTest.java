@@ -35,7 +35,7 @@ class ServiceCatalogControllerTest {
     @BeforeEach
     void setUp() {
         controller = new ServiceCatalogController(serviceCatalogService);
-        user = new AuthenticatedUser(1L, "google-sub", "test@example.com", "Test User");
+        user = new AuthenticatedUser(1L, "google-sub", "test@example.com", "Test ApplicationUser");
     }
 
     @Test

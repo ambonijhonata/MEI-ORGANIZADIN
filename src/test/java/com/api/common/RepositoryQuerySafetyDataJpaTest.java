@@ -4,7 +4,7 @@ import com.api.client.Client;
 import com.api.client.ClientRepository;
 import com.api.servicecatalog.Service;
 import com.api.servicecatalog.ServiceRepository;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import com.api.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,14 +37,14 @@ class RepositoryQuerySafetyDataJpaTest {
     @Autowired
     private ServiceRepository serviceRepository;
 
-    private User user;
+    private ApplicationUser user;
 
     @BeforeEach
     void setUp() {
         serviceRepository.deleteAll();
         clientRepository.deleteAll();
         userRepository.deleteAll();
-        user = userRepository.save(new User("sub-jpa-safety", "safety@test.com", "Safety Test"));
+        user = userRepository.save(new ApplicationUser("sub-jpa-safety", "safety@test.com", "Safety Test"));
     }
 
     @Test

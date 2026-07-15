@@ -4,7 +4,7 @@ import com.api.client.ClientService;
 import com.api.google.GoogleCalendarClient;
 import com.api.google.GoogleCalendarTestEvents;
 import com.api.servicecatalog.ServiceDescriptionNormalizer;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import com.api.user.UserRepository;
 import com.google.api.client.util.DateTime;
 import com.google.api.services.calendar.model.Event;
@@ -84,7 +84,7 @@ class CalendarSyncServiceLoadTest {
                 flowRunner
         );
 
-        User user = new User("sub-load", "load@test.com", "Load User");
+        ApplicationUser user = new ApplicationUser("sub-load", "load@test.com", "Load ApplicationUser");
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.empty());
         when(syncStateRepository.save(org.mockito.ArgumentMatchers.any(SyncState.class)))

@@ -1,6 +1,6 @@
 package com.api.client;
 
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -26,7 +26,7 @@ public class Client {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    private ApplicationUser user;
 
     @Column(nullable = false, length = 500)
     private String name;
@@ -54,7 +54,7 @@ public class Client {
 
     protected Client() {}
 
-    public Client(final User user, final String name, final String normalizedName) {
+    public Client(final ApplicationUser user, final String name, final String normalizedName) {
         this.user = user;
         this.name = name;
         this.normalizedName = normalizedName;
@@ -101,7 +101,7 @@ public class Client {
     }
 
     public Long getId() { return id; }
-    public User getUser() { return user; }
+    public ApplicationUser getUser() { return user; }
     public String getName() { return name; }
     public String getNormalizedName() { return normalizedName; }
     public String getCpf() { return cpf; }

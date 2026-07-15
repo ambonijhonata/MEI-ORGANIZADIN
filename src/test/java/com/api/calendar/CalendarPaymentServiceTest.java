@@ -1,7 +1,7 @@
 package com.api.calendar;
 
 import com.api.common.BusinessException;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -165,7 +165,7 @@ class CalendarPaymentServiceTest {
     }
 
     private CalendarEvent createEventWithTotal(BigDecimal totalValue) {
-        User user = new User("sub", "user@test.com", "User");
+        ApplicationUser user = new ApplicationUser("sub", "user@test.com", "ApplicationUser");
         CalendarEvent event = new CalendarEvent(
                 user,
                 "google-id",

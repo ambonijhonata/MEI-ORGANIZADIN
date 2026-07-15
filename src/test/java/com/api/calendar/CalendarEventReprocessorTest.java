@@ -2,7 +2,7 @@ package com.api.calendar;
 
 import com.api.servicecatalog.Service;
 import com.api.servicecatalog.ServiceDescriptionNormalizer;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -45,7 +45,7 @@ class CalendarEventReprocessorTest {
 
     @Test
     void shouldReprocessAndMatchUnidentifiedEvents() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         CalendarEvent event = new CalendarEvent(user, "e1", "maria-corte+barba (pix)", "maria-corte+barba (pix)", Instant.now(), Instant.now());
         Service corte = new Service(user, "Corte", "corte", new BigDecimal("50.00"));
         Service barba = new Service(user, "Barba", "barba", new BigDecimal("30.00"));
@@ -73,7 +73,7 @@ class CalendarEventReprocessorTest {
 
     @Test
     void shouldNotMatchWhenNoServiceFound() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         CalendarEvent event = new CalendarEvent(user, "e1", "maria-unknown (boleto)", "maria-unknown (boleto)", Instant.now(), Instant.now());
 
         when(calendarEventRepository.findByUserIdAndIdentifiedFalse(1L)).thenReturn(List.of(event));
@@ -103,7 +103,7 @@ class CalendarEventReprocessorTest {
 
     @Test
     void shouldKeepCanonicalOccurrenceCountAcrossRepeatedReprocessing() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         CalendarEvent event = new CalendarEvent(user, "e1", "maria-corte (pix)", "maria-corte (pix)", Instant.now(), Instant.now());
         setCalendarEventId(event, 77L);
         Service corte = new Service(user, "Corte", "corte", new BigDecimal("50.00"));
@@ -126,7 +126,7 @@ class CalendarEventReprocessorTest {
 
     @Test
     void shouldReprocessRepeatedServiceTitleAsQuantity() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         CalendarEvent event = new CalendarEvent(user, "e1", "maria-sobrancelha+sobrancelha", "maria-sobrancelha+sobrancelha", Instant.now(), Instant.now());
         Service sobrancelha = serviceWithId(user, 1L, "Sobrancelha", "sobrancelha", "48.00");
 
@@ -149,7 +149,7 @@ class CalendarEventReprocessorTest {
 
     @Test
     void shouldEnrichPartiallyIdentifiedSynchronizedAppointments() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         CalendarEvent event = new CalendarEvent(
                 user,
                 "e1",
@@ -189,7 +189,7 @@ class CalendarEventReprocessorTest {
 
     @Test
     void shouldSkipPersistWhenCatalogChangeAddsNoNewService() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         CalendarEvent event = new CalendarEvent(user, "e1", "fulano - sobrancelha", "fulano - sobrancelha", Instant.now(), Instant.now());
         Service sobrancelha = serviceWithId(user, 1L, "Sobrancelha", "sobrancelha", "48.00");
         event.associateServices(List.of(sobrancelha));
@@ -210,7 +210,7 @@ class CalendarEventReprocessorTest {
 
     @Test
     void shouldMarkPendingCatalogEnrichmentAsAppliedAfterSuccessfulEnrichment() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         CalendarEvent event = new CalendarEvent(user, "e1", "fulano - sobrancelha + buco", "fulano - sobrancelha + buco", Instant.now(), Instant.now());
         Service sobrancelha = serviceWithId(user, 1L, "Sobrancelha", "sobrancelha", "48.00");
         Service buco = serviceWithId(user, 2L, "Buco", "buco", "23.00");
@@ -236,7 +236,7 @@ class CalendarEventReprocessorTest {
         verify(syncStateRepository).save(syncState);
     }
 
-    private Service serviceWithId(User user, Long id, String description, String normalized, String value) {
+    private Service serviceWithId(ApplicationUser user, Long id, String description, String normalized, String value) {
         Service service = new Service(user, description, normalized, new BigDecimal(value));
         try {
             var idField = Service.class.getDeclaredField("serviceId");

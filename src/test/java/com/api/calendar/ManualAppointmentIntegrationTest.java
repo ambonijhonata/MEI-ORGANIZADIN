@@ -6,7 +6,7 @@ import com.api.client.Client;
 import com.api.client.ClientRepository;
 import com.api.servicecatalog.Service;
 import com.api.servicecatalog.ServiceRepository;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import com.api.user.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -61,7 +61,7 @@ class ManualAppointmentIntegrationTest extends IntegrationTestBase {
 
     @Test
     void shouldCreateManualAppointmentAndExposeItInCalendarListing() throws Exception {
-        User user = userRepository.save(new User("sub-manual", "manual@test.com", "Manual"));
+        ApplicationUser user = userRepository.save(new ApplicationUser("sub-manual", "manual@test.com", "Manual"));
         Client client = clientRepository.save(new Client(user, "Maria", "maria"));
         Service corte = serviceRepository.save(new Service(user, "Corte", "corte", new BigDecimal("50.00")));
         Service escova = serviceRepository.save(new Service(user, "Escova", "escova", new BigDecimal("80.00")));
@@ -102,8 +102,8 @@ class ManualAppointmentIntegrationTest extends IntegrationTestBase {
 
     @Test
     void shouldRejectManualAppointmentWithForeignService() throws Exception {
-        User owner = userRepository.save(new User("sub-owner", "owner@test.com", "Owner"));
-        User otherUser = userRepository.save(new User("sub-other", "other@test.com", "Other"));
+        ApplicationUser owner = userRepository.save(new ApplicationUser("sub-owner", "owner@test.com", "Owner"));
+        ApplicationUser otherUser = userRepository.save(new ApplicationUser("sub-other", "other@test.com", "Other"));
         Client client = clientRepository.save(new Client(owner, "Maria", "maria"));
         Service foreignService = serviceRepository.save(new Service(otherUser, "Escova", "escova", new BigDecimal("80.00")));
 
@@ -122,7 +122,7 @@ class ManualAppointmentIntegrationTest extends IntegrationTestBase {
                 .andExpect(jsonPath("$.message").value("Service not found"));
     }
 
-    private RequestPostProcessor auth(User user) {
+    private RequestPostProcessor auth(ApplicationUser user) {
         AuthenticatedUser principal = new AuthenticatedUser(user.getId(), user.getGoogleSub(), user.getEmail(), user.getName());
         Authentication authentication = new UsernamePasswordAuthenticationToken(principal, null, List.of());
         return SecurityMockMvcRequestPostProcessors.authentication(authentication);

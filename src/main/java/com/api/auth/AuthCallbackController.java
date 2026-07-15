@@ -2,7 +2,7 @@ package com.api.auth;
 
 import com.api.google.GoogleOAuthClient;
 import com.api.google.GoogleOAuthProperties;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/auth")
-@Tag(name = "Autenticação (Teste)", description = "Endpoints auxiliares para testar o fluxo OAuth via navegador")
+@Tag(name = "AutenticaÃ§Ã£o (Teste)", description = "Endpoints auxiliares para testar o fluxo OAuth via navegador")
 public class AuthCallbackController {
 
     private final GoogleOAuthClient googleOAuthClient;
@@ -40,7 +40,7 @@ public class AuthCallbackController {
     @GetMapping(value = "/google", produces = "text/html")
     @Operation(summary = "Iniciar login Google (navegador)",
             description = "Redireciona o navegador para a tela de login do Google. " +
-                    "Após autorizar, o Google redireciona para /api/auth/callback com o code.")
+                    "ApÃ³s autorizar, o Google redireciona para /api/auth/callback com o code.")
     public String redirectToGoogle(final HttpServletRequest request) {
         final String redirectUri = getRedirectUri(request);
         final String authUrl = oauthProps.authUri()
@@ -58,8 +58,8 @@ public class AuthCallbackController {
 
     @GetMapping("/callback")
     @Operation(summary = "Callback OAuth Google",
-            description = "Recebe o authorization code do Google após o redirect, " +
-                    "troca por tokens, cria/atualiza o usuário e retorna os dados. " +
+            description = "Recebe o authorization code do Google apÃ³s o redirect, " +
+                    "troca por tokens, cria/atualiza o usuÃ¡rio e retorna os dados. " +
                     "Use o idToken retornado como Bearer token nos outros endpoints.")
     public Map<String, Object> callback(
             @RequestParam("code") final String code,
@@ -68,7 +68,7 @@ public class AuthCallbackController {
 
         Map<String, Object> response;
         if (error != null) {
-            response = Map.of("error", error, "message", "Google retornou erro na autorização");
+            response = Map.of("error", error, "message", "Google retornou erro na autorizaÃ§Ã£o");
         } else {
             final String redirectUri = getRedirectUri(request);
 
@@ -80,8 +80,8 @@ public class AuthCallbackController {
                 final String refreshToken = tokenResponse.refreshToken();
 
                 final GoogleUserProfile profile = tokenValidator.validateProfile(idTokenString)
-                        .orElseThrow(() -> new InvalidTokenException("ID Token inválido após troca"));
-                final User user = userResolver.resolveUser(profile);
+                        .orElseThrow(() -> new InvalidTokenException("ID Token invÃ¡lido apÃ³s troca"));
+                final ApplicationUser user = userResolver.resolveUser(profile);
                 final Instant expiresAt = Instant.now().plusSeconds(tokenResponse.expiresInSeconds());
                 final OAuthCredential credential = credentialRepo.findByUserId(user.getId())
                         .map(existing -> {

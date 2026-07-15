@@ -1,6 +1,6 @@
 package com.api.auth;
 
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -38,7 +38,7 @@ class RefreshTokenServiceTest {
 
     @Test
     void shouldIssueAndRotateRefreshToken() {
-        User user = new User("sub-1", "user@test.com", "User");
+        ApplicationUser user = new ApplicationUser("sub-1", "user@test.com", "ApplicationUser");
         RefreshTokenService.IssuedRefreshToken issued = service.issueForUser(user, RefreshTokenMetadata.empty());
         assertNotNull(issued.token());
         assertNotNull(issued.expiresAt());
@@ -70,7 +70,7 @@ class RefreshTokenServiceTest {
     void shouldRevokeAllActiveTokensWhenReusedTokenDetected() {
         properties = new SessionTokenProperties(properties.jwtSecret(), properties.accessTtlSec(), 3600, 0);
         service = new RefreshTokenService(repository, properties);
-        User user = new User("sub-1", "user@test.com", "User");
+        ApplicationUser user = new ApplicationUser("sub-1", "user@test.com", "ApplicationUser");
         setUserId(user, 99L);
         String rawToken = "reused-token";
         String hash = service.hashToken(rawToken);
@@ -92,7 +92,7 @@ class RefreshTokenServiceTest {
 
     @Test
     void shouldAllowRetrySafeReplayWithinWindow() {
-        User user = new User("sub-1", "user@test.com", "User");
+        ApplicationUser user = new ApplicationUser("sub-1", "user@test.com", "ApplicationUser");
         setUserId(user, 77L);
         String rawToken = "retry-safe-token";
         String hash = service.hashToken(rawToken);
@@ -126,9 +126,9 @@ class RefreshTokenServiceTest {
         assertNotNull(rotation.issuedToken());
     }
 
-    private void setUserId(User user, Long id) {
+    private void setUserId(ApplicationUser user, Long id) {
         try {
-            final var field = User.class.getDeclaredField("id");
+            final var field = ApplicationUser.class.getDeclaredField("userId");
             field.setAccessible(true);
             field.set(user, id);
         } catch (ReflectiveOperationException ex) {

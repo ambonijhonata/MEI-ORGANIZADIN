@@ -7,7 +7,7 @@ import com.api.common.ResourceNotFoundException;
 import com.api.servicecatalog.Service;
 import com.api.servicecatalog.ServiceDescriptionNormalizer;
 import com.api.servicecatalog.ServiceRepository;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import com.api.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,7 +53,7 @@ class ManualAppointmentServiceTest {
 
     @Test
     void shouldCreateManualAppointmentWithSnapshotsAndOrigin() {
-        User user = new User("sub", "test@example.com", "Test");
+        ApplicationUser user = new ApplicationUser("sub", "test@example.com", "Test");
         setId(user, 1L);
         Client client = new Client(user, "Maria", "maria");
         setId(client, 10L);
@@ -111,7 +111,7 @@ class ManualAppointmentServiceTest {
 
     @Test
     void shouldRejectManualAppointmentWhenServiceDoesNotBelongToUser() {
-        User user = new User("sub", "test@example.com", "Test");
+        ApplicationUser user = new ApplicationUser("sub", "test@example.com", "Test");
         setId(user, 1L);
         Client client = new Client(user, "Maria", "maria");
         setId(client, 10L);
@@ -139,7 +139,9 @@ class ManualAppointmentServiceTest {
 
     private void setId(Object target, Long id) {
         try {
-            String fieldName = target instanceof Service ? "serviceId" : "id";
+            String fieldName = target instanceof Service ? "serviceId"
+                    : target instanceof ApplicationUser ? "userId"
+                    : "id";
             var field = target.getClass().getDeclaredField(fieldName);
             field.setAccessible(true);
             field.set(target, id);

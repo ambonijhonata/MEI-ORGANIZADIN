@@ -42,7 +42,7 @@ class ClientControllerTest {
     @BeforeEach
     void setUp() {
         controller = new ClientController(clientService, calendarEventRepository, normalizer);
-        user = new AuthenticatedUser(1L, "google-sub", "test@example.com", "Test User");
+        user = new AuthenticatedUser(1L, "google-sub", "test@example.com", "Test ApplicationUser");
     }
 
     @Test

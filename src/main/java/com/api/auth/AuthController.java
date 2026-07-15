@@ -1,6 +1,6 @@
 package com.api.auth;
 
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/auth")
-@Tag(name = "Autenticação", description = "Login inicial com Google ID Token e authorization code")
+@Tag(name = "AutenticaÃ§Ã£o", description = "Login inicial com Google ID Token e authorization code")
 public class AuthController {
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthController.class);
 
@@ -41,10 +41,10 @@ public class AuthController {
     @Operation(
             summary = "Login inicial",
             description = "Recebe o Google ID Token e authorization code do app Android. " +
-                    "Valida o token, cria/atualiza o usuário, troca o authorization code por tokens OAuth e emite sessão própria.",
+                    "Valida o token, cria/atualiza o usuÃ¡rio, troca o authorization code por tokens OAuth e emite sessÃ£o prÃ³pria.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Login realizado com sucesso"),
-                    @ApiResponse(responseCode = "401", description = "Google ID Token inválido"),
+                    @ApiResponse(responseCode = "401", description = "Google ID Token invÃ¡lido"),
                     @ApiResponse(responseCode = "502", description = "Falha na troca do authorization code com o Google")
             }
     )
@@ -52,7 +52,7 @@ public class AuthController {
         final GoogleUserProfile googleUser = tokenValidator.validateProfile(request.idToken())
                 .orElseThrow(() -> new InvalidTokenException("Invalid Google ID Token"));
 
-        final User user = accountSvc.upsertUser(googleUser);
+        final ApplicationUser user = accountSvc.upsertUser(googleUser);
         accountSvc.persistGoogleOAuthCredentialIfPresent(request.authorizationCode(), user);
         accountSvc.clearReauthRequiredIfPresent(user.getId());
 
@@ -83,11 +83,11 @@ public class AuthController {
 
     @PostMapping("/refresh")
     @Operation(
-            summary = "Renovar sessão",
+            summary = "Renovar sessÃ£o",
             description = "Rotaciona refresh token e devolve novo access token e refresh token.",
             responses = {
-                    @ApiResponse(responseCode = "200", description = "Sessão renovada"),
-                    @ApiResponse(responseCode = "401", description = "Refresh token inválido/revogado/expirado/reutilizado")
+                    @ApiResponse(responseCode = "200", description = "SessÃ£o renovada"),
+                    @ApiResponse(responseCode = "401", description = "Refresh token invÃ¡lido/revogado/expirado/reutilizado")
             }
     )
     public ResponseEntity<AuthRefreshResponse> refresh(@Valid @RequestBody final AuthRefreshRequest request) {
@@ -121,8 +121,8 @@ public class AuthController {
 
     @PostMapping("/logout")
     @Operation(
-            summary = "Encerrar sessão",
-            description = "Revoga o refresh token da sessão ativa."
+            summary = "Encerrar sessÃ£o",
+            description = "Revoga o refresh token da sessÃ£o ativa."
     )
     public ResponseEntity<Void> logout(@Valid @RequestBody final AuthLogoutRequest request) {
         refreshTokens.revoke(request.refreshToken(), "LOGOUT");

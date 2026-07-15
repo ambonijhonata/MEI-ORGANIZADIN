@@ -4,7 +4,7 @@ import com.api.client.ClientService;
 import com.api.google.GoogleCalendarClient;
 import com.api.google.GoogleCalendarTestEvents;
 import com.api.servicecatalog.ServiceDescriptionNormalizer;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import com.api.user.UserRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -137,7 +137,7 @@ class CalendarSyncServiceConcurrencyTest {
 
     @Test
     void shouldSerializeConcurrentSyncForSameUser() throws Exception {
-        User user = new User("sub-1", "u1@test.com", "User 1");
+        ApplicationUser user = new ApplicationUser("sub-1", "u1@test.com", "ApplicationUser 1");
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.empty());
 
@@ -173,8 +173,8 @@ class CalendarSyncServiceConcurrencyTest {
 
     @Test
     void shouldAllowParallelSyncForDifferentUsers() throws Exception {
-        User user1 = new User("sub-1", "u1@test.com", "User 1");
-        User user2 = new User("sub-2", "u2@test.com", "User 2");
+        ApplicationUser user1 = new ApplicationUser("sub-1", "u1@test.com", "ApplicationUser 1");
+        ApplicationUser user2 = new ApplicationUser("sub-2", "u2@test.com", "ApplicationUser 2");
         when(userRepository.findById(1L)).thenReturn(Optional.of(user1));
         when(userRepository.findById(2L)).thenReturn(Optional.of(user2));
         when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.empty());
@@ -212,7 +212,7 @@ class CalendarSyncServiceConcurrencyTest {
 
     @Test
     void shouldSerializeSyncAndReprocessingForSameUser() throws Exception {
-        User user = new User("sub-1", "u1@test.com", "User 1");
+        ApplicationUser user = new ApplicationUser("sub-1", "u1@test.com", "ApplicationUser 1");
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.empty());
         when(calendarEventRepository.findByUserIdAndIdentifiedFalse(1L)).thenReturn(List.of());

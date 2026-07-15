@@ -3,7 +3,7 @@ package com.api.calendar;
 import com.api.client.Client;
 import com.api.google.GoogleCalendarSyncEvent;
 import com.api.servicecatalog.Service;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -18,7 +18,7 @@ record CalendarSyncLookups(
 
 record CalendarSyncChunkRequest(
         Long userId,
-        User user,
+        ApplicationUser user,
         List<GoogleCalendarSyncEvent> googleEvents,
         CalendarSyncLookups lookups,
         boolean fullSync,
@@ -28,7 +28,7 @@ record CalendarSyncChunkRequest(
 
 record CalendarSyncExecutionRequest(
         Long userId,
-        User user,
+        ApplicationUser user,
         SyncState syncState,
         List<GoogleCalendarSyncEvent> googleEvents,
         boolean fullSync,

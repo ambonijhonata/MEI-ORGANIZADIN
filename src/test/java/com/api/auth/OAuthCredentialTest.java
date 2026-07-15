@@ -1,6 +1,6 @@
 package com.api.auth;
 
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -11,7 +11,7 @@ class OAuthCredentialTest {
 
     @Test
     void shouldCreateWithAllFields() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         Instant expiresAt = Instant.now().plusSeconds(3600);
         OAuthCredential cred = new OAuthCredential(user, "access-token", "refresh-token", expiresAt);
 
@@ -24,7 +24,7 @@ class OAuthCredentialTest {
 
     @Test
     void shouldUpdateTokenFields() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         OAuthCredential cred = new OAuthCredential(user, "old-access", "old-refresh", Instant.now());
 
         Instant newExpires = Instant.now().plusSeconds(7200);

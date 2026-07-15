@@ -8,7 +8,7 @@ import com.api.google.GoogleCalendarClient;
 import com.api.google.GoogleCalendarTestEvents;
 import com.api.servicecatalog.Service;
 import com.api.servicecatalog.ServiceDescriptionNormalizer;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import com.api.user.UserRepository;
 import com.google.api.client.util.DateTime;
 import com.google.api.services.calendar.model.Event;
@@ -130,7 +130,7 @@ class CalendarSyncServiceExtendedTest {
 
     @Test
     void shouldMarkReauthRequiredOnOAuthRevocation() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
@@ -146,7 +146,7 @@ class CalendarSyncServiceExtendedTest {
 
     @Test
     void shouldMarkFailedOnIOException() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
@@ -162,7 +162,7 @@ class CalendarSyncServiceExtendedTest {
 
     @Test
     void shouldMarkFailedOnRuntimeException() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
@@ -180,7 +180,7 @@ class CalendarSyncServiceExtendedTest {
 
     @Test
     void shouldMarkFailedOnGoogleForbiddenAndExposeMessage() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
@@ -202,7 +202,7 @@ class CalendarSyncServiceExtendedTest {
 
     @Test
     void shouldProcessEventWithClientAndMatchedServices() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
@@ -234,7 +234,7 @@ class CalendarSyncServiceExtendedTest {
 
     @Test
     void shouldUpdateExistingEventOnIncrementalSync() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         syncState.operationalState().markSynced("old-token");
 
@@ -261,7 +261,7 @@ class CalendarSyncServiceExtendedTest {
 
     @Test
     void shouldProcessEventWithNoClientInTitle() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
@@ -281,7 +281,7 @@ class CalendarSyncServiceExtendedTest {
 
     @Test
     void shouldHandleEventWithDateOnlyTime() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
@@ -307,7 +307,7 @@ class CalendarSyncServiceExtendedTest {
 
     @Test
     void shouldHandleEventWithNullStartEnd() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
@@ -331,7 +331,7 @@ class CalendarSyncServiceExtendedTest {
 
     @Test
     void shouldDeleteNonExistentLocalEventGracefully() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         syncState.operationalState().markSynced("token");
 
@@ -351,7 +351,7 @@ class CalendarSyncServiceExtendedTest {
 
     @Test
     void shouldSkipPersistingWhenExistingEventIsSemanticallyUnchanged() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         syncState.operationalState().markSynced("old-token");
 
@@ -388,7 +388,7 @@ class CalendarSyncServiceExtendedTest {
 
     @Test
     void shouldSkipServiceAssociationRewriteWhenEquivalent() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         syncState.operationalState().markSynced("old-token");
 
@@ -441,7 +441,7 @@ class CalendarSyncServiceExtendedTest {
 
     @Test
     void shouldAssociateOnlyKnownServicesWhenTitleContainsUnknownOnes() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
@@ -489,7 +489,7 @@ class CalendarSyncServiceExtendedTest {
 
     @Test
     void shouldPersistPaymentTypeForNewEvents() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
@@ -528,7 +528,7 @@ class CalendarSyncServiceExtendedTest {
 
     @Test
     void shouldUpdateExistingEventWhenOnlyPaymentTypeChanges() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         syncState.operationalState().markSynced("old-token");
 
@@ -582,7 +582,7 @@ class CalendarSyncServiceExtendedTest {
 
     @Test
     void shouldReplacePersistedLinksBeforeSavingChangedAssociations() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         syncState.operationalState().markSynced("sync-token");
 
@@ -635,7 +635,7 @@ class CalendarSyncServiceExtendedTest {
 
     @Test
     void shouldReplaceServiceLinksBeforeDeletionCleanupWhenChunkMixesUpdatedAndDeletedEvents() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         syncState.operationalState().markSynced("sync-token");
 
@@ -712,7 +712,7 @@ class CalendarSyncServiceExtendedTest {
 
     @Test
     void shouldKeepCanonicalLinksAfterInitialSyncReprocessingAndFollowupSync() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         Service sobrancelha = new Service(user, "Sobrancelha", "sobrancelha", new BigDecimal("48.00"));
         CalendarEvent[] persistedHolder = new CalendarEvent[1];
@@ -779,7 +779,7 @@ class CalendarSyncServiceExtendedTest {
 
     @Test
     void shouldKeepCanonicalLinksAfterLateServiceEnrichmentAndFollowupSync() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         Service sobrancelha = serviceWithId(user, 1L, "Sobrancelha", "sobrancelha", "48.00");
         Service buco = serviceWithId(user, 2L, "Buco", "buco", "23.00");
@@ -854,7 +854,7 @@ class CalendarSyncServiceExtendedTest {
 
     @Test
     void shouldConsumePendingCatalogEnrichmentDuringSyncWithoutGoogleDelta() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         syncState.catalogEnrichmentState().request();
         Service sobrancelha = serviceWithId(user, 1L, "Sobrancelha", "sobrancelha", "48.00");
@@ -902,7 +902,7 @@ class CalendarSyncServiceExtendedTest {
 
     @Test
     void shouldRecoverLateServiceEnrichmentOnSyncAfterAsyncAttemptDidNotRun() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         syncState.catalogEnrichmentState().request();
         Service sobrancelha = serviceWithId(user, 1L, "Sobrancelha", "sobrancelha", "48.00");
@@ -942,7 +942,7 @@ class CalendarSyncServiceExtendedTest {
 
     @Test
     void shouldCreateRepeatedServiceOccurrencesFromTitleDuringSync() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         Service sobrancelha = serviceWithId(user, 1L, "Sobrancelha", "sobrancelha", "48.00");
 
@@ -979,7 +979,7 @@ class CalendarSyncServiceExtendedTest {
         }));
     }
 
-    private Service serviceWithId(User user, Long id, String description, String normalized, String value) {
+    private Service serviceWithId(ApplicationUser user, Long id, String description, String normalized, String value) {
         Service service = new Service(user, description, normalized, new BigDecimal(value));
         try {
             var idField = Service.class.getDeclaredField("serviceId");

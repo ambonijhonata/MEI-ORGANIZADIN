@@ -1,6 +1,6 @@
 package com.api.calendar;
 
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Embedded;
@@ -25,7 +25,7 @@ public class SyncState {
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false, unique = true)
-    private User user;
+    private ApplicationUser user;
 
     @Embedded
     private SyncOperationalState syncOps = new SyncOperationalState();
@@ -42,7 +42,7 @@ public class SyncState {
     protected SyncState() {
     }
 
-    public SyncState(final User user) {
+    public SyncState(final ApplicationUser user) {
         this.user = user;
     }
 

@@ -1,6 +1,6 @@
 package com.api.auth;
 
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -37,7 +37,7 @@ public class RefreshTokenService {
     }
 
     @Transactional
-    public IssuedRefreshToken issueForUser(final User user, final RefreshTokenMetadata metadata) {
+    public IssuedRefreshToken issueForUser(final ApplicationUser user, final RefreshTokenMetadata metadata) {
         final String plainToken = newRefreshToken();
         final Instant now = Instant.now();
         final Instant expiresAt = now.plus(properties.refreshTtl());
@@ -137,7 +137,7 @@ public class RefreshTokenService {
             final Instant now,
             final boolean retrySafe
     ) {
-        final User user = activeToken.getUser();
+        final ApplicationUser user = activeToken.getUser();
         final String plainToken = newRefreshToken();
         final Instant expiresAt = now.plus(properties.refreshTtl());
         final RefreshSessionToken replacement = RefreshSessionToken.issue(

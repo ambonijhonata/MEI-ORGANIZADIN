@@ -2,7 +2,7 @@ package com.api.calendar;
 
 import com.api.client.Client;
 import com.api.servicecatalog.Service;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class CalendarEventTest {
 
-    private final User user = new User("sub", "email@test.com", "Name");
+    private final ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
 
     @Test
     void shouldAssociateSingleService() {
@@ -30,9 +30,9 @@ class CalendarEventTest {
 
     @Test
     void shouldAssociateMultipleServices() {
-        CalendarEvent event = new CalendarEvent(user, "e1", "sobrancelha + buço", "sobrancelha + buco", Instant.now(), Instant.now());
+        CalendarEvent event = new CalendarEvent(user, "e1", "sobrancelha + buÃ§o", "sobrancelha + buco", Instant.now(), Instant.now());
         Service s1 = new Service(user, "Sobrancelha", "sobrancelha", new BigDecimal("40.00"));
-        Service s2 = new Service(user, "Buço", "buco", new BigDecimal("30.00"));
+        Service s2 = new Service(user, "BuÃ§o", "buco", new BigDecimal("30.00"));
 
         event.associateServices(List.of(s1, s2));
 
@@ -55,10 +55,10 @@ class CalendarEventTest {
 
     @Test
     void shouldEnrichExistingServicesWithoutOverwritingOriginalSnapshot() {
-        CalendarEvent event = new CalendarEvent(user, "e1", "helena - sobrancelha + buço + tintura",
+        CalendarEvent event = new CalendarEvent(user, "e1", "helena - sobrancelha + buÃ§o + tintura",
                 "helena - sobrancelha + buco + tintura", Instant.now(), Instant.now());
         Service sobrancelha = new Service(user, "Sobrancelha", "sobrancelha", new BigDecimal("48.00"));
-        Service buco = new Service(user, "Buço", "buco", new BigDecimal("23.00"));
+        Service buco = new Service(user, "BuÃ§o", "buco", new BigDecimal("23.00"));
         Service tintura = new Service(user, "Tintura", "tintura", new BigDecimal("35.00"));
 
         event.associateServices(List.of(sobrancelha));
@@ -71,7 +71,7 @@ class CalendarEventTest {
         assertEquals(3, event.getServiceLinks().size());
         assertEquals("Sobrancelha", event.getServiceLinks().get(0).getServiceDescriptionSnapshot());
         assertEquals(new BigDecimal("48.00"), event.getServiceLinks().get(0).getServiceValueSnapshot());
-        assertEquals("Buço", event.getServiceLinks().get(1).getServiceDescriptionSnapshot());
+        assertEquals("BuÃ§o", event.getServiceLinks().get(1).getServiceDescriptionSnapshot());
         assertEquals(new BigDecimal("23.00"), event.getServiceLinks().get(1).getServiceValueSnapshot());
         assertEquals("Tintura", event.getServiceLinks().get(2).getServiceDescriptionSnapshot());
         assertEquals(new BigDecimal("35.00"), event.getServiceLinks().get(2).getServiceValueSnapshot());

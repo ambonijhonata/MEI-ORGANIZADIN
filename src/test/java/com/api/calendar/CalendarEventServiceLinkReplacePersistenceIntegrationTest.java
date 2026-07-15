@@ -3,7 +3,7 @@ package com.api.calendar;
 import com.api.MeiOrganizadinApplication;
 import com.api.servicecatalog.Service;
 import com.api.servicecatalog.ServiceRepository;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import com.api.user.UserRepository;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -67,7 +67,7 @@ class CalendarEventServiceLinkReplacePersistenceIntegrationTest {
 
     @Test
     void shouldReplacePersistedServiceLinksWithoutDuplicateKeyOrStaleDelete() {
-        User user = userRepository.saveAndFlush(new User("sub-replace", "replace@test.com", "Replace Test"));
+        ApplicationUser user = userRepository.saveAndFlush(new ApplicationUser("sub-replace", "replace@test.com", "Replace Test"));
         Service corte = serviceRepository.saveAndFlush(new Service(user, "Corte", "corte", new BigDecimal("50.00")));
         Service barba = serviceRepository.saveAndFlush(new Service(user, "Barba", "barba", new BigDecimal("30.00")));
 
@@ -108,7 +108,7 @@ class CalendarEventServiceLinkReplacePersistenceIntegrationTest {
 
     @Test
     void shouldClearPersistedServiceLinksThroughCanonicalReplaceFlow() {
-        User user = userRepository.saveAndFlush(new User("sub-clear", "clear@test.com", "Clear Test"));
+        ApplicationUser user = userRepository.saveAndFlush(new ApplicationUser("sub-clear", "clear@test.com", "Clear Test"));
         Service corte = serviceRepository.saveAndFlush(new Service(user, "Corte", "corte", new BigDecimal("50.00")));
 
         CalendarEvent persisted = new CalendarEvent(
@@ -147,7 +147,7 @@ class CalendarEventServiceLinkReplacePersistenceIntegrationTest {
 
     @Test
     void shouldHandleReplacementAndDeletionCleanupInSamePersistenceFlowWithoutDuplicateKey() {
-        User user = userRepository.saveAndFlush(new User("sub-mixed", "mixed@test.com", "Mixed Test"));
+        ApplicationUser user = userRepository.saveAndFlush(new ApplicationUser("sub-mixed", "mixed@test.com", "Mixed Test"));
         Service corte = serviceRepository.saveAndFlush(new Service(user, "Corte", "corte", new BigDecimal("50.00")));
         Service barba = serviceRepository.saveAndFlush(new Service(user, "Barba", "barba", new BigDecimal("30.00")));
 
@@ -208,7 +208,7 @@ class CalendarEventServiceLinkReplacePersistenceIntegrationTest {
 
     @Test
     void shouldPersistRepeatedSameServiceOccurrencesWithDistinctOccurrenceIndexes() {
-        User user = userRepository.saveAndFlush(new User("sub-dup", "dup@test.com", "Dup Test"));
+        ApplicationUser user = userRepository.saveAndFlush(new ApplicationUser("sub-dup", "dup@test.com", "Dup Test"));
         Service sobrancelha = serviceRepository.saveAndFlush(new Service(user, "Sobrancelha", "sobrancelha", new BigDecimal("48.00")));
 
         CalendarEvent event = new CalendarEvent(

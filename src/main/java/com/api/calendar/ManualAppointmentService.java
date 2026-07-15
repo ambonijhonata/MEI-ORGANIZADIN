@@ -7,7 +7,7 @@ import com.api.common.ResourceNotFoundException;
 import com.api.servicecatalog.Service;
 import com.api.servicecatalog.ServiceDescriptionNormalizer;
 import com.api.servicecatalog.ServiceRepository;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import com.api.user.UserRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,7 +31,7 @@ public class ManualAppointmentService {
     private static final String ERR_CLIENT_REQ = "Client is required";
     private static final String ERR_DATE_REQ = "Appointment date is required";
     private static final String ERR_TIME_RANGE = "End time must be greater than start time";
-    private static final String ERR_USER = "User not found";
+    private static final String ERR_USER = "ApplicationUser not found";
     private static final String ERR_CLIENT = "Client not found";
     private static final String ERR_SERVICE = "Service not found";
     private static final String ERR_SERVICE_REQ = "At least one service is required";
@@ -58,7 +58,7 @@ public class ManualAppointmentService {
     @Transactional
     public CalendarEvent createManualAppointment(final Long userId, final ManualAppointmentRequest request) {
         validateRequest(request);
-        final User user = userRepository.findById(userId)
+        final ApplicationUser user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException(ERR_USER));
         final Client client = clientRepository.findByIdAndUserId(request.clientId(), userId)
                 .orElseThrow(() -> new ResourceNotFoundException(ERR_CLIENT));

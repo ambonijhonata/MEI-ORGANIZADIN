@@ -7,7 +7,7 @@ import com.api.calendar.SyncState;
 import com.api.calendar.SyncStateRepository;
 import com.api.common.BusinessException;
 import com.api.common.ResourceNotFoundException;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import com.api.user.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,8 +22,8 @@ import java.util.stream.Collectors;
 
 @Component
 public class ServiceCatalogService {
-    private static final String EMPTY_DUP_MSG = "Serviço já cadastrado";
-    private static final String DUPLICATE_SUFFIX = " já cadastrado";
+    private static final String EMPTY_DUP_MSG = "ServiÃ§o jÃ¡ cadastrado";
+    private static final String DUPLICATE_SUFFIX = " jÃ¡ cadastrado";
 
     private final ServiceRepository serviceRepository;
     private final UserRepository userRepository;
@@ -51,8 +51,8 @@ public class ServiceCatalogService {
 
     @Transactional
     public Service createService(final Long userId, final String description, final BigDecimal value) {
-        final User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        final ApplicationUser user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("ApplicationUser not found"));
 
         final String normalized = normalizer.normalize(description);
 
@@ -147,7 +147,7 @@ public class ServiceCatalogService {
         return message;
     }
 
-    private void requestCatalogEnrichment(final Long userId, final User user) {
+    private void requestCatalogEnrichment(final Long userId, final ApplicationUser user) {
         final SyncState syncState = stateRepository.findByUserId(userId)
                 .orElseGet(() -> new SyncState(user));
         syncState.catalogEnrichmentState().request();

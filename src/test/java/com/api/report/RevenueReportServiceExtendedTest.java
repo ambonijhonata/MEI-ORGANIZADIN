@@ -5,7 +5,7 @@ import com.api.calendar.CalendarEventPaymentRepository;
 import com.api.calendar.CalendarEventRepository;
 import com.api.calendar.SyncState;
 import com.api.calendar.SyncStateRepository;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -87,7 +87,7 @@ class RevenueReportServiceExtendedTest {
 
     @Test
     void shouldBuildMetadataWithNullLastSyncAt() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
 
         when(calendarEventRepository.findIdentifiedByUserAndPeriod(eq(1L), any(), any()))
@@ -106,7 +106,7 @@ class RevenueReportServiceExtendedTest {
 
     @Test
     void shouldMarkReauthRequired() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         syncState.operationalState().markReauthRequired("revoked");
 

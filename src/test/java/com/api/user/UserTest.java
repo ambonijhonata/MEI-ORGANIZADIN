@@ -1,6 +1,7 @@
 package com.api.user;
 
 import org.junit.jupiter.api.Test;
+import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -8,7 +9,7 @@ class UserTest {
 
     @Test
     void shouldCreateUserWithAllFields() {
-        User user = new User("google-sub-123", "user@test.com", "Test User");
+        ApplicationUser user = new ApplicationUser("google-sub-123", "user@test.com", "Test User");
 
         assertEquals("google-sub-123", user.getGoogleSub());
         assertEquals("user@test.com", user.getEmail());
@@ -18,10 +19,9 @@ class UserTest {
 
     @Test
     void shouldUpdateEmailAndName() {
-        User user = new User("sub", "old@test.com", "Old Name");
+        ApplicationUser user = new ApplicationUser("sub", "old@test.com", "Old Name");
 
-        user.setEmail("new@test.com");
-        user.setName("New Name");
+        user.updateProfile("new@test.com", "New Name");
 
         assertEquals("new@test.com", user.getEmail());
         assertEquals("New Name", user.getName());
@@ -29,7 +29,7 @@ class UserTest {
 
     @Test
     void shouldSetTimestampsOnPrePersist() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
 
         user.prePersist();
 
@@ -40,9 +40,9 @@ class UserTest {
 
     @Test
     void shouldUpdateTimestampOnPreUpdate() throws InterruptedException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         user.prePersist();
-        var createdAt = user.getCreatedAt();
+        Instant createdAt = user.getCreatedAt();
 
         Thread.sleep(10);
         user.preUpdate();

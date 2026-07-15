@@ -2,7 +2,7 @@ package com.api.auth;
 
 import com.api.google.GoogleOAuthClient;
 import com.api.google.GoogleOAuthProperties;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import com.api.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -84,14 +84,14 @@ class AuthCallbackControllerTest {
         when(googleOAuthClient.exchangeAuthorizationCodeResult(eq("auth-code"), anyString())).thenReturn(tokenResponse);
 
         when(tokenValidator.validateProfile("id-token-123"))
-                .thenReturn(Optional.of(new GoogleUserProfile("sub-1", "user@test.com", "User Name")));
+                .thenReturn(Optional.of(new GoogleUserProfile("sub-1", "user@test.com", "ApplicationUser Name")));
 
-        User user = mock(User.class);
+        ApplicationUser user = mock(ApplicationUser.class);
         when(user.getId()).thenReturn(1L);
         when(user.getEmail()).thenReturn("user@test.com");
-        when(user.getName()).thenReturn("User Name");
+        when(user.getName()).thenReturn("ApplicationUser Name");
         when(userRepository.findByGoogleSub("sub-1")).thenReturn(Optional.empty());
-        when(userRepository.save(any(User.class))).thenReturn(user);
+        when(userRepository.save(any(ApplicationUser.class))).thenReturn(user);
         when(oauthCredentialRepository.findByUserId(1L)).thenReturn(Optional.empty());
         when(oauthCredentialRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -116,12 +116,12 @@ class AuthCallbackControllerTest {
         when(tokenValidator.validateProfile("id-token"))
                 .thenReturn(Optional.of(new GoogleUserProfile("sub-1", "user@test.com", "user@test.com")));
 
-        User user = mock(User.class);
+        ApplicationUser user = mock(ApplicationUser.class);
         when(user.getId()).thenReturn(1L);
         when(user.getEmail()).thenReturn("user@test.com");
         when(user.getName()).thenReturn("user@test.com");
         when(userRepository.findByGoogleSub("sub-1")).thenReturn(Optional.empty());
-        when(userRepository.save(any(User.class))).thenReturn(user);
+        when(userRepository.save(any(ApplicationUser.class))).thenReturn(user);
         when(oauthCredentialRepository.findByUserId(1L)).thenReturn(Optional.empty());
         when(oauthCredentialRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -187,7 +187,7 @@ class AuthCallbackControllerTest {
         when(tokenValidator.validateProfile("id-token"))
                 .thenReturn(Optional.of(new GoogleUserProfile("sub-1", "new@test.com", "New Name")));
 
-        User existing = mock(User.class);
+        ApplicationUser existing = mock(ApplicationUser.class);
         when(existing.getId()).thenReturn(1L);
         when(existing.getEmail()).thenReturn("new@test.com");
         when(existing.getName()).thenReturn("New Name");

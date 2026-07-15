@@ -4,7 +4,7 @@ import com.api.calendar.CalendarEventRepository;
 import com.api.common.BusinessException;
 import com.api.common.ResourceNotFoundException;
 import com.api.servicecatalog.ServiceDescriptionNormalizer;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import com.api.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,7 +41,7 @@ class ClientServiceTest {
 
     @Test
     void shouldCreateClientSuccessfully() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(normalizer.normalize("Maria Silva")).thenReturn("maria silva");
         when(clientRepository.existsByUserIdAndNormalizedName(1L, "maria silva")).thenReturn(false);
@@ -133,7 +133,7 @@ class ClientServiceTest {
 
     @Test
     void shouldGetClientSuccessfully() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         Client client = new Client(user, "Maria", "maria");
         when(clientRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(client));
 
@@ -150,7 +150,7 @@ class ClientServiceTest {
 
     @Test
     void shouldUpdateClientSuccessfully() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         Client existing = new Client(user, "Old Name", "old name");
         when(clientRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(existing));
         when(normalizer.normalize("New Name")).thenReturn("new name");
@@ -169,7 +169,7 @@ class ClientServiceTest {
 
     @Test
     void shouldRejectDuplicateClientNameOnCreate() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(normalizer.normalize("Maria Silva")).thenReturn("maria silva");
         when(clientRepository.existsByUserIdAndNormalizedName(1L, "maria silva")).thenReturn(true);
@@ -179,13 +179,13 @@ class ClientServiceTest {
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 clientService.createClient(1L, request));
 
-        assertEquals("Maria Silva Já cadastrado.", exception.getMessage());
+        assertEquals("Maria Silva JÃ¡ cadastrado.", exception.getMessage());
         verify(clientRepository, never()).save(any());
     }
 
     @Test
     void shouldRejectDuplicateClientNameOnUpdateWhenAnotherRecordExists() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         Client existing = new Client(user, "Old Name", "old name");
         when(clientRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(existing));
         when(normalizer.normalize("Maria Silva")).thenReturn("maria silva");
@@ -196,13 +196,13 @@ class ClientServiceTest {
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 clientService.updateClient(1L, 1L, request));
 
-        assertEquals("Maria Silva Já cadastrado.", exception.getMessage());
+        assertEquals("Maria Silva JÃ¡ cadastrado.", exception.getMessage());
         verify(clientRepository, never()).save(any());
     }
 
     @Test
     void shouldAllowUpdateWhenClientKeepsSameNormalizedName() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         Client existing = new Client(user, "Maria Silva", "maria silva");
         when(clientRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(existing));
         when(normalizer.normalize("Maria Silva")).thenReturn("maria silva");
@@ -225,7 +225,7 @@ class ClientServiceTest {
 
     @Test
     void shouldDeleteClientSuccessfully() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         Client client = new Client(user, "Maria", "maria");
         when(clientRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(client));
         when(calendarEventRepository.existsByClientId(1L)).thenReturn(false);
@@ -237,7 +237,7 @@ class ClientServiceTest {
 
     @Test
     void shouldBlockDeleteWhenClientHasLinkedEvents() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         Client client = new Client(user, "Maria", "maria");
         when(clientRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(client));
         when(calendarEventRepository.existsByClientId(1L)).thenReturn(true);
@@ -254,7 +254,7 @@ class ClientServiceTest {
 
     @Test
     void shouldFindOrCreateByNameWhenExists() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         Client existing = new Client(user, "Maria", "maria");
         when(normalizer.normalize("Maria")).thenReturn("maria");
         when(clientRepository.findByUserIdAndNormalizedName(1L, "maria")).thenReturn(Optional.of(existing));
@@ -267,7 +267,7 @@ class ClientServiceTest {
 
     @Test
     void shouldFindOrCreateByNameWhenNotExists() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         when(normalizer.normalize(" Maria ")).thenReturn("maria");
         when(clientRepository.findByUserIdAndNormalizedName(1L, "maria")).thenReturn(Optional.empty());
         when(clientRepository.save(any(Client.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -280,7 +280,7 @@ class ClientServiceTest {
 
     @Test
     void shouldFindByNormalizedName() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         Client client = new Client(user, "Maria", "maria");
         when(clientRepository.findByUserIdAndNormalizedName(1L, "maria")).thenReturn(Optional.of(client));
 
@@ -300,10 +300,10 @@ class ClientServiceTest {
 
     @Test
     void shouldBulkDeleteClientsSuccessfully() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         Client client1 = new Client(user, "Maria", "maria");
         Client client2 = new Client(user, "Ana", "ana");
-        Client client3 = new Client(user, "João", "joao");
+        Client client3 = new Client(user, "JoÃ£o", "joao");
 
         when(clientRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(client1));
         when(clientRepository.findByIdAndUserId(2L, 1L)).thenReturn(Optional.of(client2));
@@ -341,7 +341,7 @@ class ClientServiceTest {
 
     @Test
     void shouldBulkDeleteAllWithLinks() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         Client client1 = new Client(user, "Maria", "maria");
         Client client2 = new Client(user, "Ana", "ana");
 

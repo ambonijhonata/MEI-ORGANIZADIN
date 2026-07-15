@@ -3,7 +3,7 @@ package com.api.auth;
 import com.api.calendar.SyncOperationalState;
 import com.api.calendar.SyncStateRepository;
 import com.api.google.GoogleOAuthClient;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import com.api.user.UserRepository;
 import java.io.IOException;
 import java.time.Instant;
@@ -32,19 +32,18 @@ public class AuthAccountService {
         this.syncRepo = syncRepo;
     }
 
-    public User upsertUser(final GoogleUserProfile googleUser) {
+    public ApplicationUser upsertUser(final GoogleUserProfile googleUser) {
         return userRepository.findByGoogleSub(googleUser.googleSub())
                 .map(existing -> {
-                    existing.setEmail(googleUser.email());
-                    existing.setName(googleUser.name());
+                    existing.updateProfile(googleUser.email(), googleUser.name());
                     return userRepository.save(existing);
                 })
                 .orElseGet(() -> userRepository.save(
-                        new User(googleUser.googleSub(), googleUser.email(), googleUser.name())
+                        new ApplicationUser(googleUser.googleSub(), googleUser.email(), googleUser.name())
                 ));
     }
 
-    public void persistGoogleOAuthCredentialIfPresent(final String authorizationCode, final User user) {
+    public void persistGoogleOAuthCredentialIfPresent(final String authorizationCode, final ApplicationUser user) {
         if (authorizationCode == null || authorizationCode.isBlank()) {
             logMissingAuthorizationCode();
             return;

@@ -1,6 +1,6 @@
 package com.api.servicecatalog;
 
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -19,7 +19,7 @@ public class Service {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    private ApplicationUser user;
 
     @Column(nullable = false, length = 500)
     private String description;
@@ -38,7 +38,7 @@ public class Service {
 
     protected Service() {}
 
-    public Service(final User user, final String description, final String normalizedText, final BigDecimal value) {
+    public Service(final ApplicationUser user, final String description, final String normalizedText, final BigDecimal value) {
         this.user = user;
         applyCatalogData(description, normalizedText, value);
     }
@@ -77,7 +77,7 @@ public class Service {
     }
 
     public Long getId() { return serviceId; }
-    public User getUser() { return user; }
+    public ApplicationUser getUser() { return user; }
     public String getDescription() { return description; }
     public String getNormalizedDescription() { return normalizedText; }
     public BigDecimal getValue() { return value; }

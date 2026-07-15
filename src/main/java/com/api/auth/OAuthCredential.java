@@ -1,6 +1,6 @@
 package com.api.auth;
 
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import jakarta.persistence.*;
 import java.time.Instant;
 
@@ -15,7 +15,7 @@ public class OAuthCredential {
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false, unique = true)
-    private User user;
+    private ApplicationUser user;
 
     @Column(name = "access_token", nullable = false)
     private String accessToken;
@@ -34,7 +34,7 @@ public class OAuthCredential {
 
     protected OAuthCredential() {}
 
-    public OAuthCredential(final User user, final String accessToken, final String refreshToken, final Instant expiresAt) {
+    public OAuthCredential(final ApplicationUser user, final String accessToken, final String refreshToken, final Instant expiresAt) {
         this.user = user;
         this.accessToken = accessToken;
         this.refreshToken = refreshToken;
@@ -69,7 +69,7 @@ public class OAuthCredential {
     }
 
     public Long getId() { return credentialId; }
-    public User getUser() { return user; }
+    public ApplicationUser getUser() { return user; }
     public String getAccessToken() { return accessToken; }
     public String getRefreshToken() { return refreshToken; }
     public Instant getExpiresAt() { return expiresAt; }

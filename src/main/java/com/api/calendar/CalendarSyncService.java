@@ -3,7 +3,7 @@ package com.api.calendar;
 import com.api.common.GoogleApiAccessDeniedException;
 import com.api.common.IntegrationRevokedException;
 import com.api.google.GoogleCalendarClient;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import com.api.user.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,7 +18,7 @@ import java.util.HashMap;
 public class CalendarSyncService {
 
     private static final Logger LOG = LoggerFactory.getLogger(CalendarSyncService.class);
-    private static final String USER_NOT_FOUND = "User not found";
+    private static final String USER_NOT_FOUND = "ApplicationUser not found";
     private static final String REAUTH_REQUIRED = "Google integration requires re-authentication";
     private static final String API_FORBIDDEN = "GOOGLE_API_FORBIDDEN";
     private static final String IO_ERROR = "IO_ERROR";
@@ -52,7 +52,7 @@ public class CalendarSyncService {
     }
 
     private SyncResult synchronizeUser(final Long userId, final LocalDate startDate) {
-        final User user = userRepo.findById(userId)
+        final ApplicationUser user = userRepo.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException(USER_NOT_FOUND));
         final SyncState syncState = syncStateRepo.findByUserId(userId)
                 .orElseGet(() -> syncStateRepo.save(new SyncState(user)));
@@ -69,7 +69,7 @@ public class CalendarSyncService {
 
     @SuppressWarnings("PMD.CyclomaticComplexity")
     private SyncResult runSyncOperation(final Long userId,
-                                        final User user,
+                                        final ApplicationUser user,
                                         final SyncState syncState,
                                         final LocalDate startDate) {
         boolean completed = false;
@@ -102,7 +102,7 @@ public class CalendarSyncService {
         }
     }
 
-    private SyncResult performSync(final Long userId, final User user, final SyncState syncState) throws IOException {
+    private SyncResult performSync(final Long userId, final ApplicationUser user, final SyncState syncState) throws IOException {
         final String syncToken = syncState.operationalState().snapshot().syncToken();
         final long totalStartNs = System.nanoTime();
         final boolean fullSync = !hasToken(syncToken);
@@ -153,7 +153,7 @@ public class CalendarSyncService {
         return result;
     }
 
-    private SyncResult performFullResync(final Long userId, final User user, final SyncState syncState)
+    private SyncResult performFullResync(final Long userId, final ApplicationUser user, final SyncState syncState)
             throws IOException {
         final String tokenBeforeSync = syncState.operationalState().snapshot().syncToken();
         final long totalStartNs = System.nanoTime();
@@ -195,7 +195,7 @@ public class CalendarSyncService {
     }
 
     private SyncResult performStartDateSync(final Long userId,
-                                            final User user,
+                                            final ApplicationUser user,
                                             final SyncState syncState,
                                             final LocalDate startDate) throws IOException {
         final String tokenBeforeSync = syncState.operationalState().snapshot().syncToken();

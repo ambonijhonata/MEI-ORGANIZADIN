@@ -5,7 +5,7 @@ import com.api.client.ClientService;
 import com.api.google.GoogleCalendarSyncEvent;
 import com.api.servicecatalog.Service;
 import com.api.servicecatalog.ServiceDescriptionNormalizer;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -119,7 +119,7 @@ public class CalendarSyncMutationPlanner {
     }
 
     private CalendarEventMutationPlan processEvent(final Long userId,
-                                                   final User user,
+                                                   final ApplicationUser user,
                                                    final GoogleCalendarSyncEvent googleEvent,
                                                    final CalendarEvent existingEvent,
                                                    final Map<String, Client> clientsByNormalizedName,
@@ -189,7 +189,7 @@ public class CalendarSyncMutationPlanner {
     }
 
     private Client resolveClient(final Long userId,
-                                 final User user,
+                                 final ApplicationUser user,
                                  final EventTitleParser.ParsedTitle parsedTitle,
                                  final Map<String, Client> clientsByNormalizedName,
                                  final Map<String, String> normCache) {

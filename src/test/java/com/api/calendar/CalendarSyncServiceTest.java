@@ -6,7 +6,7 @@ import com.api.google.GoogleCalendarClient;
 import com.api.google.GoogleCalendarTestEvents;
 import com.api.servicecatalog.Service;
 import com.api.servicecatalog.ServiceDescriptionNormalizer;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import com.api.user.UserRepository;
 import com.google.api.client.util.DateTime;
 import com.google.api.services.calendar.model.Event;
@@ -128,7 +128,7 @@ class CalendarSyncServiceTest {
 
     @Test
     void shouldPerformFullSyncWhenNoSyncStateExists() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
@@ -150,7 +150,7 @@ class CalendarSyncServiceTest {
 
     @Test
     void shouldPerformIncrementalSyncWithSyncToken() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         syncState.operationalState().markSynced("old-sync-token");
 
@@ -170,7 +170,7 @@ class CalendarSyncServiceTest {
 
     @Test
     void shouldPreserveExistingSyncTokenWhenIncrementalSyncReturnsNoNextToken() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         syncState.operationalState().markSynced("old-sync-token");
 
@@ -190,7 +190,7 @@ class CalendarSyncServiceTest {
 
     @Test
     void shouldPreferIncrementalSyncWhenStartDateAndSyncTokenExist() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         syncState.operationalState().markSynced("persisted-sync-token");
         LocalDate startDate = LocalDate.of(2026, 4, 1);
@@ -221,7 +221,7 @@ class CalendarSyncServiceTest {
 
     @Test
     void shouldPreserveExistingTokenWhenStartDateSyncRunsIncrementalWithoutNewToken() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         syncState.operationalState().markSynced("persisted-sync-token");
         LocalDate startDate = LocalDate.of(2026, 4, 1);
@@ -244,7 +244,7 @@ class CalendarSyncServiceTest {
 
     @Test
     void shouldPersistNextSyncTokenAfterInitialStartDateSync() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         LocalDate startDate = LocalDate.of(2026, 4, 1);
 
@@ -268,7 +268,7 @@ class CalendarSyncServiceTest {
 
     @Test
     void shouldDeleteLocalEventWhenGoogleEventCancelled() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         syncState.operationalState().markSynced("sync-token");
 
@@ -294,7 +294,7 @@ class CalendarSyncServiceTest {
 
     @Test
     void shouldThrowWhenIntegrationIsRevoked() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         syncState.operationalState().markReauthRequired("Token revoked");
 
@@ -306,7 +306,7 @@ class CalendarSyncServiceTest {
 
     @Test
     void shouldFallbackToFullResyncOn410() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         syncState.operationalState().markSynced("expired-token");
 
@@ -344,7 +344,7 @@ class CalendarSyncServiceTest {
 
     @Test
     void shouldNotRestoreExpiredTokenWhenFullResyncReturnsNoNextToken() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         syncState.operationalState().markSynced("expired-token");
 
@@ -367,7 +367,7 @@ class CalendarSyncServiceTest {
 
     @Test
     void shouldReconcileStartDateScopeDeletingOnlyMissingEventsOnOrAfterStartDate() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         LocalDate startDate = LocalDate.of(2026, 4, 1);
 
@@ -413,7 +413,7 @@ class CalendarSyncServiceTest {
 
     @Test
     void shouldRepairStaleGoogleBackedRowsOnInitialFullSync() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
@@ -451,7 +451,7 @@ class CalendarSyncServiceTest {
 
     @Test
     void shouldDeletePaymentsBeforeDeletingAppointments() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         syncState.operationalState().markSynced("sync-token");
 
@@ -483,7 +483,7 @@ class CalendarSyncServiceTest {
 
     @Test
     void shouldCommitDeletionBatchWithMixedPaymentPresence() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         syncState.operationalState().markSynced("sync-token");
 
@@ -528,7 +528,7 @@ class CalendarSyncServiceTest {
 
     @Test
     void shouldIgnoreLocalRowsWithoutGoogleEventIdDuringReconciliation() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
@@ -558,7 +558,7 @@ class CalendarSyncServiceTest {
 
     @Test
     void shouldIgnoreManualOriginRowsEvenWhenTheyHaveGoogleEventIdValue() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
@@ -593,7 +593,7 @@ class CalendarSyncServiceTest {
 
     @Test
     void shouldAvoidDereferencingLegacyServiceProxyDuringServiceComparison() throws IOException {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         syncState.operationalState().markSynced("sync-token");
 
@@ -652,7 +652,7 @@ class CalendarSyncServiceTest {
         });
         syncService = createSyncService(new UserScopedExecutionLock(), txSupport);
 
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         syncState.operationalState().markSynced("sync-token");
 
@@ -694,7 +694,7 @@ class CalendarSyncServiceTest {
 
     @Test
     void shouldHandleLegacyEventsWithNullSnapshotDuringServiceComparison() throws Exception {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         syncState.operationalState().markSynced("sync-token");
 

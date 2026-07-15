@@ -8,7 +8,7 @@ import com.api.google.GoogleCalendarTestEvents;
 import com.api.servicecatalog.Service;
 import com.api.servicecatalog.ServiceDescriptionNormalizer;
 import com.api.servicecatalog.ServiceRepository;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import com.api.user.UserRepository;
 import com.google.api.client.util.DateTime;
 import com.google.api.services.calendar.model.Event;
@@ -145,7 +145,7 @@ class CalendarSyncServiceAutoFlushIntegrationTest {
 
     @Test
     void shouldAvoidDuplicateKeyAutoFlushWhenLaterClientLookupRunsAfterServiceReplacement() throws Exception {
-        User user = userRepository.saveAndFlush(new User("sub-sync", "sync@test.com", "Sync Test"));
+        ApplicationUser user = userRepository.saveAndFlush(new ApplicationUser("sub-sync", "sync@test.com", "Sync Test"));
         Service corte = serviceRepository.saveAndFlush(new Service(user, "Corte", "corte", new BigDecimal("50.00")));
         Service barba = serviceRepository.saveAndFlush(new Service(user, "Barba", "barba", new BigDecimal("30.00")));
 

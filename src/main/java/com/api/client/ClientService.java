@@ -4,7 +4,7 @@ import com.api.calendar.CalendarEventRepository;
 import com.api.common.BusinessException;
 import com.api.common.ResourceNotFoundException;
 import com.api.servicecatalog.ServiceDescriptionNormalizer;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import com.api.user.UserRepository;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
@@ -19,9 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Component
 public class ClientService {
-    private static final String USER_NOT_FOUND = "User not found";
+    private static final String USER_NOT_FOUND = "ApplicationUser not found";
     private static final String CLIENT_NOT_FOUND = "Client not found";
-    private static final String DUPLICATE_SUFFIX = " Já cadastrado.";
+    private static final String DUPLICATE_SUFFIX = " JÃ¡ cadastrado.";
 
     private final ClientRepository clientRepository;
     private final UserRepository userRepository;
@@ -41,7 +41,7 @@ public class ClientService {
 
     @Transactional
     public Client createClient(final Long userId, final ClientRequest request) {
-        final User user = userRepository.findById(userId)
+        final ApplicationUser user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND));
 
         final String normalizedName = normalizer.normalize(request.name());
@@ -128,7 +128,7 @@ public class ClientService {
         clientRepository.delete(client);
     }
 
-    public Client findOrCreateByName(final Long userId, final User user, final String clientName) {
+    public Client findOrCreateByName(final Long userId, final ApplicationUser user, final String clientName) {
         final String normalizedName = normalizer.normalize(clientName);
         return clientRepository.findByUserIdAndNormalizedName(userId, normalizedName)
                 .orElseGet(() -> clientRepository.save(new Client(user, clientName.trim(), normalizedName)));

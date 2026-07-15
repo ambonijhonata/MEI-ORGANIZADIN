@@ -4,7 +4,7 @@ import com.api.IntegrationTestBase;
 import com.api.auth.AuthenticatedUser;
 import com.api.calendar.CalendarEvent;
 import com.api.calendar.CalendarEventRepository;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import com.api.user.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,7 +53,7 @@ class ServiceCatalogBulkDeleteIntegrationTest extends IntegrationTestBase {
 
     @Test
     void shouldDeleteAllUnlinkedServices() throws Exception {
-        User user = userRepository.save(new User("sub-delete-all", "all@test.com", "All"));
+        ApplicationUser user = userRepository.save(new ApplicationUser("sub-delete-all", "all@test.com", "All"));
         Service first = serviceRepository.save(new Service(user, "Corte", "corte", new BigDecimal("50.00")));
         Service second = serviceRepository.save(new Service(user, "Escova", "escova", new BigDecimal("80.00")));
 
@@ -68,7 +68,7 @@ class ServiceCatalogBulkDeleteIntegrationTest extends IntegrationTestBase {
 
     @Test
     void shouldReturnMixedCountersWhenSomeServicesAreLinked() throws Exception {
-        User user = userRepository.save(new User("sub-mixed", "mixed@test.com", "Mixed"));
+        ApplicationUser user = userRepository.save(new ApplicationUser("sub-mixed", "mixed@test.com", "Mixed"));
         Service linked = serviceRepository.save(new Service(user, "Coloracao", "coloracao", new BigDecimal("120.00")));
         Service unlinked = serviceRepository.save(new Service(user, "Lavagem", "lavagem", new BigDecimal("40.00")));
 
@@ -92,7 +92,7 @@ class ServiceCatalogBulkDeleteIntegrationTest extends IntegrationTestBase {
                 .andExpect(jsonPath("$.hasLink").value(1));
     }
 
-    private RequestPostProcessor auth(User user) {
+    private RequestPostProcessor auth(ApplicationUser user) {
         AuthenticatedUser principal = new AuthenticatedUser(user.getId(), user.getGoogleSub(), user.getEmail(), user.getName());
         Authentication authentication = new UsernamePasswordAuthenticationToken(principal, null, List.of());
         return SecurityMockMvcRequestPostProcessors.authentication(authentication);

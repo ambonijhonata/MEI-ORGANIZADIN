@@ -1,6 +1,6 @@
 package com.api.servicecatalog;
 
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ServiceTest {
 
-    private final User user = new User("sub", "email@test.com", "Name");
+    private final ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
 
     @Test
     void shouldCreateServiceWithAllFields() {

@@ -8,7 +8,7 @@ import com.api.calendar.CalendarEventServiceLink;
 import com.api.calendar.PaymentType;
 import com.api.calendar.SyncState;
 import com.api.calendar.SyncStateRepository;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import com.api.servicecatalog.Service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -181,7 +181,7 @@ class CashFlowReportServiceExtendedTest {
 
     @Test
     void shouldBuildSyncMetadataWithReauthRequired() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         syncState.operationalState().markReauthRequired("revoked");
 
@@ -201,7 +201,7 @@ class CashFlowReportServiceExtendedTest {
 
     @Test
     void shouldBuildSyncMetadataWithNullLastSyncAt() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
 
         when(calendarEventRepository.findIdentifiedWithServiceLinksByUserAndPeriod(eq(1L), any(), any()))
@@ -220,7 +220,7 @@ class CashFlowReportServiceExtendedTest {
 
     @Test
     void shouldKeepSingleServiceTotalAfterRepeatedCanonicalAssociationUpdates() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         Service sobrancelha = new Service(user, "Sobrancelha", "sobrancelha", new BigDecimal("48.00"));
         Instant day = LocalDate.of(2026, 4, 11).atStartOfDay(ZoneOffset.UTC).toInstant().plusSeconds(3600);
         CalendarEvent event = new CalendarEvent(user, "e1", "rodrigo - sobrancelha", "rodrigo - sobrancelha", day, day.plusSeconds(1800));
@@ -248,7 +248,7 @@ class CashFlowReportServiceExtendedTest {
 
     @Test
     void shouldKeepMultiServiceTotalAfterRepeatedCanonicalAssociationUpdates() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         Service sobrancelha = new Service(user, "Sobrancelha", "sobrancelha", new BigDecimal("48.00"));
         Service buco = new Service(user, "Buco", "buco", new BigDecimal("23.00"));
         Instant day = LocalDate.of(2026, 4, 11).atStartOfDay(ZoneOffset.UTC).toInstant().plusSeconds(7200);
@@ -280,7 +280,7 @@ class CashFlowReportServiceExtendedTest {
 
     @Test
     void shouldKeepEnrichedAppointmentTotalAlignedWithLateCreatedServices() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         Service sobrancelha = serviceWithId(user, 1L, "Sobrancelha", "sobrancelha", "48.00");
         Service buco = serviceWithId(user, 2L, "Buco", "buco", "23.00");
         Service tintura = serviceWithId(user, 3L, "Tintura", "tintura", "35.00");
@@ -314,7 +314,7 @@ class CashFlowReportServiceExtendedTest {
 
     @Test
     void shouldReflectRepeatedSameServiceQuantityInCashFlow() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         Service sobrancelha = new Service(user, "Sobrancelha", "sobrancelha", new BigDecimal("48.00"));
         Service buco = new Service(user, "Buco", "buco", new BigDecimal("23.00"));
         Instant day = LocalDate.of(2026, 4, 13).atStartOfDay(ZoneOffset.UTC).toInstant().plusSeconds(3600);
@@ -404,7 +404,7 @@ class CashFlowReportServiceExtendedTest {
         return link;
     }
 
-    private Service serviceWithId(User user, Long id, String description, String normalized, String value) {
+    private Service serviceWithId(ApplicationUser user, Long id, String description, String normalized, String value) {
         Service service = new Service(user, description, normalized, new BigDecimal(value));
         try {
             var idField = Service.class.getDeclaredField("serviceId");

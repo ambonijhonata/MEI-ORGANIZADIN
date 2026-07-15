@@ -2,7 +2,7 @@ package com.api.google;
 
 import com.api.auth.OAuthCredential;
 import com.api.auth.OAuthCredentialRepository;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.util.DateTime;
@@ -60,7 +60,7 @@ class GoogleCalendarClientTest {
         lenient().when(listRequest.setShowDeleted(anyBoolean())).thenReturn(listRequest);
         lenient().when(listRequest.setTimeMin(nullable(DateTime.class))).thenReturn(listRequest);
 
-        User user = new User("sub", "user@test.com", "User");
+        ApplicationUser user = new ApplicationUser("sub", "user@test.com", "ApplicationUser");
         OAuthCredential credential = new OAuthCredential(user, "access", "refresh", Instant.now().plusSeconds(3600));
         when(oauthCredentialRepository.findByUserId(1L)).thenReturn(Optional.of(credential));
     }

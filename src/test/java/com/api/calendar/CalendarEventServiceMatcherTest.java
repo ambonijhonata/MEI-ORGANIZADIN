@@ -3,7 +3,7 @@ package com.api.calendar;
 import com.api.servicecatalog.Service;
 import com.api.servicecatalog.ServiceDescriptionNormalizer;
 import com.api.servicecatalog.ServiceRepository;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,7 +31,7 @@ class CalendarEventServiceMatcherTest {
 
     @Test
     void shouldMatchServiceByNormalizedTitle() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         Service service = new Service(user, "Corte de Cabelo", "corte de cabelo", new BigDecimal("50.00"));
         when(normalizer.normalize("Corte de Cabelo")).thenReturn("corte de cabelo");
         when(serviceRepository.findByUserIdAndNormalizedDescription(1L, "corte de cabelo"))

@@ -7,7 +7,7 @@ import com.api.calendar.SyncState;
 import com.api.calendar.SyncStateRepository;
 import com.api.common.BusinessException;
 import com.api.common.ResourceNotFoundException;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import com.api.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,7 +50,7 @@ class ServiceCatalogServiceTest {
 
     @Test
     void shouldCreateServiceSuccessfully() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(normalizer.normalize("Corte de Cabelo")).thenReturn("corte de cabelo");
         when(serviceRepository.existsByUserIdAndNormalizedText(1L, "corte de cabelo")).thenReturn(false);
@@ -68,19 +68,19 @@ class ServiceCatalogServiceTest {
 
     @Test
     void shouldRejectDuplicateDescription() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(normalizer.normalize("Corte")).thenReturn("corte");
         when(serviceRepository.existsByUserIdAndNormalizedText(1L, "corte")).thenReturn(true);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 service.createService(1L, "Corte", new BigDecimal("50.00")));
-        assertEquals("Corte já cadastrado", exception.getMessage());
+        assertEquals("Corte jÃ¡ cadastrado", exception.getMessage());
     }
 
     @Test
     void shouldRejectDuplicateDescriptionOnUpdateWhenAnotherRecordExists() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         Service existing = new Service(user, "Old", "old", new BigDecimal("30.00"));
         Service duplicate = mock(Service.class);
         when(duplicate.sameIdAs(1L)).thenReturn(false);
@@ -90,13 +90,13 @@ class ServiceCatalogServiceTest {
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 service.updateService(1L, 1L, "New", new BigDecimal("60.00")));
-        assertEquals("New já cadastrado", exception.getMessage());
+        assertEquals("New jÃ¡ cadastrado", exception.getMessage());
         verify(serviceRepository, never()).save(any());
     }
 
     @Test
     void shouldAllowUpdateWhenServiceKeepsSameNormalizedDescription() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         Service existing = mock(Service.class);
         when(existing.sameIdAs(1L)).thenReturn(true);
         when(existing.getNormalizedDescription()).thenReturn("old");
@@ -125,7 +125,7 @@ class ServiceCatalogServiceTest {
 
     @Test
     void shouldUpdateServiceAndReprocess() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         Service existing = new Service(user, "Old", "old", new BigDecimal("30.00"));
         when(serviceRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(existing));
         when(normalizer.normalize("New")).thenReturn("new");
@@ -142,7 +142,7 @@ class ServiceCatalogServiceTest {
 
     @Test
     void shouldNotTriggerEnrichmentWhenOnlyValueChanges() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         Service existing = serviceWithId(1L, user, "Old", "old", "30.00");
         when(serviceRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(existing));
         when(normalizer.normalize("Old")).thenReturn("old");
@@ -158,7 +158,7 @@ class ServiceCatalogServiceTest {
 
     @Test
     void shouldBlockDeleteWhenServiceHasLinkedEvents() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         Service existing = new Service(user, "Test", "test", new BigDecimal("30.00"));
         when(serviceRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(existing));
         when(calendarEventRepository.existsByServiceId(1L)).thenReturn(true);
@@ -169,7 +169,7 @@ class ServiceCatalogServiceTest {
 
     @Test
     void shouldDeleteServiceWhenNoLinks() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         Service existing = new Service(user, "Test", "test", new BigDecimal("30.00"));
         when(serviceRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(existing));
         when(calendarEventRepository.existsByServiceId(1L)).thenReturn(false);
@@ -249,7 +249,7 @@ class ServiceCatalogServiceTest {
         return service;
     }
 
-    private Service serviceWithId(Long id, User user, String description, String normalized, String value) {
+    private Service serviceWithId(Long id, ApplicationUser user, String description, String normalized, String value) {
         Service service = new Service(user, description, normalized, new BigDecimal(value));
         try {
             var idField = Service.class.getDeclaredField("serviceId");

@@ -5,7 +5,7 @@ import com.api.calendar.SyncState;
 import com.api.calendar.SyncStateRepository;
 import com.api.calendar.SyncStatus;
 import com.api.google.GoogleOAuthClient;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import com.api.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,11 +57,11 @@ class AuthControllerTest {
     @Test
     void shouldLoginSuccessfullyWithNewUser() throws IOException {
         when(tokenValidator.validateProfile("valid-token"))
-                .thenReturn(Optional.of(new GoogleUserProfile("google-sub-1", "user@test.com", "Test User")));
+                .thenReturn(Optional.of(new GoogleUserProfile("google-sub-1", "user@test.com", "Test ApplicationUser")));
 
-        User user = new User("google-sub-1", "user@test.com", "Test User");
+        ApplicationUser user = new ApplicationUser("google-sub-1", "user@test.com", "Test ApplicationUser");
         when(userRepository.findByGoogleSub("google-sub-1")).thenReturn(Optional.empty());
-        when(userRepository.save(any(User.class))).thenReturn(user);
+        when(userRepository.save(any(ApplicationUser.class))).thenReturn(user);
 
         when(googleOAuthClient.exchangeAuthorizationCodeResult("auth-code", ""))
                 .thenReturn(exchangeResult("access-token", "refresh-token", 3600L));
@@ -75,7 +75,7 @@ class AuthControllerTest {
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("user@test.com", response.getBody().email());
-        assertEquals("Test User", response.getBody().name());
+        assertEquals("Test ApplicationUser", response.getBody().name());
         assertEquals("access-session-token", response.getBody().accessToken());
         assertEquals("refresh-session-token", response.getBody().refreshToken());
     }
@@ -85,7 +85,7 @@ class AuthControllerTest {
         when(tokenValidator.validateProfile("valid-token"))
                 .thenReturn(Optional.of(new GoogleUserProfile("google-sub-1", "new@test.com", "Updated")));
 
-        User existing = new User("google-sub-1", "old@test.com", "Old");
+        ApplicationUser existing = new ApplicationUser("google-sub-1", "old@test.com", "Old");
         when(userRepository.findByGoogleSub("google-sub-1")).thenReturn(Optional.of(existing));
         when(userRepository.save(existing)).thenReturn(existing);
 
@@ -108,9 +108,9 @@ class AuthControllerTest {
         when(tokenValidator.validateProfile("valid-token"))
                 .thenReturn(Optional.of(new GoogleUserProfile("google-sub-1", "user@test.com", "user@test.com")));
 
-        User user = new User("google-sub-1", "user@test.com", "user@test.com");
+        ApplicationUser user = new ApplicationUser("google-sub-1", "user@test.com", "user@test.com");
         when(userRepository.findByGoogleSub("google-sub-1")).thenReturn(Optional.empty());
-        when(userRepository.save(any(User.class))).thenReturn(user);
+        when(userRepository.save(any(ApplicationUser.class))).thenReturn(user);
 
         when(googleOAuthClient.exchangeAuthorizationCodeResult("auth-code", ""))
                 .thenReturn(exchangeResult("access", "refresh", 3600L));
@@ -136,11 +136,11 @@ class AuthControllerTest {
     @Test
     void shouldThrowOAuthExchangeOnIOException() throws IOException {
         when(tokenValidator.validateProfile("valid-token"))
-                .thenReturn(Optional.of(new GoogleUserProfile("google-sub-1", "user@test.com", "User")));
+                .thenReturn(Optional.of(new GoogleUserProfile("google-sub-1", "user@test.com", "ApplicationUser")));
 
-        User user = new User("google-sub-1", "user@test.com", "User");
+        ApplicationUser user = new ApplicationUser("google-sub-1", "user@test.com", "ApplicationUser");
         when(userRepository.findByGoogleSub("google-sub-1")).thenReturn(Optional.empty());
-        when(userRepository.save(any(User.class))).thenReturn(user);
+        when(userRepository.save(any(ApplicationUser.class))).thenReturn(user);
         when(googleOAuthClient.exchangeAuthorizationCodeResult("bad-code", ""))
                 .thenThrow(new IOException("exchange failed"));
 
@@ -151,9 +151,9 @@ class AuthControllerTest {
     @Test
     void shouldClearReauthRequiredStatusOnLogin() throws IOException {
         when(tokenValidator.validateProfile("valid-token"))
-                .thenReturn(Optional.of(new GoogleUserProfile("google-sub-1", "user@test.com", "User")));
+                .thenReturn(Optional.of(new GoogleUserProfile("google-sub-1", "user@test.com", "ApplicationUser")));
 
-        User user = new User("google-sub-1", "user@test.com", "User");
+        ApplicationUser user = new ApplicationUser("google-sub-1", "user@test.com", "ApplicationUser");
         when(userRepository.findByGoogleSub("google-sub-1")).thenReturn(Optional.of(user));
         when(userRepository.save(user)).thenReturn(user);
 
@@ -180,9 +180,9 @@ class AuthControllerTest {
     @Test
     void shouldUpdateExistingOAuthCredentialOnLogin() throws IOException {
         when(tokenValidator.validateProfile("valid-token"))
-                .thenReturn(Optional.of(new GoogleUserProfile("google-sub-1", "user@test.com", "User")));
+                .thenReturn(Optional.of(new GoogleUserProfile("google-sub-1", "user@test.com", "ApplicationUser")));
 
-        User user = new User("google-sub-1", "user@test.com", "User");
+        ApplicationUser user = new ApplicationUser("google-sub-1", "user@test.com", "ApplicationUser");
         when(userRepository.findByGoogleSub("google-sub-1")).thenReturn(Optional.of(user));
         when(userRepository.save(user)).thenReturn(user);
 
@@ -215,7 +215,7 @@ class AuthControllerTest {
     @Test
     void refreshShouldIssueAccessTokenFromDetachedPrincipal() {
         var request = new AuthRefreshRequest("refresh-token", null, null);
-        var principal = new AuthenticatedUser(1L, "g-sub", "user@test.com", "User");
+        var principal = new AuthenticatedUser(1L, "g-sub", "user@test.com", "ApplicationUser");
         var issuedRefresh = new RefreshTokenService.IssuedRefreshToken(
                 "new-refresh",
                 Instant.now().plusSeconds(3600),
@@ -254,7 +254,7 @@ class AuthControllerTest {
         assertEquals("REFRESH_TOKEN_EXPIRED", ex.getCode());
     }
 
-    private void stubSessionIssuance(User user) {
+    private void stubSessionIssuance(ApplicationUser user) {
         when(accessTokenService.issue(any())).thenReturn(
                 new AccessTokenService.IssuedAccessToken("access-session-token", java.time.Instant.now().plusSeconds(900))
         );

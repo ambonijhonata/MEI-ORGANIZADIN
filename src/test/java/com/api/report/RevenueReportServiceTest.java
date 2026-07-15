@@ -8,7 +8,7 @@ import com.api.calendar.PaymentType;
 import com.api.calendar.SyncState;
 import com.api.calendar.SyncStateRepository;
 import com.api.common.InvalidPeriodException;
-import com.api.user.User;
+import com.api.user.ApplicationUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -140,7 +140,7 @@ class RevenueReportServiceTest {
 
     @Test
     void shouldMarkDataAsUpToDateWhenRecentSync() {
-        User user = new User("sub", "email@test.com", "Name");
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
         SyncState syncState = new SyncState(user);
         syncState.operationalState().markSynced("token");
 
