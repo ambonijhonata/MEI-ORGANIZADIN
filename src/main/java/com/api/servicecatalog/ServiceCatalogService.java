@@ -96,7 +96,8 @@ public class ServiceCatalogService {
                     throw new BusinessException(duplicateDescriptionMessage(description));
                 });
 
-        service.updateCatalogData(description, normalized, value);
+        service.rename(description, normalized);
+        service.reprice(value);
 
         final Service saved = serviceRepository.save(service);
 

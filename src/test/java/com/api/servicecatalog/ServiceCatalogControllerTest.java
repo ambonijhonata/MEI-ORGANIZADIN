@@ -15,7 +15,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -161,15 +160,10 @@ class ServiceCatalogControllerTest {
     }
 
     private Service createService(Long id, String description, BigDecimal value) {
-        Service service = new Service(null, description, "normalized", value);
-        // Use reflection or a test-specific constructor if available
-        // For simplicity, we'll mock the getters
         Service mockService = org.mockito.Mockito.mock(Service.class);
         when(mockService.getId()).thenReturn(id);
         when(mockService.getDescription()).thenReturn(description);
         when(mockService.getValue()).thenReturn(value);
-        when(mockService.getCreatedAt()).thenReturn(Instant.now());
-        when(mockService.getUpdatedAt()).thenReturn(Instant.now());
         return mockService;
     }
 }

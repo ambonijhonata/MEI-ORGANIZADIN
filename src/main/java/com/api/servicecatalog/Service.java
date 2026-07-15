@@ -55,12 +55,6 @@ public class Service {
         this.updatedAt = Instant.now();
     }
 
-    public final void updateCatalogData(final String newDesc,
-                                        final String normText,
-                                        final BigDecimal newValue) {
-        applyCatalogData(newDesc, normText, newValue);
-    }
-
     public final void rename(final String newDesc, final String normText) {
         this.description = newDesc;
         this.normalizedText = normText;
@@ -89,6 +83,8 @@ public class Service {
     public BigDecimal getValue() { return value; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+    public String createdAtText() { return createdAt.toString(); }
+    public String updatedAtText() { return updatedAt.toString(); }
 
     private void applyCatalogData(final String newDesc,
                                   final String normText,

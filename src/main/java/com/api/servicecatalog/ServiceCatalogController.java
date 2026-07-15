@@ -2,6 +2,7 @@ package com.api.servicecatalog;
 
 import com.api.auth.AuthenticatedUser;
 import com.api.common.PageRequestSanitizer;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -21,23 +22,22 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Set;
 
-@SuppressWarnings({"PMD.CommentDefaultAccessModifier", "PMD.LawOfDemeter", "PMD.LongVariable", "PMD.ShortVariable"})
 @RestController
 @RequestMapping("/api/services")
 @Tag(name = "Catálogo de Serviços", description = "CRUD de serviços do usuário (descrição + valor)")
 public class ServiceCatalogController {
     private static final int MAX_PAGE_SIZE = 100;
-    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
+    private static final Set<String> SORT_FIELDS = Set.of(
             "id",
             "description",
             "value",
             "createdAt"
     );
 
-    private final ServiceCatalogService serviceCatalogService;
+    private final ServiceCatalogService catalogService;
 
-    public ServiceCatalogController(final ServiceCatalogService serviceCatalogService) {
-        this.serviceCatalogService = serviceCatalogService;
+    public ServiceCatalogController(final ServiceCatalogService catalogService) {
+        this.catalogService = catalogService;
     }
 
     @PostMapping
@@ -50,7 +50,7 @@ public class ServiceCatalogController {
     public ResponseEntity<ServiceResponse> createService(
             @AuthenticationPrincipal final AuthenticatedUser user,
             @Valid @RequestBody final CreateServiceRequest request) {
-        final Service service = serviceCatalogService.createService(user.userId(), request.description(), request.value());
+        final Service service = catalogService.createService(user.userId(), request.description(), request.value());
         return ResponseEntity.status(HttpStatus.CREATED).body(ServiceResponse.from(service));
     }
 
@@ -69,10 +69,10 @@ public class ServiceCatalogController {
                 size,
                 sortBy,
                 direction,
-                ALLOWED_SORT_FIELDS,
+                SORT_FIELDS,
                 MAX_PAGE_SIZE
         );
-        final Page<Service> servicePage = serviceCatalogService.listServices(user.userId(), description, pageable);
+        final Page<Service> servicePage = catalogService.listServices(user.userId(), description, pageable);
         final List<ServiceResponse> items = servicePage.getContent().stream()
                 .map(ServiceResponse::from)
                 .toList();
@@ -93,8 +93,8 @@ public class ServiceCatalogController {
     })
     public ResponseEntity<ServiceResponse> getService(
             @AuthenticationPrincipal final AuthenticatedUser user,
-            @PathVariable final Long id) {
-        final Service service = serviceCatalogService.getService(user.userId(), id);
+            @PathVariable("id") final Long serviceId) {
+        final Service service = catalogService.getService(user.userId(), serviceId);
         return ResponseEntity.ok(ServiceResponse.from(service));
     }
 
@@ -104,12 +104,12 @@ public class ServiceCatalogController {
                     @ApiResponse(responseCode = "200", description = "Serviço atualizado"),
                     @ApiResponse(responseCode = "404", description = "Serviço não encontrado"),
                     @ApiResponse(responseCode = "422", description = "Descrição duplicada")
-            })
+    })
     public ResponseEntity<ServiceResponse> updateService(
             @AuthenticationPrincipal final AuthenticatedUser user,
-            @PathVariable final Long id,
+            @PathVariable("id") final Long serviceId,
             @Valid @RequestBody final UpdateServiceRequest request) {
-        final Service service = serviceCatalogService.updateService(user.userId(), id, request.description(), request.value());
+        final Service service = catalogService.updateService(user.userId(), serviceId, request.description(), request.value());
         return ResponseEntity.ok(ServiceResponse.from(service));
     }
 
@@ -119,11 +119,11 @@ public class ServiceCatalogController {
                     @ApiResponse(responseCode = "204", description = "Serviço excluído"),
                     @ApiResponse(responseCode = "404", description = "Serviço não encontrado"),
                     @ApiResponse(responseCode = "422", description = "Serviço possui eventos vinculados")
-            })
+    })
     public ResponseEntity<Void> deleteService(
             @AuthenticationPrincipal final AuthenticatedUser user,
-            @PathVariable final Long id) {
-        serviceCatalogService.deleteService(user.userId(), id);
+            @PathVariable("id") final Long serviceId) {
+        catalogService.deleteService(user.userId(), serviceId);
         return ResponseEntity.noContent().build();
     }
 
@@ -136,7 +136,7 @@ public class ServiceCatalogController {
     public ResponseEntity<DeleteManyServicesResponse> deleteManyServices(
             @AuthenticationPrincipal final AuthenticatedUser user,
             @RequestBody final List<Long> ids) {
-        final ServiceCatalogService.BulkDeleteResult result = serviceCatalogService.deleteServices(user.userId(), ids);
+        final ServiceCatalogService.BulkDeleteResult result = catalogService.deleteServices(user.userId(), ids);
         return ResponseEntity.ok(new DeleteManyServicesResponse(result.deleted(), result.hasLink()));
     }
 
@@ -150,14 +150,20 @@ public class ServiceCatalogController {
             @NotNull @Positive BigDecimal value
     ) {}
 
-    public record ServiceResponse(Long id, String description, BigDecimal value, String createdAt, String updatedAt) {
-        static ServiceResponse from(final Service service) {
+    public record ServiceResponse(
+            @JsonProperty("id") Long serviceId,
+            String description,
+            BigDecimal value,
+            String createdAt,
+            String updatedAt
+    ) {
+        private static ServiceResponse from(final Service service) {
             return new ServiceResponse(
                     service.getId(),
                     service.getDescription(),
                     service.getValue(),
-                    service.getCreatedAt().toString(),
-                    service.getUpdatedAt().toString()
+                    service.createdAtText(),
+                    service.updatedAtText()
             );
         }
     }

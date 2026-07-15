@@ -25,7 +25,8 @@ class ServiceTest {
     void shouldUpdateFields() {
         Service service = new Service(user, "Old", "old", new BigDecimal("30.00"));
 
-        service.updateCatalogData("New", "new", new BigDecimal("60.00"));
+        service.rename("New", "new");
+        service.reprice(new BigDecimal("60.00"));
 
         assertEquals("New", service.getDescription());
         assertEquals("new", service.getNormalizedDescription());
