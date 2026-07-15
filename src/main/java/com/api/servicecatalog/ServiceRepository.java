@@ -9,7 +9,6 @@ import org.springframework.data.repository.query.Param;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-@SuppressWarnings("PMD.ShortVariable")
 
 public interface ServiceRepository extends JpaRepository<Service, Long> {
     List<Service> findAllByUserId(Long userId);
@@ -18,7 +17,7 @@ public interface ServiceRepository extends JpaRepository<Service, Long> {
 
     Page<Service> findByUserIdAndDescriptionContainingIgnoreCase(Long userId, String description, Pageable pageable);
 
-    Optional<Service> findByIdAndUserId(Long id, Long userId);
+    Optional<Service> findByIdAndUserId(Long serviceId, Long userId);
 
     @Query("SELECT s FROM Service s WHERE s.user.id = :userId AND s.normalizedText = :normalizedText")
     Optional<Service> findByUserIdAndNormalizedDescription(@Param("userId") Long userId,
@@ -32,5 +31,5 @@ public interface ServiceRepository extends JpaRepository<Service, Long> {
 
     boolean existsByUserIdAndNormalizedText(Long userId, String normalizedText);
 
-    List<Service> findByUserIdAndIdIn(Long userId, Collection<Long> ids);
+    List<Service> findByUserIdAndIdIn(Long userId, Collection<Long> serviceIds);
 }
