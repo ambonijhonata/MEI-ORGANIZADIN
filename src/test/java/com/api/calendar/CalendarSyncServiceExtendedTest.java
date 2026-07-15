@@ -982,7 +982,7 @@ class CalendarSyncServiceExtendedTest {
     private Service serviceWithId(User user, Long id, String description, String normalized, String value) {
         Service service = new Service(user, description, normalized, new BigDecimal(value));
         try {
-            var idField = Service.class.getDeclaredField("id");
+            var idField = Service.class.getDeclaredField("serviceId");
             idField.setAccessible(true);
             idField.set(service, id);
         } catch (ReflectiveOperationException e) {

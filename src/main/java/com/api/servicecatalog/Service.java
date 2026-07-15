@@ -4,17 +4,17 @@ import com.api.user.User;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Objects;
 
 @Entity
 @Table(name = "services", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"user_id", "normalized_description"})
 })
-@SuppressWarnings({"PMD.CommentDefaultAccessModifier", "PMD.DataClass", "PMD.LongVariable", "PMD.ShortVariable", "PMD.UseExplicitTypes"})
 public class Service {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long serviceId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -24,7 +24,7 @@ public class Service {
     private String description;
 
     @Column(name = "normalized_description", nullable = false, length = 500)
-    private String normalizedDescription;
+    private String normalizedText;
 
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal value;
@@ -37,34 +37,62 @@ public class Service {
 
     protected Service() {}
 
-    public Service(final User user, final String description, final String normalizedDescription, final BigDecimal value) {
+    public Service(final User user, final String description, final String normalizedText, final BigDecimal value) {
         this.user = user;
-        this.description = description;
-        this.normalizedDescription = normalizedDescription;
-        this.value = value;
+        applyCatalogData(description, normalizedText, value);
     }
 
     @PrePersist
-    void prePersist() {
-        final var now = Instant.now();
-        this.createdAt = now;
-        this.updatedAt = now;
+    protected void prePersist() {
+        final Instant currentTimestamp = Instant.now();
+        this.createdAt = currentTimestamp;
+        this.updatedAt = currentTimestamp;
     }
 
     @PreUpdate
-    void preUpdate() {
+    protected void preUpdate() {
         this.updatedAt = Instant.now();
     }
 
-    public Long getId() { return id; }
+    public final void updateCatalogData(final String newDesc,
+                                        final String normText,
+                                        final BigDecimal newValue) {
+        applyCatalogData(newDesc, normText, newValue);
+    }
+
+    public final void rename(final String newDesc, final String normText) {
+        this.description = newDesc;
+        this.normalizedText = normText;
+    }
+
+    public final void reprice(final BigDecimal newValue) {
+        this.value = newValue;
+    }
+
+    public boolean belongsTo(final Long userId) {
+        return user != null && user.getId() != null && user.getId().equals(userId);
+    }
+
+    public boolean sameIdAs(final Long serviceKey) {
+        return Objects.equals(serviceId, serviceKey);
+    }
+
+    public boolean hasNormalizedText(final String normText) {
+        return normalizedText != null && normalizedText.equals(normText);
+    }
+
+    public Long getId() { return serviceId; }
     public User getUser() { return user; }
     public String getDescription() { return description; }
-    public String getNormalizedDescription() { return normalizedDescription; }
+    public String getNormalizedDescription() { return normalizedText; }
     public BigDecimal getValue() { return value; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 
-    public void setDescription(final String description) { this.description = description; }
-    public void setNormalizedDescription(final String normalizedDescription) { this.normalizedDescription = normalizedDescription; }
-    public void setValue(final BigDecimal value) { this.value = value; }
+    private void applyCatalogData(final String newDesc,
+                                  final String normText,
+                                  final BigDecimal newValue) {
+        rename(newDesc, normText);
+        reprice(newValue);
+    }
 }

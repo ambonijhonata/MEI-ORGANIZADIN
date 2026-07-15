@@ -25,13 +25,21 @@ class ServiceTest {
     void shouldUpdateFields() {
         Service service = new Service(user, "Old", "old", new BigDecimal("30.00"));
 
-        service.setDescription("New");
-        service.setNormalizedDescription("new");
-        service.setValue(new BigDecimal("60.00"));
+        service.updateCatalogData("New", "new", new BigDecimal("60.00"));
 
         assertEquals("New", service.getDescription());
         assertEquals("new", service.getNormalizedDescription());
         assertEquals(new BigDecimal("60.00"), service.getValue());
+    }
+
+    @Test
+    void shouldExposeDomainHelpers() {
+        Service service = new Service(user, "Corte", "corte", new BigDecimal("45.00"));
+
+        assertFalse(service.belongsTo(1L));
+        assertTrue(service.hasNormalizedText("corte"));
+        assertFalse(service.hasNormalizedText("barba"));
+        assertFalse(service.sameIdAs(99L));
     }
 
     @Test

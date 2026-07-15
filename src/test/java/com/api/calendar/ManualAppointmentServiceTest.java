@@ -139,7 +139,8 @@ class ManualAppointmentServiceTest {
 
     private void setId(Object target, Long id) {
         try {
-            var field = target.getClass().getDeclaredField("id");
+            String fieldName = target instanceof Service ? "serviceId" : "id";
+            var field = target.getClass().getDeclaredField(fieldName);
             field.setAccessible(true);
             field.set(target, id);
         } catch (ReflectiveOperationException e) {

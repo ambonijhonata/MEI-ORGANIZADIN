@@ -53,7 +53,7 @@ class ServiceCatalogServiceTest {
         User user = new User("sub", "email@test.com", "Name");
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(normalizer.normalize("Corte de Cabelo")).thenReturn("corte de cabelo");
-        when(serviceRepository.existsByUserIdAndNormalizedDescription(1L, "corte de cabelo")).thenReturn(false);
+        when(serviceRepository.existsByUserIdAndNormalizedText(1L, "corte de cabelo")).thenReturn(false);
         when(serviceRepository.save(any(Service.class))).thenAnswer(inv -> inv.getArgument(0));
         when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.empty());
 
@@ -71,7 +71,7 @@ class ServiceCatalogServiceTest {
         User user = new User("sub", "email@test.com", "Name");
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(normalizer.normalize("Corte")).thenReturn("corte");
-        when(serviceRepository.existsByUserIdAndNormalizedDescription(1L, "corte")).thenReturn(true);
+        when(serviceRepository.existsByUserIdAndNormalizedText(1L, "corte")).thenReturn(true);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 service.createService(1L, "Corte", new BigDecimal("50.00")));
@@ -83,10 +83,10 @@ class ServiceCatalogServiceTest {
         User user = new User("sub", "email@test.com", "Name");
         Service existing = new Service(user, "Old", "old", new BigDecimal("30.00"));
         Service duplicate = mock(Service.class);
-        when(duplicate.getId()).thenReturn(2L);
+        when(duplicate.sameIdAs(1L)).thenReturn(false);
         when(serviceRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(existing));
         when(normalizer.normalize("New")).thenReturn("new");
-        when(serviceRepository.findByUserIdAndNormalizedDescription(1L, "new")).thenReturn(Optional.of(duplicate));
+        when(serviceRepository.findByUserIdAndNormalizedText(1L, "new")).thenReturn(Optional.of(duplicate));
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 service.updateService(1L, 1L, "New", new BigDecimal("60.00")));
@@ -98,10 +98,12 @@ class ServiceCatalogServiceTest {
     void shouldAllowUpdateWhenServiceKeepsSameNormalizedDescription() {
         User user = new User("sub", "email@test.com", "Name");
         Service existing = mock(Service.class);
-        when(existing.getId()).thenReturn(1L);
+        when(existing.sameIdAs(1L)).thenReturn(true);
+        when(existing.getNormalizedDescription()).thenReturn("old");
+        when(existing.getUser()).thenReturn(user);
         when(serviceRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(existing));
         when(normalizer.normalize("New")).thenReturn("new");
-        when(serviceRepository.findByUserIdAndNormalizedDescription(1L, "new")).thenReturn(Optional.of(existing));
+        when(serviceRepository.findByUserIdAndNormalizedText(1L, "new")).thenReturn(Optional.of(existing));
         when(serviceRepository.save(existing)).thenReturn(existing);
         when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(new SyncState(user)));
 
@@ -127,7 +129,7 @@ class ServiceCatalogServiceTest {
         Service existing = new Service(user, "Old", "old", new BigDecimal("30.00"));
         when(serviceRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(existing));
         when(normalizer.normalize("New")).thenReturn("new");
-        when(serviceRepository.findByUserIdAndNormalizedDescription(1L, "new")).thenReturn(Optional.empty());
+        when(serviceRepository.findByUserIdAndNormalizedText(1L, "new")).thenReturn(Optional.empty());
         when(serviceRepository.save(existing)).thenReturn(existing);
         when(syncStateRepository.findByUserId(1L)).thenReturn(Optional.of(new SyncState(user)));
 
@@ -144,7 +146,7 @@ class ServiceCatalogServiceTest {
         Service existing = serviceWithId(1L, user, "Old", "old", "30.00");
         when(serviceRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(existing));
         when(normalizer.normalize("Old")).thenReturn("old");
-        when(serviceRepository.findByUserIdAndNormalizedDescription(1L, "old")).thenReturn(Optional.of(existing));
+        when(serviceRepository.findByUserIdAndNormalizedText(1L, "old")).thenReturn(Optional.of(existing));
         when(serviceRepository.save(existing)).thenReturn(existing);
 
         Service result = service.updateService(1L, 1L, "Old", new BigDecimal("60.00"));
@@ -250,7 +252,7 @@ class ServiceCatalogServiceTest {
     private Service serviceWithId(Long id, User user, String description, String normalized, String value) {
         Service service = new Service(user, description, normalized, new BigDecimal(value));
         try {
-            var idField = Service.class.getDeclaredField("id");
+            var idField = Service.class.getDeclaredField("serviceId");
             idField.setAccessible(true);
             idField.set(service, id);
         } catch (ReflectiveOperationException e) {

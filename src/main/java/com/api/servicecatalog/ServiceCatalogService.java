@@ -17,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -56,7 +55,7 @@ public class ServiceCatalogService {
 
         final String normalized = normalizer.normalize(description);
 
-        if (serviceRepository.existsByUserIdAndNormalizedDescription(userId, normalized)) {
+        if (serviceRepository.existsByUserIdAndNormalizedText(userId, normalized)) {
             throw new BusinessException(duplicateDescriptionMessage(description));
         }
 
@@ -91,15 +90,13 @@ public class ServiceCatalogService {
         final String previousNormalizedDescription = service.getNormalizedDescription();
         final String normalized = normalizer.normalize(description);
 
-        serviceRepository.findByUserIdAndNormalizedDescription(userId, normalized)
-                .filter(existing -> !Objects.equals(existing.getId(), serviceId))
+        serviceRepository.findByUserIdAndNormalizedText(userId, normalized)
+                .filter(existing -> !existing.sameIdAs(serviceId))
                 .ifPresent(existing -> {
                     throw new BusinessException(duplicateDescriptionMessage(description));
                 });
 
-        service.setDescription(description);
-        service.setNormalizedDescription(normalized);
-        service.setValue(value);
+        service.updateCatalogData(description, normalized, value);
 
         final Service saved = serviceRepository.save(service);
 

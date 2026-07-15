@@ -39,7 +39,7 @@ public interface CalendarEventServiceLinkRepository extends JpaRepository<Calend
 
     @Query("SELECT sl.calendarEvent.id AS calendarEventId, " +
             "sl.service.id AS serviceId, " +
-            "sl.service.normalizedDescription AS serviceNormalizedDescription, " +
+            "sl.service.normalizedText AS serviceNormalizedDescription, " +
             "sl.serviceDesc AS serviceDescription, " +
             "sl.serviceAmount AS serviceValue " +
             "FROM CalendarEventServiceLink sl " +

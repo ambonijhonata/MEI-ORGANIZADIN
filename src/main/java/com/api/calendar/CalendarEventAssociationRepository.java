@@ -9,7 +9,7 @@ import java.util.List;
 public interface CalendarEventAssociationRepository {
     String ID_SEL = "SELECT e.id AS calendarEventId, " +
             "s.id AS serviceId, " +
-            "s.normalizedDescription AS serviceNormalizedDescription, " +
+            "s.normalizedText AS serviceNormalizedDescription, " +
             "s.description AS serviceDescription, " +
             "s.value AS serviceValue " +
             "FROM CalendarEvent e " +
