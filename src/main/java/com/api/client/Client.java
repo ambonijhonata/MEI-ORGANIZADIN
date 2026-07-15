@@ -21,8 +21,8 @@ public class Client {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @SuppressWarnings("PMD.ShortVariable")
-    private Long id;
+    @Column(name = "id")
+    private Long clientId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -100,7 +100,7 @@ public class Client {
         return normalizedName != null && normalizedName.equals(normalized);
     }
 
-    public Long getId() { return id; }
+    public Long getId() { return clientId; }
     public ApplicationUser getUser() { return user; }
     public String getName() { return name; }
     public String getNormalizedName() { return normalizedName; }

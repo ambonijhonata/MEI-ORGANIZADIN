@@ -10,8 +10,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration(proxyBeanMethods = false)
 public final class OpenApiConfig {
 
-    @SuppressWarnings("PMD.UnnecessaryConstructor")
-    public OpenApiConfig() {
+    /* default */ OpenApiConfig() {
     }
 
     @Bean

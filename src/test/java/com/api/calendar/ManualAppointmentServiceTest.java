@@ -141,6 +141,7 @@ class ManualAppointmentServiceTest {
         try {
             String fieldName = target instanceof Service ? "serviceId"
                     : target instanceof ApplicationUser ? "userId"
+                    : target instanceof Client ? "clientId"
                     : "id";
             var field = target.getClass().getDeclaredField(fieldName);
             field.setAccessible(true);

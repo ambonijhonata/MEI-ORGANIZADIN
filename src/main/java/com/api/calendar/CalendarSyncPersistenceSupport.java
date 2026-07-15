@@ -10,12 +10,11 @@ import java.util.List;
 import java.util.Set;
 
 @Component
-@SuppressWarnings({"PMD.LongVariable", "PMD.ConfusingTernary"})
 public class CalendarSyncPersistenceSupport {
 
     private final CalendarEventRepository eventRepository;
     private final CalendarEventPaymentRepository paymentRepository;
-    private final CalendarEventServiceLinkRepository serviceLinkRepository;
+    private final CalendarEventServiceLinkRepository linkRepository;
     private final CalendarSyncBatchSettings batchSettings;
 
     @PersistenceContext
@@ -23,11 +22,11 @@ public class CalendarSyncPersistenceSupport {
 
     public CalendarSyncPersistenceSupport(final CalendarEventRepository eventRepository,
                                           final CalendarEventPaymentRepository paymentRepository,
-                                          final CalendarEventServiceLinkRepository serviceLinkRepository,
+                                          final CalendarEventServiceLinkRepository linkRepository,
                                           final CalendarSyncBatchSettings batchSettings) {
         this.eventRepository = eventRepository;
         this.paymentRepository = paymentRepository;
-        this.serviceLinkRepository = serviceLinkRepository;
+        this.linkRepository = linkRepository;
         this.batchSettings = batchSettings;
     }
 
@@ -36,9 +35,9 @@ public class CalendarSyncPersistenceSupport {
     }
 
     public void persistMutations(final CalendarSyncMutations mutations) {
-        if (!mutations.serviceLinkReplacementEventIds().isEmpty() && serviceLinkRepository != null) {
-            serviceLinkRepository.deleteInBulkByCalendarEventIdIn(mutations.serviceLinkReplacementEventIds());
-            serviceLinkRepository.flush();
+        if (!mutations.serviceLinkReplacementEventIds().isEmpty() && linkRepository != null) {
+            linkRepository.deleteInBulkByCalendarEventIdIn(mutations.serviceLinkReplacementEventIds());
+            linkRepository.flush();
         }
         if (!mutations.deletions().isEmpty()) {
             final Set<Long> deletionEventIds = extractEventIds(mutations.deletions());
@@ -71,10 +70,10 @@ public class CalendarSyncPersistenceSupport {
             calendarEvent.setClient(mutationPlan.resolvedClient());
         }
         if (mutationPlan.serviceAssociationChanged()) {
-            if (!mutationPlan.matchedServices().isEmpty()) {
-                calendarEvent.associateServices(mutationPlan.matchedServices());
-            } else {
+            if (mutationPlan.matchedServices().isEmpty()) {
                 calendarEvent.clearServiceAssociation();
+            } else {
+                calendarEvent.associateServices(mutationPlan.matchedServices());
             }
         }
         if (mutationPlan.paymentTypeChanged()) {
@@ -110,6 +109,6 @@ public class CalendarSyncPersistenceSupport {
     }
 
     private boolean shouldFlush(final int chunkCounter, final int endExclusive, final int totalSize) {
-        return (chunkCounter % batchSettings.batchFlushEveryChunks() == 0) || endExclusive == totalSize;
+        return (chunkCounter % batchSettings.flushInterval() == 0) || endExclusive == totalSize;
     }
 }
