@@ -137,7 +137,7 @@ public class ServiceCatalogController {
             @AuthenticationPrincipal final AuthenticatedUser user,
             @RequestBody final List<Long> ids) {
         final ServiceCatalogService.BulkDeleteResult result = catalogService.deleteServices(user.userId(), ids);
-        return ResponseEntity.ok(new DeleteManyServicesResponse(result.deleted(), result.hasLink()));
+        return ResponseEntity.ok(new DeleteManyServicesResponse(result.deleted(), result.linkedCount()));
     }
 
     public record CreateServiceRequest(

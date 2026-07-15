@@ -20,32 +20,33 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-@SuppressWarnings({"PMD.LinguisticNaming", "PMD.LongVariable", "PMD.OnlyOneReturn"})
 @Component
 public class ServiceCatalogService {
+    private static final String EMPTY_DUP_MSG = "Serviço já cadastrado";
+    private static final String DUPLICATE_SUFFIX = " já cadastrado";
 
     private final ServiceRepository serviceRepository;
     private final UserRepository userRepository;
-    private final CalendarEventRepository calendarEventRepository;
-    private final CalendarEventServiceLinkRepository serviceLinkRepository;
+    private final CalendarEventRepository eventRepository;
+    private final CalendarEventServiceLinkRepository linkRepository;
     private final ServiceDescriptionNormalizer normalizer;
     private final CalendarEventReprocessor reprocessor;
-    private final SyncStateRepository syncStateRepository;
+    private final SyncStateRepository stateRepository;
 
     public ServiceCatalogService(final ServiceRepository serviceRepository,
                                   final UserRepository userRepository,
-                                  final CalendarEventRepository calendarEventRepository,
-                                  final CalendarEventServiceLinkRepository serviceLinkRepository,
+                                  final CalendarEventRepository eventRepository,
+                                  final CalendarEventServiceLinkRepository linkRepository,
                                   final ServiceDescriptionNormalizer normalizer,
                                   final CalendarEventReprocessor reprocessor,
-                                  final SyncStateRepository syncStateRepository) {
+                                  final SyncStateRepository stateRepository) {
         this.serviceRepository = serviceRepository;
         this.userRepository = userRepository;
-        this.calendarEventRepository = calendarEventRepository;
-        this.serviceLinkRepository = serviceLinkRepository;
+        this.eventRepository = eventRepository;
+        this.linkRepository = linkRepository;
         this.normalizer = normalizer;
         this.reprocessor = reprocessor;
-        this.syncStateRepository = syncStateRepository;
+        this.stateRepository = stateRepository;
     }
 
     @Transactional
@@ -70,10 +71,11 @@ public class ServiceCatalogService {
 
     @Transactional(readOnly = true)
     public Page<Service> listServices(final Long userId, final String description, final Pageable pageable) {
+        Page<Service> result = serviceRepository.findByUserId(userId, pageable);
         if (description != null && !description.isBlank()) {
-            return serviceRepository.findByUserIdAndDescriptionContainingIgnoreCase(userId, description, pageable);
+            result = serviceRepository.findByUserIdAndDescriptionContainingIgnoreCase(userId, description, pageable);
         }
-        return serviceRepository.findByUserId(userId, pageable);
+        return result;
     }
 
     @Transactional(readOnly = true)
@@ -87,7 +89,7 @@ public class ServiceCatalogService {
         final Service service = serviceRepository.findByIdAndUserId(serviceId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Service not found"));
 
-        final String previousNormalizedDescription = service.getNormalizedDescription();
+        final String priorNormalized = service.getNormalizedDescription();
         final String normalized = normalizer.normalize(description);
 
         serviceRepository.findByUserIdAndNormalizedText(userId, normalized)
@@ -101,7 +103,7 @@ public class ServiceCatalogService {
 
         final Service saved = serviceRepository.save(service);
 
-        if (!normalized.equals(previousNormalizedDescription)) {
+        if (!normalized.equals(priorNormalized)) {
             requestCatalogEnrichment(userId, service.getUser());
             reprocessor.enrichSynchronizedAppointments(userId);
         }
@@ -123,20 +125,49 @@ public class ServiceCatalogService {
 
     @Transactional
     public BulkDeleteResult deleteServices(final Long userId, final List<Long> serviceIds) {
-        if (serviceIds == null || serviceIds.isEmpty()) {
-            return new BulkDeleteResult(0, 0);
+        BulkDeleteResult result = new BulkDeleteResult(0, 0);
+        final Set<Long> uniqueIds = uniqueIds(serviceIds);
+        if (!uniqueIds.isEmpty()) {
+            result = deleteOwnedServices(userId, uniqueIds);
         }
+        return result;
+    }
 
-        final Set<Long> uniqueIds = serviceIds.stream()
-                .filter(id -> id != null)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
-        if (uniqueIds.isEmpty()) {
-            return new BulkDeleteResult(0, 0);
+    private boolean hasLinkedEvents(final Long serviceId) {
+        return linkRepository.existsByServiceId(serviceId)
+                || eventRepository.existsByServiceId(serviceId);
+    }
+
+    private String duplicateDescriptionMessage(final String description) {
+        String message = EMPTY_DUP_MSG;
+        final String label = description == null ? "" : description.trim();
+        if (!label.isBlank()) {
+            message = label + DUPLICATE_SUFFIX;
         }
+        return message;
+    }
 
-        final List<Service> ownedServices = serviceRepository.findByUserIdAndIdIn(userId, uniqueIds);
+    private void requestCatalogEnrichment(final Long userId, final User user) {
+        final SyncState syncState = stateRepository.findByUserId(userId)
+                .orElseGet(() -> new SyncState(user));
+        syncState.catalogEnrichmentState().request();
+        stateRepository.save(syncState);
+    }
+
+    private Set<Long> uniqueIds(final List<Long> serviceIds) {
+        Set<Long> result = Set.of();
+        if (serviceIds != null && !serviceIds.isEmpty()) {
+            result = serviceIds.stream()
+                    .filter(serviceId -> serviceId != null)
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+        }
+        return result;
+    }
+
+    private BulkDeleteResult deleteOwnedServices(final Long userId, final Set<Long> serviceIds) {
+        final List<Service> ownedServices = serviceRepository.findByUserIdAndIdIn(userId, serviceIds);
         int deleted = 0;
-        int hasLink = 0;
+        int linkedCount = 0;
 
         for (final Service service : ownedServices) {
             final Long serviceId = service.getId();
@@ -144,34 +175,15 @@ public class ServiceCatalogService {
                 continue;
             }
             if (hasLinkedEvents(serviceId)) {
-                hasLink++;
+                linkedCount++;
                 continue;
             }
             serviceRepository.delete(service);
             deleted++;
         }
 
-        return new BulkDeleteResult(deleted, hasLink);
+        return new BulkDeleteResult(deleted, linkedCount);
     }
 
-    private boolean hasLinkedEvents(final Long serviceId) {
-        return serviceLinkRepository.existsByServiceId(serviceId)
-                || calendarEventRepository.existsByServiceId(serviceId);
-    }
-
-    private String duplicateDescriptionMessage(final String description) {
-        final String trimmedDescription = description == null ? "" : description.trim();
-        return trimmedDescription.isBlank()
-                ? "Serviço já cadastrado"
-                : trimmedDescription + " já cadastrado";
-    }
-
-    private void requestCatalogEnrichment(final Long userId, final User user) {
-        final SyncState syncState = syncStateRepository.findByUserId(userId)
-                .orElseGet(() -> new SyncState(user));
-        syncState.catalogEnrichmentState().request();
-        syncStateRepository.save(syncState);
-    }
-
-    public record BulkDeleteResult(int deleted, int hasLink) {}
+    public record BulkDeleteResult(int deleted, int linkedCount) {}
 }

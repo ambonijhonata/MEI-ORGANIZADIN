@@ -197,7 +197,7 @@ class ServiceCatalogServiceTest {
         ServiceCatalogService.BulkDeleteResult result = service.deleteServices(1L, List.of(10L, 11L));
 
         assertEquals(1, result.deleted());
-        assertEquals(1, result.hasLink());
+        assertEquals(1, result.linkedCount());
         verify(serviceRepository).delete(deletable);
         verify(serviceRepository, never()).delete(linked);
     }
@@ -214,7 +214,7 @@ class ServiceCatalogServiceTest {
         ServiceCatalogService.BulkDeleteResult result = service.deleteServices(1L, List.of(20L, 21L));
 
         assertEquals(0, result.deleted());
-        assertEquals(2, result.hasLink());
+        assertEquals(2, result.linkedCount());
         verify(serviceRepository, never()).delete(any());
     }
 
@@ -229,7 +229,7 @@ class ServiceCatalogServiceTest {
         ServiceCatalogService.BulkDeleteResult result = service.deleteServices(1L, Arrays.asList(30L, 30L, 999L, null));
 
         assertEquals(1, result.deleted());
-        assertEquals(0, result.hasLink());
+        assertEquals(0, result.linkedCount());
         verify(serviceRepository).delete(owned);
         verify(serviceLinkRepository, times(1)).existsByServiceId(30L);
     }
@@ -239,7 +239,7 @@ class ServiceCatalogServiceTest {
         ServiceCatalogService.BulkDeleteResult result = service.deleteServices(1L, List.of());
 
         assertEquals(0, result.deleted());
-        assertEquals(0, result.hasLink());
+        assertEquals(0, result.linkedCount());
         verify(serviceRepository, never()).findByUserIdAndIdIn(anyLong(), anyCollection());
     }
 
