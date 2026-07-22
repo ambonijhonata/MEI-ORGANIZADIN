@@ -1,12 +1,13 @@
 package com.api.google;
 
-import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import java.io.IOException;
+import java.util.Map;
 
-@SuppressWarnings("PMD.LooseCoupling")
 final class GoogleApiErrorMapper {
 
+    private static final String KEY_ERRORS = "errors";
+    private static final String KEY_MESSAGE = "message";
     private static final int STATUS_GONE = 410;
     private static final int STATUS_UNAUTH = 401;
     private static final int STATUS_FORBIDDEN = 403;
@@ -19,7 +20,10 @@ final class GoogleApiErrorMapper {
     public static IOException map(final IOException exception) {
         IOException mapped = exception;
         if (exception instanceof GoogleJsonResponseException googleException) {
-            final String message = buildMessage(googleException);
+            final Map<String, Object> details = googleException.getDetails();
+            final Object messageValue = details == null ? null : details.get(KEY_MESSAGE);
+            final Object errorsValue = details == null ? null : details.get(KEY_ERRORS);
+            final String message = buildMessage(new GoogleApiErrorSummaryAdapter(messageValue, errorsValue), googleException);
             final int status = googleException.getStatusCode();
             mapped = googleException;
             if (status == STATUS_GONE) {
@@ -33,8 +37,10 @@ final class GoogleApiErrorMapper {
         return mapped;
     }
 
-    private static String buildMessage(final GoogleJsonResponseException exception) {
-        final ErrorSummary summary = summarize(exception.getDetails());
+    private static String buildMessage(
+            final GoogleApiErrorSummaryAdapter summaryAdapter,
+            final GoogleJsonResponseException exception) {
+        final ErrorSummary summary = summaryAdapter.toSummary();
         final String detailMsg = detailMessage(summary);
         final String fallbackMsg = fallbackMessage(summary, exception);
         final String message;
@@ -46,23 +52,6 @@ final class GoogleApiErrorMapper {
             message = UNKNOWN_API_MSG;
         }
         return message;
-    }
-
-    private static ErrorSummary summarize(final GoogleJsonError details) {
-        final ErrorSummary summary;
-        if (details == null) {
-            summary = new ErrorSummary(null, null);
-        } else {
-            final String message = blankToNull(details.getMessage());
-            final String reason;
-            if (details.getErrors() == null || details.getErrors().isEmpty()) {
-                reason = null;
-            } else {
-                reason = blankToNull(details.getErrors().get(0).getReason());
-            }
-            summary = new ErrorSummary(message, reason);
-        }
-        return summary;
     }
 
     private static String detailMessage(final ErrorSummary summary) {
@@ -103,7 +92,7 @@ final class GoogleApiErrorMapper {
         return normalized;
     }
 
-    private record ErrorSummary(String message, String reason) {
+    public record ErrorSummary(String message, String reason) {
         private boolean hasMessage() {
             return message != null;
         }
