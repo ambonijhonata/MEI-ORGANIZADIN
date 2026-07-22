@@ -46,4 +46,12 @@ public class CalendarEventServiceSnapshot {
     public BigDecimal totalValueOrZero() {
         return totalValue != null ? totalValue : BigDecimal.ZERO;
     }
+
+    public String descriptionOr(final String fallbackDesc) {
+        return hasDescription() ? description : fallbackDesc;
+    }
+
+    public BigDecimal totalValueOr(final BigDecimal fallbackTotal) {
+        return hasValue() ? totalValue : fallbackTotal;
+    }
 }

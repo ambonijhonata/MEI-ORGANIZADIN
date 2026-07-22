@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -209,6 +210,30 @@ public class CalendarEvent {
 
     public String getPrimaryServiceNormalizedDescription() {
         return service != null ? service.getNormalizedDescription() : null;
+    }
+
+    public CalendarEventServiceState currentServiceState() {
+        return new CalendarEventServiceState(
+                service,
+                snapshotView(),
+                List.copyOf(serviceLinks),
+                identified,
+                false
+        );
+    }
+
+    public Optional<CalendarEventServiceLink> materializedPrimaryServiceLink() {
+        final Optional<CalendarEventServiceLink> link;
+        if (!serviceLinks.isEmpty() || service == null) {
+            link = Optional.empty();
+        } else {
+            final CalendarEventServiceSnapshot snapshotView = snapshotView();
+            final CalendarEventServiceSeedReader.Seed snapshotSeed = CalendarEventServiceSeedReader.read(service);
+            final String description = snapshotView.descriptionOr(snapshotSeed.description());
+            final BigDecimal totalValue = snapshotView.totalValueOr(snapshotSeed.value());
+            link = Optional.of(CalendarEventServiceLink.materialize(this, service, 0, description, totalValue));
+        }
+        return link;
     }
 
     public CalendarEventServiceSnapshot getSnapshot() {
