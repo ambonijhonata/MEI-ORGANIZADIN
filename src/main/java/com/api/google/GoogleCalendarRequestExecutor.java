@@ -12,6 +12,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Function;
 
 @SuppressWarnings("PMD.LooseCoupling")
 final class GoogleCalendarRequestExecutor {
@@ -39,7 +40,8 @@ final class GoogleCalendarRequestExecutor {
         Events batch;
         do {
             batch = request.execute();
-            allEvents.addAll(readItems(batch));
+            final List<Event> batchItems = batch.getItems();
+            allEvents.addAll(batchItems == null ? Collections.emptyList() : batchItems);
             request.setPageToken(batch.getNextPageToken());
         } while (batch.getNextPageToken() != null);
 
@@ -48,10 +50,6 @@ final class GoogleCalendarRequestExecutor {
 
     private RequestPlan buildPlan(final String syncTok, final LocalDate startDate) {
         final String cleanSyncTok = syncTok == null || syncTok.isBlank() ? null : syncTok;
-        return new RequestPlan(cleanSyncTok, buildTimeMin(startDate));
-    }
-
-    private DateTime buildTimeMin(final LocalDate startDate) {
         final DateTime timeMin;
         if (startDate == null) {
             timeMin = null;
@@ -59,7 +57,7 @@ final class GoogleCalendarRequestExecutor {
             final Instant startUtc = startDate.atStartOfDay(ZoneOffset.UTC).toInstant();
             timeMin = new DateTime(startUtc.toEpochMilli());
         }
-        return timeMin;
+        return new RequestPlan(cleanSyncTok, timeMin);
     }
 
     private Calendar.Events.List createRequest(
@@ -89,11 +87,6 @@ final class GoogleCalendarRequestExecutor {
         }
     }
 
-    private List<Event> readItems(final Events batch) {
-        final List<Event> items = batch.getItems();
-        return items == null ? Collections.emptyList() : items;
-    }
-
     private List<GoogleCalendarSyncEvent> mapEvents(final List<Event> googleEvents) {
         final List<GoogleCalendarSyncEvent> snapshots;
         if (googleEvents == null || googleEvents.isEmpty()) {
@@ -102,13 +95,7 @@ final class GoogleCalendarRequestExecutor {
             final List<GoogleCalendarSyncEvent> mappedSnapshots = new ArrayList<>(googleEvents.size());
             for (final Event googleEvent : googleEvents) {
                 if (googleEvent != null) {
-                    mappedSnapshots.add(new GoogleCalendarSyncEvent(
-                            googleEvent.getId(),
-                            googleEvent.getSummary(),
-                            googleEvent.getStatus(),
-                            extractInstant(googleEvent.getStart()),
-                            extractInstant(googleEvent.getEnd())
-                    ));
+                    mappedSnapshots.add(toSnapshot(googleEvent));
                 }
             }
             snapshots = List.copyOf(mappedSnapshots);
@@ -116,15 +103,30 @@ final class GoogleCalendarRequestExecutor {
         return snapshots;
     }
 
-    @SuppressWarnings("PMD.LawOfDemeter")
-    private Instant extractInstant(final EventDateTime eventDateTime) {
-        Instant extractedInstant = Instant.now();
-        if (eventDateTime != null) {
-            if (eventDateTime.getDateTime() != null) {
-                extractedInstant = Instant.ofEpochMilli(eventDateTime.getDateTime().getValue());
-            } else if (eventDateTime.getDate() != null) {
-                extractedInstant = Instant.ofEpochMilli(eventDateTime.getDate().getValue());
-            }
+    private GoogleCalendarSyncEvent toSnapshot(final Event googleEvent) {
+        final EventDateTime startDateTime = googleEvent.getStart();
+        final EventDateTime endDateTime = googleEvent.getEnd();
+        return new GoogleCalendarSyncEvent(
+                googleEvent.getId(),
+                googleEvent.getSummary(),
+                googleEvent.getStatus(),
+                readInstant(startDateTime),
+                readInstant(endDateTime)
+        );
+    }
+
+    private Instant readInstant(final EventDateTime eventDateTime) {
+        final Function<EventDateTime, DateTime> dateTimeReader = EventDateTime::getDateTime;
+        final Function<EventDateTime, DateTime> dateReader = EventDateTime::getDate;
+        final DateTime dateTimeValue = eventDateTime == null ? null : dateTimeReader.apply(eventDateTime);
+        final DateTime dateValue = eventDateTime == null ? null : dateReader.apply(eventDateTime);
+        final Instant extractedInstant;
+        if (dateTimeValue != null) {
+            extractedInstant = Instant.ofEpochMilli(dateTimeValue.getValue());
+        } else if (dateValue != null) {
+            extractedInstant = Instant.ofEpochMilli(dateValue.getValue());
+        } else {
+            extractedInstant = Instant.now();
         }
         return extractedInstant;
     }
