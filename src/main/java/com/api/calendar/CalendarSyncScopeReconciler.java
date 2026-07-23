@@ -16,7 +16,6 @@ import java.util.Map;
 import java.util.Set;
 
 @Component
-@SuppressWarnings({"PMD.LongVariable", "PMD.OnlyOneReturn"})
 public class CalendarSyncScopeReconciler {
     private static final Logger LOG = LoggerFactory.getLogger(CalendarSyncScopeReconciler.class);
 
@@ -33,99 +32,112 @@ public class CalendarSyncScopeReconciler {
                                                        final String syncMode,
                                                        final LocalDate startDate) {
         final List<CalendarEvent> localScopedEvents = loadScopedEvents(userId, fullSync, startDate);
-        final CalendarSyncMutations reconciledMutations =
+        final CalendarSyncMutations scopedMutations =
                 withScopeReconciliation(mutations, googleEvents, localScopedEvents, syncMode);
         return new CalendarScopeReconciliationResult(
-                reconciledMutations,
-                extractAdditionalDeletions(mutations.deletions(), reconciledMutations.deletions())
+                scopedMutations,
+                extractAdditionalDeletions(mutations.deletions(), scopedMutations.deletions())
         );
     }
 
     private List<CalendarEvent> loadScopedEvents(final Long userId,
                                                  final boolean fullSync,
                                                  final LocalDate startDate) {
+        List<CalendarEvent> scopedEvents = List.of();
         if (fullSync) {
-            return eventRepository.findGoogleBackedByUserId(userId);
+            scopedEvents = eventRepository.findGoogleBackedByUserId(userId);
+        } else if (startDate != null) {
+            final Instant startBoundary = startDate.atStartOfDay(ZoneOffset.UTC).toInstant();
+            scopedEvents = eventRepository.findGoogleBackedByUserIdAndEventStartGreaterThanEqual(userId, startBoundary);
         }
-        if (startDate != null) {
-            final Instant startDateBoundary = startDate.atStartOfDay(ZoneOffset.UTC).toInstant();
-            return eventRepository.findGoogleBackedByUserIdAndEventStartGreaterThanEqual(userId, startDateBoundary);
-        }
-        return List.of();
+        return scopedEvents;
     }
 
     private CalendarSyncMutations withScopeReconciliation(final CalendarSyncMutations mutations,
                                                           final List<GoogleCalendarSyncEvent> googleEvents,
                                                           final List<CalendarEvent> localScopedEvents,
                                                           final String mode) {
-        if (localScopedEvents == null || localScopedEvents.isEmpty()) {
-            return mutations;
-        }
-
-        final Map<String, CalendarEvent> localScopedByGoogleEventId = indexLocalScopedEvents(localScopedEvents);
-        if (localScopedByGoogleEventId.isEmpty()) {
-            return mutations;
-        }
-
-        final Set<String> activeGoogleEventIds = extractActiveGoogleEventIds(googleEvents);
-        final List<CalendarEvent> reconciledDeletions = new ArrayList<>(mutations.deletions());
-        final Set<String> deletionIds = collectDeletionIds(mutations.deletions());
-        int reconciledDeleted = mutations.deleted();
-
-        for (final Map.Entry<String, CalendarEvent> entry : localScopedByGoogleEventId.entrySet()) {
-            final String googleEventId = entry.getKey();
-            if (!activeGoogleEventIds.contains(googleEventId) && !deletionIds.contains(googleEventId)) {
-                reconciledDeletions.add(entry.getValue());
-                deletionIds.add(googleEventId);
-                reconciledDeleted++;
+        CalendarSyncMutations reconciled = mutations;
+        if (localScopedEvents != null && !localScopedEvents.isEmpty()) {
+            final Map<String, CalendarEvent> scopedByGoogleId = indexLocalScopedEvents(localScopedEvents);
+            if (!scopedByGoogleId.isEmpty()) {
+                final ScopeCleanup cleanup = detectScopeCleanup(mutations, googleEvents, scopedByGoogleId);
+                logCleanup(mode, mutations, scopedByGoogleId, cleanup);
+                reconciled = rebuildMutations(mutations, cleanup);
             }
         }
+        return reconciled;
+    }
 
-        if (reconciledDeleted > mutations.deleted() && LOG.isInfoEnabled()) {
+    private ScopeCleanup detectScopeCleanup(final CalendarSyncMutations mutations,
+                                            final List<GoogleCalendarSyncEvent> googleEvents,
+                                            final Map<String, CalendarEvent> scopedByGoogleId) {
+        final Set<String> activeIds = extractActiveGoogleEventIds(googleEvents);
+        final List<CalendarEvent> mergedDeletions = new ArrayList<>(mutations.deletions());
+        final Set<String> deletionIds = collectDeletionIds(mutations.deletions());
+        int deletedCount = mutations.deleted();
+
+        for (final Map.Entry<String, CalendarEvent> entry : scopedByGoogleId.entrySet()) {
+            final String googleId = entry.getKey();
+            if (!activeIds.contains(googleId) && !deletionIds.contains(googleId)) {
+                mergedDeletions.add(entry.getValue());
+                deletionIds.add(googleId);
+                deletedCount++;
+            }
+        }
+        return new ScopeCleanup(mergedDeletions, deletedCount, activeIds.size());
+    }
+
+    private void logCleanup(final String mode,
+                            final CalendarSyncMutations mutations,
+                            final Map<String, CalendarEvent> scopedByGoogleId,
+                            final ScopeCleanup cleanup) {
+        if (cleanup.deletedCount() > mutations.deleted() && LOG.isInfoEnabled()) {
             LOG.info(
                     "calendar_sync_cleanup_summary mode={} cleanup_deleted={} marker_deleted={} total_deleted={} scoped_local_google_events={} active_google_events={}",
                     mode,
-                    reconciledDeleted - mutations.deleted(),
+                    cleanup.deletedCount() - mutations.deleted(),
                     mutations.deleted(),
-                    reconciledDeleted,
-                    localScopedByGoogleEventId.size(),
-                    activeGoogleEventIds.size()
+                    cleanup.deletedCount(),
+                    scopedByGoogleId.size(),
+                    cleanup.activeCount()
             );
         }
+    }
 
+    private CalendarSyncMutations rebuildMutations(final CalendarSyncMutations mutations, final ScopeCleanup cleanup) {
         return new CalendarSyncMutations(
                 mutations.upserts(),
-                reconciledDeletions,
+                cleanup.deletions(),
                 mutations.serviceLinkReplacementEventIds(),
                 mutations.created(),
                 mutations.updated(),
-                reconciledDeleted
+                cleanup.deletedCount()
         );
     }
 
     private Map<String, CalendarEvent> indexLocalScopedEvents(final List<CalendarEvent> localScopedEvents) {
-        final Map<String, CalendarEvent> localScopedByGoogleEventId = new HashMap<>();
+        final Map<String, CalendarEvent> scopedByGoogleId = new HashMap<>();
         for (final CalendarEvent localEvent : localScopedEvents) {
             if (localEvent != null && localEvent.isGoogleOrigin()) {
-                localScopedByGoogleEventId.put(localEvent.getGoogleEventId(), localEvent);
+                scopedByGoogleId.put(localEvent.getGoogleEventId(), localEvent);
             }
         }
-        return localScopedByGoogleEventId;
+        return scopedByGoogleId;
     }
 
     private Set<String> extractActiveGoogleEventIds(final List<GoogleCalendarSyncEvent> googleEvents) {
-        final Set<String> activeGoogleEventIds = new HashSet<>();
-        if (googleEvents == null) {
-            return activeGoogleEventIds;
-        }
-        for (final GoogleCalendarSyncEvent googleEvent : googleEvents) {
-            if (googleEvent != null
-                    && googleEvent.hasUsableId()
-                    && !googleEvent.isCancelled()) {
-                activeGoogleEventIds.add(googleEvent.googleEventId());
+        final Set<String> activeIds = new HashSet<>();
+        if (googleEvents != null) {
+            for (final GoogleCalendarSyncEvent googleEvent : googleEvents) {
+                if (googleEvent != null
+                        && googleEvent.hasUsableId()
+                        && !googleEvent.isCancelled()) {
+                    activeIds.add(googleEvent.googleEventId());
+                }
             }
         }
-        return activeGoogleEventIds;
+        return activeIds;
     }
 
     private Set<String> collectDeletionIds(final List<CalendarEvent> deletions) {
@@ -139,19 +151,21 @@ public class CalendarSyncScopeReconciler {
     }
 
     private List<CalendarEvent> extractAdditionalDeletions(final List<CalendarEvent> baseDeletions,
-                                                           final List<CalendarEvent> reconciledDeletions) {
-        if (reconciledDeletions == null || reconciledDeletions.isEmpty()) {
-            return List.of();
-        }
-
-        final Set<String> seenGoogleEventIds = collectDeletionIds(baseDeletions == null ? List.of() : baseDeletions);
-        final List<CalendarEvent> additionalDeletions = new ArrayList<>();
-        for (final CalendarEvent deletion : reconciledDeletions) {
-            if (deletion != null && deletion.isGoogleOrigin() && !seenGoogleEventIds.contains(deletion.getGoogleEventId())) {
-                seenGoogleEventIds.add(deletion.getGoogleEventId());
-                additionalDeletions.add(deletion);
+                                                           final List<CalendarEvent> scopedDeletions) {
+        List<CalendarEvent> additional = List.of();
+        if (scopedDeletions != null && !scopedDeletions.isEmpty()) {
+            final Set<String> seenIds = collectDeletionIds(baseDeletions == null ? List.of() : baseDeletions);
+            additional = new ArrayList<>();
+            for (final CalendarEvent deletion : scopedDeletions) {
+                if (deletion != null && deletion.isGoogleOrigin() && !seenIds.contains(deletion.getGoogleEventId())) {
+                    seenIds.add(deletion.getGoogleEventId());
+                    additional.add(deletion);
+                }
             }
         }
-        return additionalDeletions;
+        return additional;
+    }
+
+    private record ScopeCleanup(List<CalendarEvent> deletions, int deletedCount, int activeCount) {
     }
 }

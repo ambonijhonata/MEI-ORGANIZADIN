@@ -6,7 +6,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@SuppressWarnings("PMD.LawOfDemeter")
 final class CalendarEventServiceOccurrences {
     private final Map<String, Integer> countsByKey;
 
@@ -40,20 +39,7 @@ final class CalendarEventServiceOccurrences {
     }
 
     public static String identityFor(final Service service) {
-        String identity = null;
-        if (service != null) {
-            final BigDecimal serviceValue = service.getValue();
-            if (service.getId() != null) {
-                identity = "id:" + service.getId();
-            } else if (service.getNormalizedDescription() != null && !service.getNormalizedDescription().isBlank()) {
-                identity = "normalized:" + service.getNormalizedDescription();
-            } else if (service.getDescription() != null && !service.getDescription().isBlank()) {
-                identity = "description:" + service.getDescription();
-            } else if (serviceValue != null) {
-                identity = "value:" + serviceValue.stripTrailingZeros().toPlainString();
-            }
-        }
-        return identity;
+        return service != null ? service.identityKey() : null;
     }
 
     public static BigDecimal totalLinkedValue(final List<CalendarEventServiceLink> links) {

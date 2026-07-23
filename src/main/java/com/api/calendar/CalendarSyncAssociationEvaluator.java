@@ -6,19 +6,22 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 @Component
-@SuppressWarnings({
-        "PMD.AtLeastOneConstructor",
-        "PMD.LongVariable",
-        "PMD.OnlyOneReturn",
-        "PMD.SimplifyBooleanReturns"
-})
+@SuppressWarnings("PMD.LongVariable")
 public class CalendarSyncAssociationEvaluator {
+    private final CalendarServiceIdentityResolver identityResolver;
+
+    public CalendarSyncAssociationEvaluator() {
+        this(new CalendarServiceIdentityResolver());
+    }
+
+    /* package */ CalendarSyncAssociationEvaluator(final CalendarServiceIdentityResolver identityResolver) {
+        this.identityResolver = identityResolver;
+    }
 
     public boolean hasCoreDataChanges(final CalendarEvent existingEvent,
                                       final String title,
@@ -30,115 +33,57 @@ public class CalendarSyncAssociationEvaluator {
 
     public boolean hasServiceAssociationChanges(final CalendarEvent existingEvent,
                                                 final List<Service> matchedServices,
-                                                final Map<String, Integer> existingServiceIdentities) {
-        final Map<String, Integer> persistedServiceIdentities =
-                resolvePersistedServiceIdentityCounts(existingEvent, existingServiceIdentities);
-
+                                                final Map<String, Integer> existingCounts) {
+        final Map<String, Integer> savedCounts = resolvePersistedServiceIdentityCounts(existingEvent, existingCounts);
+        final boolean changed;
         if (matchedServices.isEmpty()) {
-            return hasPersistedAssociation(existingEvent, persistedServiceIdentities);
+            changed = hasPersistedAssociation(existingEvent, savedCounts);
+        } else {
+            final boolean missingIdentification = !existingEvent.isIdentified();
+            final Service leadService = matchedServices.get(0);
+            final boolean snapshotChanged =
+                    !existingEvent.hasServiceSnapshot(leadService.getDescription(), sumValues(matchedServices));
+            final boolean countChanged = !savedCounts.equals(identityResolver.countServices(matchedServices));
+            changed = missingIdentification || snapshotChanged || countChanged;
         }
-
-        if (!existingEvent.isIdentified()) {
-            return true;
-        }
-
-        final Service firstMatchedService = matchedServices.get(0);
-        if (!existingEvent.hasServiceSnapshot(firstMatchedService.getDescription(), sumValues(matchedServices))) {
-            return true;
-        }
-
-        return !persistedServiceIdentities.equals(serviceIdentityCounts(matchedServices));
+        return changed;
     }
 
     public boolean isEquivalentClient(final Client existingClient, final Client resolvedClient) {
+        final boolean equivalent;
         if (existingClient == null || resolvedClient == null) {
-            return existingClient == null && resolvedClient == null;
+            equivalent = existingClient == null && resolvedClient == null;
+        } else {
+            final boolean bothPersisted = existingClient.getId() != null && resolvedClient.getId() != null;
+            equivalent = bothPersisted
+                    ? Objects.equals(existingClient.getId(), resolvedClient.getId())
+                    : Objects.equals(existingClient.getNormalizedName(), resolvedClient.getNormalizedName())
+                    && Objects.equals(existingClient.getName(), resolvedClient.getName());
         }
-        if (existingClient.getId() != null && resolvedClient.getId() != null) {
-            return Objects.equals(existingClient.getId(), resolvedClient.getId());
-        }
-        return Objects.equals(existingClient.getNormalizedName(), resolvedClient.getNormalizedName())
-                && Objects.equals(existingClient.getName(), resolvedClient.getName());
+        return equivalent;
     }
 
     public String serviceIdentity(final Service service) {
-        if (service == null) {
-            return "none";
-        }
-        return serviceIdentity(
-                service.getId(),
-                service.getNormalizedDescription(),
-                service.getDescription(),
-                service.getValue()
-        );
+        return identityResolver.forService(service);
     }
 
     public String serviceIdentity(final Long serviceId,
-                                  final String serviceNormalizedDescription,
-                                  final String serviceDescription,
-                                  final BigDecimal serviceValue) {
-        if (serviceId != null) {
-            return "id:" + serviceId;
-        }
-        if (serviceNormalizedDescription != null && !serviceNormalizedDescription.isBlank()) {
-            return "normalized:" + serviceNormalizedDescription;
-        }
-        if (serviceDescription != null && !serviceDescription.isBlank()) {
-            return "description:" + serviceDescription;
-        }
-        if (serviceValue != null) {
-            return "value:" + serviceValue.stripTrailingZeros().toPlainString();
-        }
-        return "none";
-    }
-
-    public Map<String, Integer> serviceIdentityCounts(final List<Service> services) {
-        final Map<String, Integer> identities = new HashMap<>();
-        for (final Service service : services) {
-            final String identity = serviceIdentity(service);
-            identities.put(identity, identities.getOrDefault(identity, 0) + 1);
-        }
-        return identities;
+                                  final String normDesc,
+                                  final String desc,
+                                  final BigDecimal amount) {
+        return identityResolver.forSnapshot(serviceId, normDesc, desc, amount);
     }
 
     public Map<String, Integer> resolvePersistedServiceIdentityCounts(final CalendarEvent existingEvent,
-                                                                      final Map<String, Integer> existingServiceIdentities) {
-        if (existingServiceIdentities != null && !existingServiceIdentities.isEmpty()) {
-            return existingServiceIdentities;
-        }
-
-        final Map<String, Integer> fallbackCounts = new HashMap<>();
-        if (existingEvent == null) {
-            return fallbackCounts;
-        }
-
-        for (final CalendarEventServiceLink serviceLink : existingEvent.getServiceLinks()) {
-            final String identity = serviceIdentity(serviceLink.getService());
-            fallbackCounts.put(identity, fallbackCounts.getOrDefault(identity, 0) + 1);
-        }
-
-        if (!fallbackCounts.isEmpty()) {
-            return fallbackCounts;
-        }
-
-        if (existingEvent.hasAnyServiceAssociationData()) {
-            final String identity = serviceIdentity(
-                    existingEvent.getPrimaryServiceId(),
-                    existingEvent.getPrimaryServiceNormalizedDescription(),
-                    existingEvent.getServiceDescriptionSnapshot(),
-                    existingEvent.getServiceValueSnapshot()
-            );
-            fallbackCounts.put(identity, fallbackCounts.getOrDefault(identity, 0) + 1);
-        }
-        return fallbackCounts;
+                                                                      final Map<String, Integer> existingCounts) {
+        return identityResolver.persistedCounts(existingEvent, existingCounts);
     }
 
     private boolean hasPersistedAssociation(final CalendarEvent existingEvent,
-                                            final Map<String, Integer> existingServiceIdentities) {
-        final Map<String, Integer> persistedServiceIdentities =
-                resolvePersistedServiceIdentityCounts(existingEvent, existingServiceIdentities);
+                                            final Map<String, Integer> existingCounts) {
+        final Map<String, Integer> savedCounts = resolvePersistedServiceIdentityCounts(existingEvent, existingCounts);
         return existingEvent.isIdentified()
-                || !persistedServiceIdentities.isEmpty()
+                || !savedCounts.isEmpty()
                 || existingEvent.hasAnyServiceAssociationData();
     }
 

@@ -76,6 +76,20 @@ public class Service {
         return normalizedText != null && normalizedText.equals(normText);
     }
 
+    public String identityKey() {
+        String identity = null;
+        if (serviceId != null) {
+            identity = "id:" + serviceId;
+        } else if (normalizedText != null && !normalizedText.isBlank()) {
+            identity = "normalized:" + normalizedText;
+        } else if (description != null && !description.isBlank()) {
+            identity = "description:" + description;
+        } else if (value != null) {
+            identity = "value:" + value.stripTrailingZeros().toPlainString();
+        }
+        return identity;
+    }
+
     public Long getId() { return serviceId; }
     public ApplicationUser getUser() { return user; }
     public String getDescription() { return description; }
@@ -83,8 +97,6 @@ public class Service {
     public BigDecimal getValue() { return value; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
-    public String createdAtText() { return createdAt.toString(); }
-    public String updatedAtText() { return updatedAt.toString(); }
 
     private void applyCatalogData(final String newDesc,
                                   final String normText,

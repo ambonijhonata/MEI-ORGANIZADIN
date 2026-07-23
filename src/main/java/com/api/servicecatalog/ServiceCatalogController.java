@@ -162,8 +162,8 @@ public class ServiceCatalogController {
                     service.getId(),
                     service.getDescription(),
                     service.getValue(),
-                    service.createdAtText(),
-                    service.updatedAtText()
+                    String.valueOf(service.getCreatedAt()),
+                    String.valueOf(service.getUpdatedAt())
             );
         }
     }
