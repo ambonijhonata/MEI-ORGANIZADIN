@@ -51,7 +51,7 @@ public class CalendarSyncFlowRunner {
                 request.googleEvents(),
                 merged,
                 request.fullSync(),
-                request.syncMode(),
+                request.mode(),
                 request.startDate()
         );
         final long processMs = elapsedMs(processStart);
@@ -62,9 +62,9 @@ public class CalendarSyncFlowRunner {
 
         return new CalendarSyncExecution(
                 new CalendarSyncService.SyncResult(
-                        scope.reconciledMutations().created(),
-                        scope.reconciledMutations().updated(),
-                        scope.reconciledMutations().deleted()
+                        scope.mutations().created(),
+                        scope.mutations().updated(),
+                        scope.mutations().deleted()
                 ),
                 lookupMs,
                 processMs,
@@ -95,21 +95,21 @@ public class CalendarSyncFlowRunner {
 
     private void persistAndFinalize(final CalendarSyncExecutionRequest request,
                                     final CalendarScopeReconciliationResult scope) {
-        if (!scope.additionalDeletions().isEmpty()) {
+        if (!scope.extraDeletions().isEmpty()) {
             persistence.persistMutations(new CalendarSyncMutations(
                     List.of(),
-                    scope.additionalDeletions(),
+                    scope.extraDeletions(),
                     Set.of(),
                     0,
                     0,
-                    scope.additionalDeletions().size()
+                    scope.extraDeletions().size()
             ));
         }
         if (reprocessor != null
                 && request.syncState().catalogEnrichmentState().resolvePendingRevision(false) != 0L) {
             reprocessor.enrichPendingSynchronizedAppointments(request.userId(), request.syncState());
         }
-        updateSyncState(request.syncState(), request.tokenBeforeSync(), request.nextSyncToken(), request.syncMode());
+        updateSyncState(request.syncState(), request.tokenBefore(), request.nextToken(), request.mode());
         syncStateRepo.save(request.syncState());
     }
 

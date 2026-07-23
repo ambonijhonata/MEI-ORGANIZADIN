@@ -91,8 +91,8 @@ public class CalendarSyncMutationPlanner {
                     request.user(),
                     googleEvent,
                     existingEvent,
-                    request.lookups().clientsByNormalizedName(),
-                    request.lookups().servicesByNormalizedDescription(),
+                    request.lookups().clientsByName(),
+                    request.lookups().servicesByName(),
                     existingEvent != null
                             ? existingServiceIdentitiesByEventId.getOrDefault(existingEvent.getId(), Map.of())
                             : Map.of(),
@@ -174,17 +174,16 @@ public class CalendarSyncMutationPlanner {
 
         return CalendarEventMutationPlan.forExistingEvent(
                 existingEvent,
-                title,
-                normalizedTitle,
-                eventStart,
-                eventEnd,
-                coreDataChanged,
-                resolvedClient,
-                clientChanged,
-                parsedTitle.paymentType(),
-                paymentTypeChanged,
-                matchedServices,
-                serviceAssociationChanged
+                CalendarEventCoreUpdate.changed(title, normalizedTitle, eventStart, eventEnd, coreDataChanged),
+                CalendarEventAssociationUpdate.forExisting(
+                        resolvedClient,
+                        clientChanged,
+                        parsedTitle.paymentType(),
+                        paymentTypeChanged,
+                        matchedServices,
+                        serviceAssociationChanged,
+                        existingEvent.getId() != null
+                )
         );
     }
 

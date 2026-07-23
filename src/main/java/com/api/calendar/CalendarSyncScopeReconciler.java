@@ -109,7 +109,7 @@ public class CalendarSyncScopeReconciler {
         return new CalendarSyncMutations(
                 mutations.upserts(),
                 cleanup.deletions(),
-                mutations.serviceLinkReplacementEventIds(),
+                mutations.replacementIds(),
                 mutations.created(),
                 mutations.updated(),
                 cleanup.deletedCount()

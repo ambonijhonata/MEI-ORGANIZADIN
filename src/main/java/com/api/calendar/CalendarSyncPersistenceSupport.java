@@ -35,8 +35,8 @@ public class CalendarSyncPersistenceSupport {
     }
 
     public void persistMutations(final CalendarSyncMutations mutations) {
-        if (!mutations.serviceLinkReplacementEventIds().isEmpty() && linkRepository != null) {
-            linkRepository.deleteInBulkByCalendarEventIdIn(mutations.serviceLinkReplacementEventIds());
+        if (!mutations.replacementIds().isEmpty() && linkRepository != null) {
+            linkRepository.deleteInBulkByCalendarEventIdIn(mutations.replacementIds());
             linkRepository.flush();
         }
         if (!mutations.deletions().isEmpty()) {
@@ -57,7 +57,7 @@ public class CalendarSyncPersistenceSupport {
     }
 
     private CalendarEvent applyEventMutationPlan(final CalendarEventMutationPlan mutationPlan) {
-        final CalendarEvent calendarEvent = mutationPlan.calendarEvent();
+        final CalendarEvent calendarEvent = mutationPlan.event();
         if (mutationPlan.coreDataChanged()) {
             calendarEvent.updateFromGoogle(
                     mutationPlan.title(),
