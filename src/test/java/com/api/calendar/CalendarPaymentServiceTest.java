@@ -180,7 +180,7 @@ class CalendarPaymentServiceTest {
                 "servico",
                 totalValue
         );
-        event.associateService(service);
+        event.associateServices(List.of(service));
         return event;
     }
 }

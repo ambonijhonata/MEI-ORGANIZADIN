@@ -9,7 +9,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -19,7 +18,7 @@ import lombok.Setter;
 @Table(name = "calendar_events", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"user_id", "google_event_id"})
 })
-@SuppressWarnings({"PMD.ShortVariable", "PMD.TooManyMethods"})
+@SuppressWarnings("PMD.ShortVariable")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class CalendarEvent {
@@ -153,10 +152,6 @@ public class CalendarEvent {
         this.audit.touchOnUpdate();
     }
 
-    public void associateService(final Service service) {
-        applyServiceState(CalendarEventServiceOps.associate(this, List.of(service)));
-    }
-
     public void associateServices(final List<Service> services) {
         applyServiceState(CalendarEventServiceOps.associate(this, services));
     }
@@ -175,33 +170,16 @@ public class CalendarEvent {
         return source == CalendarEventSource.GOOGLE && googleEventId != null && !googleEventId.isBlank();
     }
 
-    public boolean hasPaymentType(final PaymentType type) {
-        return paymentType == type;
-    }
-
     public String getServiceDescriptionSnapshot() {
-        return snapshotView().getDescription();
+        return getSnapshotOrEmpty().getDescription();
     }
 
     public BigDecimal getServiceValueSnapshot() {
-        return snapshotView().getTotalValue();
+        return getSnapshotOrEmpty().getTotalValue();
     }
 
     public BigDecimal getServiceValueOrZero() {
-        return snapshotView().totalValueOrZero();
-    }
-
-    public boolean hasServiceSnapshot(final String description, final BigDecimal totalValue) {
-        final BigDecimal currentTotal = getServiceValueSnapshot();
-        return java.util.Objects.equals(getServiceDescriptionSnapshot(), description)
-                && ((currentTotal == null && totalValue == null)
-                || (currentTotal != null
-                && totalValue != null
-                && currentTotal.compareTo(totalValue) == 0));
-    }
-
-    public boolean hasAnyServiceAssociationData() {
-        return snapshotView().getDescription() != null || snapshotView().getTotalValue() != null;
+        return getSnapshotOrEmpty().totalValueOrZero();
     }
 
     public Long getPrimaryServiceId() {
@@ -212,48 +190,20 @@ public class CalendarEvent {
         return service != null ? service.getNormalizedDescription() : null;
     }
 
-    public CalendarEventServiceState currentServiceState() {
-        return new CalendarEventServiceState(
-                service,
-                snapshotView(),
-                List.copyOf(serviceLinks),
-                identified,
-                false
-        );
+    public CalendarEventServiceSnapshot getSnapshotOrEmpty() {
+        return CalendarEventLegacySupport.snapshotView(snapshot);
     }
 
-    public Optional<CalendarEventServiceLink> materializedPrimaryServiceLink() {
-        final Optional<CalendarEventServiceLink> link;
-        if (!serviceLinks.isEmpty() || service == null) {
-            link = Optional.empty();
-        } else {
-            final CalendarEventServiceSnapshot snapshotView = snapshotView();
-            final CalendarEventServiceSeedReader.Seed snapshotSeed = CalendarEventServiceSeedReader.read(service);
-            final String description = snapshotView.descriptionOr(snapshotSeed.description());
-            final BigDecimal totalValue = snapshotView.totalValueOr(snapshotSeed.value());
-            link = Optional.of(CalendarEventServiceLink.materialize(this, service, 0, description, totalValue));
-        }
-        return link;
+    public String getEventStartText() {
+        return timing.startText();
     }
 
-    public CalendarEventServiceSnapshot getSnapshot() {
-        return snapshotView();
+    public String getEventEndText() {
+        return timing.endText();
     }
 
-    public CalendarEventReadModel toReadModel(final BigDecimal paidAmount) {
-        final CalendarEventServiceSnapshot snapshotView = snapshotView();
-        return new CalendarEventReadModel(
-                eventId,
-                googleEventId,
-                label.getTitle(),
-                timing.startText(),
-                timing.endText(),
-                identified,
-                snapshotView.getDescription(),
-                snapshotView.totalValueOrZero(),
-                paymentType != null ? paymentType.name() : null,
-                paidAmount
-        );
+    public String getPaymentTypeName() {
+        return paymentType != null ? paymentType.name() : null;
     }
 
     public void updateFromGoogle(final String title,
@@ -264,23 +214,11 @@ public class CalendarEvent {
         this.timing.update(eventStart, eventEnd);
     }
 
-    public void markIdentified(final boolean identified) {
-        this.identified = identified;
-    }
-
     public void replacePayments(final List<CalendarEventPayment> payments) {
         this.payments.clear();
         if (payments != null) {
             this.payments.addAll(payments);
         }
-    }
-
-    public void clearPayments() {
-        this.payments.clear();
-    }
-
-    private CalendarEventServiceSnapshot snapshotView() {
-        return snapshot != null ? snapshot : CalendarEventServiceSnapshot.empty();
     }
 
     private void applyServiceState(final CalendarEventServiceState state) {

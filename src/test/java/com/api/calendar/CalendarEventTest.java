@@ -20,7 +20,7 @@ class CalendarEventTest {
         CalendarEvent event = new CalendarEvent(user, "e1", "corte", "corte", Instant.now(), Instant.now());
         Service service = new Service(user, "Corte", "corte", new BigDecimal("50.00"));
 
-        event.associateService(service);
+        event.associateServices(List.of(service));
 
         assertTrue(event.isIdentified());
         assertEquals(service, event.getService());
@@ -95,7 +95,7 @@ class CalendarEventTest {
     void shouldClearServiceAssociation() {
         CalendarEvent event = new CalendarEvent(user, "e1", "corte", "corte", Instant.now(), Instant.now());
         Service service = new Service(user, "Corte", "corte", new BigDecimal("50.00"));
-        event.associateService(service);
+        event.associateServices(List.of(service));
 
         event.clearServiceAssociation();
 
@@ -134,10 +134,10 @@ class CalendarEventTest {
     void shouldMarkIdentified() {
         CalendarEvent event = new CalendarEvent(user, "e1", "test", "test", Instant.now(), Instant.now());
 
-        event.markIdentified(true);
+        event.setIdentified(true);
         assertTrue(event.isIdentified());
 
-        event.markIdentified(false);
+        event.setIdentified(false);
         assertFalse(event.isIdentified());
     }
 
@@ -145,7 +145,7 @@ class CalendarEventTest {
     void shouldSetAndKeepPaymentTypeWhenClearingServiceAssociation() {
         CalendarEvent event = new CalendarEvent(user, "e1", "test", "test", Instant.now(), Instant.now());
         Service service = new Service(user, "Corte", "corte", new BigDecimal("50.00"));
-        event.associateService(service);
+        event.associateServices(List.of(service));
 
         event.setPaymentType(PaymentType.PIX);
         event.clearServiceAssociation();

@@ -80,7 +80,7 @@ class ServiceCatalogBulkDeleteIntegrationTest extends IntegrationTestBase {
                 Instant.parse("2026-03-10T10:00:00Z"),
                 Instant.parse("2026-03-10T11:00:00Z")
         );
-        event.associateService(linked);
+        event.associateServices(List.of(linked));
         calendarEventRepository.save(event);
 
         mockMvc.perform(post("/api/services/delete")

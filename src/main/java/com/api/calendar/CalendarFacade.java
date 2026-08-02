@@ -45,7 +45,20 @@ public class CalendarFacade {
                         request.serviceIds()
                 )
         );
-        return CalendarApiMapper.toEventResponse(created.toReadModel(null));
+        return CalendarApiMapper.toEventResponse(CalendarEventReadModelMapper.toReadModel(
+                new CalendarEventReadModelMapper.Input(
+                        created.getId(),
+                        created.getGoogleEventId(),
+                        created.getTitle(),
+                        created.getEventStartText(),
+                        created.getEventEndText(),
+                        created.isIdentified(),
+                        created.getServiceDescriptionSnapshot(),
+                        created.getServiceValueOrZero(),
+                        created.getPaymentTypeName(),
+                        null
+                )
+        ));
     }
 
     public Page<CalendarApiModels.EventResponse> listEvents(

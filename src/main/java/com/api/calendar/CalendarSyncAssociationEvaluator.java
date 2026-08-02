@@ -41,8 +41,12 @@ public class CalendarSyncAssociationEvaluator {
         } else {
             final boolean missingIdentification = !existingEvent.isIdentified();
             final Service leadService = matchedServices.get(0);
-            final boolean snapshotChanged =
-                    !existingEvent.hasServiceSnapshot(leadService.getDescription(), sumValues(matchedServices));
+            final boolean snapshotChanged = !CalendarEventLegacySupport.hasServiceSnapshot(
+                    existingEvent.getServiceDescriptionSnapshot(),
+                    existingEvent.getServiceValueSnapshot(),
+                    leadService.getDescription(),
+                    sumValues(matchedServices)
+            );
             final boolean countChanged = !savedCounts.equals(identityResolver.countServices(matchedServices));
             changed = missingIdentification || snapshotChanged || countChanged;
         }
@@ -84,7 +88,7 @@ public class CalendarSyncAssociationEvaluator {
         final Map<String, Integer> savedCounts = resolvePersistedServiceIdentityCounts(existingEvent, existingCounts);
         return existingEvent.isIdentified()
                 || !savedCounts.isEmpty()
-                || existingEvent.hasAnyServiceAssociationData();
+                || CalendarEventLegacySupport.hasAnyServiceAssociationData(existingEvent.getSnapshotOrEmpty());
     }
 
     private BigDecimal sumValues(final List<Service> services) {

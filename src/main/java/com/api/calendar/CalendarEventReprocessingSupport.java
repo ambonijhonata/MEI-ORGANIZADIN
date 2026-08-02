@@ -6,6 +6,7 @@ import com.api.servicecatalog.ServiceDescriptionNormalizer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 final class CalendarEventReprocessingSupport {
     private final EventTitleParser parser;
@@ -31,7 +32,7 @@ final class CalendarEventReprocessingSupport {
         if (!matchedServices.isEmpty()) {
             changed = updateServices(event, matchedServices, replaceServices);
         }
-        if (!event.hasPaymentType(parsed.paymentType())) {
+        if (!Objects.equals(event.getPaymentType(), parsed.paymentType())) {
             event.setPaymentType(parsed.paymentType());
             changed = true;
         }

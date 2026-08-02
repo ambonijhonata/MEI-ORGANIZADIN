@@ -200,7 +200,7 @@ class CalendarPaymentsIntegrationTest {
         doAnswer(invocation -> {
             storedPayments.clear();
             return null;
-        }).when(event).clearPayments();
+        }).when(event).replacePayments(any());
         when(calendarEventRepository.findByIdAndUserId(19902L, 1L)).thenReturn(Optional.of(event));
         when(calendarEventRepository.save(any(CalendarEvent.class))).thenAnswer(invocation -> invocation.getArgument(0));
 

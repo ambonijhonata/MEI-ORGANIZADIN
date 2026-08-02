@@ -59,7 +59,18 @@ public class CalendarEventQueryService {
         );
         final Page<CalendarEvent> page = findEvents(userId, eventStart, eventEnd, sanitizedPageable);
         final Map<Long, BigDecimal> paidAmounts = loadPaidAmounts(page.getContent());
-        return page.map(event -> event.toReadModel(paidAmounts.get(event.getId())));
+        return page.map(event -> CalendarEventReadModelMapper.toReadModel(new CalendarEventReadModelMapper.Input(
+                event.getId(),
+                event.getGoogleEventId(),
+                event.getTitle(),
+                event.getEventStartText(),
+                event.getEventEndText(),
+                event.isIdentified(),
+                event.getServiceDescriptionSnapshot(),
+                event.getServiceValueOrZero(),
+                event.getPaymentTypeName(),
+                paidAmounts.get(event.getId())
+        )));
     }
 
     public CalendarIntegrationStatusReadModel getIntegrationStatus(final Long userId) {

@@ -70,7 +70,7 @@ final class CalendarServiceIdentityResolver {
 
     private void appendLegacyCounts(final CalendarEvent existingEvent,
                                     final Map<String, Integer> fallbackCounts) {
-        if (existingEvent.hasAnyServiceAssociationData()) {
+        if (CalendarEventLegacySupport.hasAnyServiceAssociationData(existingEvent.getSnapshotOrEmpty())) {
             final String identity = forSnapshot(
                     existingEvent.getPrimaryServiceId(),
                     existingEvent.getPrimaryServiceNormalizedDescription(),

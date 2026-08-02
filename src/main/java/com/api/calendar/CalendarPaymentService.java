@@ -35,7 +35,7 @@ public class CalendarPaymentService {
 
         final List<CalendarEventPayment> savedPayments;
         if (paymentInputs.isEmpty()) {
-            event.clearPayments();
+            event.replacePayments(List.of());
             savedPayments = saveAndMaterialize(event);
         } else {
             validateRequest(event, paymentInputs);
