@@ -1,55 +1,38 @@
 package com.api.calendar;
 
-import com.api.client.Client;
-import com.api.client.ClientService;
 import com.api.google.GoogleCalendarSyncEvent;
-import com.api.servicecatalog.Service;
-import com.api.servicecatalog.ServiceDescriptionNormalizer;
-import com.api.user.ApplicationUser;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 @Component
 @SuppressWarnings({
         "PMD.LongVariable",
         "PMD.OnlyOneReturn",
-        "PMD.CouplingBetweenObjects",
         "PMD.CognitiveComplexity",
         "PMD.CyclomaticComplexity"
 })
 public class CalendarSyncMutationPlanner {
 
-    private final ClientService clientService;
-    private final CalendarEventServiceMatcher matcher;
-    private final ServiceDescriptionNormalizer normalizer;
-    private final EventTitleParser titleParser;
     private final CalendarSyncExistingEventResolver existingEventResolver;
-    private final CalendarSyncAssociationEvaluator associationEvaluator;
+    private final CalendarSyncLookupResolver lookupResolver;
+    private final CalendarSyncNewEventPlanner newEventPlanner;
+    private final CalendarSyncExistingEventPlanner existingEventPlanner;
 
-    public CalendarSyncMutationPlanner(final ClientService clientService,
-                                       final CalendarEventServiceMatcher matcher,
-                                       final ServiceDescriptionNormalizer normalizer,
-                                       final EventTitleParser titleParser,
+    public CalendarSyncMutationPlanner(final CalendarSyncLookupResolver lookupResolver,
                                        final CalendarSyncExistingEventResolver existingEventResolver,
-                                       final CalendarSyncAssociationEvaluator associationEvaluator) {
-        this.clientService = clientService;
-        this.matcher = matcher;
-        this.normalizer = normalizer;
-        this.titleParser = titleParser;
+                                       final CalendarSyncNewEventPlanner newEventPlanner,
+                                       final CalendarSyncExistingEventPlanner existingEventPlanner) {
+        this.lookupResolver = lookupResolver;
         this.existingEventResolver = existingEventResolver;
-        this.associationEvaluator = associationEvaluator;
+        this.newEventPlanner = newEventPlanner;
+        this.existingEventPlanner = existingEventPlanner;
     }
 
     public CalendarSyncLookups buildLookups(final Long userId) {
-        return new CalendarSyncLookups(
-                copyMap(clientService.listClientsByNormalizedName(userId)),
-                copyMap(matcher.servicesByNormalizedDescription(userId))
-        );
+        return lookupResolver.buildLookups(userId);
     }
 
     public CalendarSyncMutations processChunk(final CalendarSyncChunkRequest request) {
@@ -91,8 +74,7 @@ public class CalendarSyncMutationPlanner {
                     request.user(),
                     googleEvent,
                     existingEvent,
-                    request.lookups().clientsByName(),
-                    request.lookups().servicesByName(),
+                    request.lookups(),
                     existingEvent != null
                             ? existingServiceIdentitiesByEventId.getOrDefault(existingEvent.getId(), Map.of())
                             : Map.of(),
@@ -119,115 +101,33 @@ public class CalendarSyncMutationPlanner {
     }
 
     private CalendarEventMutationPlan processEvent(final Long userId,
-                                                   final ApplicationUser user,
+                                                   final com.api.user.ApplicationUser user,
                                                    final GoogleCalendarSyncEvent googleEvent,
                                                    final CalendarEvent existingEvent,
-                                                   final Map<String, Client> clientsByNormalizedName,
-                                                   final Map<String, Service> servicesByNormalizedDescription,
+                                                   final CalendarSyncLookups lookups,
                                                    final Map<String, Integer> existingServiceIdentities,
                                                    final Map<String, String> normCache) {
-        final String googleEventId = googleEvent.googleEventId();
         final String title = googleEvent.summary();
-        final String normalizedTitle = normalizeWithCache(title, normCache);
-        final java.time.Instant eventStart = googleEvent.start();
-        final java.time.Instant eventEnd = googleEvent.end();
-        final EventTitleParser.ParsedTitle parsedTitle = titleParser.parse(title);
-        final Client resolvedClient = resolveClient(
+        final CalendarSyncResolvedEventDetails resolvedDetails = lookupResolver.resolveEventDetails(
                 userId,
                 user,
-                parsedTitle,
-                clientsByNormalizedName,
+                title,
+                lookups,
                 normCache
         );
-        final List<Service> matchedServices =
-                resolveMatchedServices(parsedTitle, servicesByNormalizedDescription, normCache);
 
         if (existingEvent == null) {
-            final CalendarEvent calendarEvent =
-                    new CalendarEvent(user, googleEventId, title, normalizedTitle, eventStart, eventEnd);
-            return CalendarEventMutationPlan.forNewEvent(
-                    calendarEvent,
-                    resolvedClient,
-                    parsedTitle.hasClient(),
-                    parsedTitle.paymentType(),
-                    matchedServices
-            );
+            return newEventPlanner.plan(user, googleEvent, resolvedDetails);
         }
 
-        final boolean coreDataChanged =
-                associationEvaluator.hasCoreDataChanges(existingEvent, title, normalizedTitle, eventStart, eventEnd);
-        final boolean clientChanged = parsedTitle.hasClient()
-                && !associationEvaluator.isEquivalentClient(existingEvent.getClient(), resolvedClient);
-        final boolean serviceAssociationChanged = associationEvaluator.hasServiceAssociationChanges(
+        return existingEventPlanner.plan(
                 existingEvent,
-                matchedServices,
+                title,
+                googleEvent.start(),
+                googleEvent.end(),
+                resolvedDetails,
                 existingServiceIdentities
         );
-        final boolean paymentTypeChanged =
-                !Objects.equals(existingEvent.getPaymentType(), parsedTitle.paymentType());
-        final boolean shouldPersist =
-                coreDataChanged || clientChanged || serviceAssociationChanged || paymentTypeChanged;
-
-        if (!shouldPersist) {
-            return CalendarEventMutationPlan.noChanges(existingEvent);
-        }
-
-        return CalendarEventMutationPlan.forExistingEvent(
-                existingEvent,
-                CalendarEventCoreUpdate.changed(title, normalizedTitle, eventStart, eventEnd, coreDataChanged),
-                CalendarEventAssociationUpdate.forExisting(
-                        resolvedClient,
-                        clientChanged,
-                        parsedTitle.paymentType(),
-                        paymentTypeChanged,
-                        matchedServices,
-                        serviceAssociationChanged,
-                        existingEvent.getId() != null
-                )
-        );
-    }
-
-    private Client resolveClient(final Long userId,
-                                 final ApplicationUser user,
-                                 final EventTitleParser.ParsedTitle parsedTitle,
-                                 final Map<String, Client> clientsByNormalizedName,
-                                 final Map<String, String> normCache) {
-        if (!parsedTitle.hasClient()) {
-            return null;
-        }
-
-        final String normalizedClientName = normalizeWithCache(parsedTitle.clientName(), normCache);
-        Client client = clientsByNormalizedName.get(normalizedClientName);
-        if (client == null) {
-            client = clientService.findOrCreateByName(userId, user, parsedTitle.clientName());
-            clientsByNormalizedName.put(normalizedClientName, client);
-        }
-        return client;
-    }
-
-    private List<Service> resolveMatchedServices(final EventTitleParser.ParsedTitle parsedTitle,
-                                                 final Map<String, Service> servicesByNormalizedDescription,
-                                                 final Map<String, String> normCache) {
-        if (parsedTitle.serviceNames().isEmpty()) {
-            return List.of();
-        }
-
-        final List<Service> matchedServices = new ArrayList<>(parsedTitle.serviceNames().size());
-        for (final String serviceName : parsedTitle.serviceNames()) {
-            final String normalizedServiceName = normalizeWithCache(serviceName, normCache);
-            final Service service = servicesByNormalizedDescription.get(normalizedServiceName);
-            if (service != null) {
-                matchedServices.add(service);
-            }
-        }
-        return matchedServices;
-    }
-
-    private String normalizeWithCache(final String rawValue, final Map<String, String> normalizationCache) {
-        if (rawValue == null) {
-            return normalizer.normalize(null);
-        }
-        return normalizationCache.computeIfAbsent(rawValue, normalizer::normalize);
     }
 
     private boolean isDeletedEvent(final GoogleCalendarSyncEvent event) {
@@ -236,13 +136,6 @@ public class CalendarSyncMutationPlanner {
 
     private boolean isUsableGoogleEvent(final GoogleCalendarSyncEvent googleEvent) {
         return googleEvent != null && googleEvent.hasUsableId();
-    }
-
-    private <K, V> Map<K, V> copyMap(final Map<K, V> source) {
-        if (source == null || source.isEmpty()) {
-            return new HashMap<>();
-        }
-        return new HashMap<>(source);
     }
 
     private java.util.Set<Long> replacementEventIds(final List<CalendarEventMutationPlan> upserts) {

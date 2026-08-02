@@ -51,13 +51,17 @@ class CalendarSyncServiceLoadTest {
                 calendarEventServiceLinkRepository,
                 associationEvaluator
         );
-        CalendarSyncMutationPlanner mutationPlanner = new CalendarSyncMutationPlanner(
+        CalendarSyncLookupResolver lookupResolver = new CalendarSyncLookupResolver(
                 clientService,
                 matcher,
                 normalizer,
-                titleParser,
+                titleParser
+        );
+        CalendarSyncMutationPlanner mutationPlanner = new CalendarSyncMutationPlanner(
+                lookupResolver,
                 existingEventResolver,
-                associationEvaluator
+                new CalendarSyncNewEventPlanner(),
+                new CalendarSyncExistingEventPlanner(associationEvaluator)
         );
         CalendarSyncScopeReconciler scopeReconciler = new CalendarSyncScopeReconciler(calendarEventRepository);
         CalendarSyncPersistenceSupport persistenceSupport = new CalendarSyncPersistenceSupport(

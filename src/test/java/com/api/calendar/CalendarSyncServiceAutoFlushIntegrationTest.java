@@ -109,13 +109,17 @@ class CalendarSyncServiceAutoFlushIntegrationTest {
                 calendarEventServiceLinkRepository,
                 associationEvaluator
         );
-        CalendarSyncMutationPlanner mutationPlanner = new CalendarSyncMutationPlanner(
+        CalendarSyncLookupResolver lookupResolver = new CalendarSyncLookupResolver(
                 clientService,
                 matcher,
                 normalizer,
-                titleParser,
+                titleParser
+        );
+        CalendarSyncMutationPlanner mutationPlanner = new CalendarSyncMutationPlanner(
+                lookupResolver,
                 existingEventResolver,
-                associationEvaluator
+                new CalendarSyncNewEventPlanner(),
+                new CalendarSyncExistingEventPlanner(associationEvaluator)
         );
         CalendarSyncPersistenceSupport persistenceSupport = new CalendarSyncPersistenceSupport(
                 calendarEventRepository,

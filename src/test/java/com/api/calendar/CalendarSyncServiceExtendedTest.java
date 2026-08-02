@@ -87,13 +87,17 @@ class CalendarSyncServiceExtendedTest {
                 calendarEventServiceLinkRepository,
                 associationEvaluator
         );
-        final CalendarSyncMutationPlanner mutationPlanner = new CalendarSyncMutationPlanner(
+        final CalendarSyncLookupResolver lookupResolver = new CalendarSyncLookupResolver(
                 clientService,
                 matcher,
                 normalizer,
-                titleParser,
+                titleParser
+        );
+        final CalendarSyncMutationPlanner mutationPlanner = new CalendarSyncMutationPlanner(
+                lookupResolver,
                 existingEventResolver,
-                associationEvaluator
+                new CalendarSyncNewEventPlanner(),
+                new CalendarSyncExistingEventPlanner(associationEvaluator)
         );
         final CalendarSyncScopeReconciler scopeReconciler = new CalendarSyncScopeReconciler(calendarEventRepository);
         final CalendarSyncPersistenceSupport persistenceSupport = new CalendarSyncPersistenceSupport(
