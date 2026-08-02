@@ -107,6 +107,7 @@ jobs:
 
           existing_pr_number="$(
             gh api "repos/${GITHUB_REPOSITORY}/pulls" \
+              --method GET \
               -f state=open \
               -f head="${GITHUB_REPOSITORY_OWNER}:${GITHUB_REF_NAME}" \
               -f base=master \
