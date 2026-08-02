@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.Objects;
 
 @Component
-@SuppressWarnings("PMD.LongVariable")
 public class CalendarSyncAssociationEvaluator {
     private final CalendarServiceIdentityResolver identityResolver;
 
@@ -39,7 +38,7 @@ public class CalendarSyncAssociationEvaluator {
         if (matchedServices.isEmpty()) {
             changed = hasPersistedAssociation(existingEvent, savedCounts);
         } else {
-            final boolean missingIdentification = !existingEvent.isIdentified();
+            final boolean unidentified = !existingEvent.isIdentified();
             final Service leadService = matchedServices.get(0);
             final boolean snapshotChanged = !CalendarEventLegacySupport.hasServiceSnapshot(
                     existingEvent.getServiceDescriptionSnapshot(),
@@ -48,7 +47,7 @@ public class CalendarSyncAssociationEvaluator {
                     sumValues(matchedServices)
             );
             final boolean countChanged = !savedCounts.equals(identityResolver.countServices(matchedServices));
-            changed = missingIdentification || snapshotChanged || countChanged;
+            changed = unidentified || snapshotChanged || countChanged;
         }
         return changed;
     }
