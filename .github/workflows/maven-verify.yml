@@ -1,0 +1,175 @@
+name: Maven Verify
+
+on:
+  push:
+    branches-ignore:
+      - master
+  pull_request:
+    branches:
+      - master
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+concurrency:
+  group: maven-verify-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  inspect_push_branch:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      has_open_pr: ${{ steps.find_pr.outputs.has_open_pr }}
+      pr_title: ${{ steps.metadata.outputs.pr_title }}
+      pr_body: ${{ steps.metadata.outputs.pr_body }}
+    steps:
+      - name: Checkout branch head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Validate branch naming and commit trailers
+        id: metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          branch_name="${GITHUB_REF_NAME}"
+
+          if [[ ! "${branch_name}" =~ ^(feat|fix)/(.+)$ ]]; then
+            echo "Branch '${branch_name}' must follow feat/<descricao> or fix/<descricao>."
+            exit 1
+          fi
+
+          change_type="${BASH_REMATCH[1]}"
+          raw_description="${BASH_REMATCH[2]}"
+
+          if [[ "${raw_description}" == *"/"* ]]; then
+            echo "Branch description must be a single segment after feat/ or fix/."
+            exit 1
+          fi
+
+          normalized_description="$(printf '%s' "${raw_description}" \
+            | tr '_-' '  ' \
+            | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//')"
+
+          if [[ -z "${normalized_description}" ]]; then
+            echo "Branch description cannot be empty after normalization."
+            exit 1
+          fi
+
+          if [[ "${#normalized_description}" -gt 72 ]]; then
+            echo "Branch description must stay concise and have at most 72 characters after normalization."
+            exit 1
+          fi
+
+          commit_message="$(git log -1 --pretty=%B "${GITHUB_SHA}")"
+
+          objetivo_line="$(printf '%s\n' "${commit_message}" | awk '/^Objetivo:[[:space:]]*/ { sub(/^Objetivo:[[:space:]]*/, ""); print; exit }')"
+          como_line="$(printf '%s\n' "${commit_message}" | awk '/^Como:[[:space:]]*/ { sub(/^Como:[[:space:]]*/, ""); print; exit }')"
+
+          objetivo="$(printf '%s' "${objetivo_line}" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+          como="$(printf '%s' "${como_line}" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+
+          if [[ -z "${objetivo}" || -z "${como}" ]]; then
+            echo "The head commit must include non-empty trailers in this format:"
+            echo "Objetivo: <descricao em alto nivel>"
+            echo "Como: <descricao da implementacao>"
+            exit 1
+          fi
+
+          pr_title="${change_type}/${normalized_description}"
+
+          {
+            echo "pr_title=${pr_title}"
+            echo "pr_body<<EOF"
+            printf '1. Objetivo: %s\n2. Como: %s\n' "${objetivo}" "${como}"
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Detect existing open pull request
+        id: find_pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          existing_pr_number="$(
+            gh api "repos/${GITHUB_REPOSITORY}/pulls" \
+              -f state=open \
+              -f head="${GITHUB_REPOSITORY_OWNER}:${GITHUB_REF_NAME}" \
+              -f base=master \
+              -f per_page=1 \
+              --jq '.[0].number // empty'
+          )"
+
+          if [[ -n "${existing_pr_number}" ]]; then
+            echo "has_open_pr=true" >> "${GITHUB_OUTPUT}"
+            echo "Open PR #${existing_pr_number} already exists for ${GITHUB_REF_NAME}; skipping automatic creation."
+          else
+            echo "has_open_pr=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+  maven_verify:
+    name: Maven Verify
+    runs-on: ubuntu-latest
+    needs:
+      - inspect_push_branch
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'push' &&
+        needs.inspect_push_branch.result == 'success' &&
+        needs.inspect_push_branch.outputs.has_open_pr != 'true')
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Temurin Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Run Maven verify
+        shell: bash
+        run: mvn --batch-mode verify
+
+  open_pull_request:
+    if: |
+      github.event_name == 'push' &&
+      needs.inspect_push_branch.result == 'success' &&
+      needs.inspect_push_branch.outputs.has_open_pr != 'true' &&
+      needs.maven_verify.result == 'success'
+    runs-on: ubuntu-latest
+    needs:
+      - inspect_push_branch
+      - maven_verify
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Create pull request to master
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_TITLE: ${{ needs.inspect_push_branch.outputs.pr_title }}
+          PR_BODY: ${{ needs.inspect_push_branch.outputs.pr_body }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          gh pr create \
+            --repo "${GITHUB_REPOSITORY}" \
+            --base master \
+            --head "${GITHUB_REF_NAME}" \
+            --title "${PR_TITLE}" \
+            --body "${PR_BODY}"
