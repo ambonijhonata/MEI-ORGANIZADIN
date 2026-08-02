@@ -10,9 +10,7 @@ import java.util.Map;
 @Component
 @SuppressWarnings({
         "PMD.LongVariable",
-        "PMD.OnlyOneReturn",
-        "PMD.CognitiveComplexity",
-        "PMD.CyclomaticComplexity"
+        "PMD.OnlyOneReturn"
 })
 public class CalendarSyncMutationPlanner {
 
@@ -36,88 +34,101 @@ public class CalendarSyncMutationPlanner {
     }
 
     public CalendarSyncMutations processChunk(final CalendarSyncChunkRequest request) {
-        if (request.googleEvents() == null || request.googleEvents().isEmpty()) {
+        if (isEmptyChunk(request)) {
             return CalendarSyncMutations.empty();
         }
 
-        final Map<String, CalendarEvent> existingEventsByGoogleEventId =
-                existingEventResolver.loadExistingEventsByGoogleEventId(
-                        request.userId(),
-                        request.googleEvents(),
-                        request.fullSync()
-                );
-        final Map<Long, Map<String, Integer>> existingServiceIdentitiesByEventId =
-                existingEventResolver.loadServiceIdentityByEventId(existingEventsByGoogleEventId.values());
-
-        final List<CalendarEventMutationPlan> upserts = new ArrayList<>(request.googleEvents().size());
-        final List<CalendarEvent> deletions = new ArrayList<>();
-        int created = 0;
-        int updated = 0;
-        int deleted = 0;
-
-        for (final GoogleCalendarSyncEvent googleEvent : request.googleEvents()) {
-            if (!isUsableGoogleEvent(googleEvent)) {
-                continue;
-            }
-
-            final CalendarEvent existingEvent = existingEventsByGoogleEventId.get(googleEvent.googleEventId());
-            if (isDeletedEvent(googleEvent)) {
-                if (existingEvent != null && request.allowDeletes()) {
-                    deletions.add(existingEvent);
-                    deleted++;
-                }
-                continue;
-            }
-
-            final CalendarEventMutationPlan mutationPlan = processEvent(
-                    request.userId(),
-                    request.user(),
-                    googleEvent,
-                    existingEvent,
-                    request.lookups(),
-                    existingEvent != null
-                            ? existingServiceIdentitiesByEventId.getOrDefault(existingEvent.getId(), Map.of())
-                            : Map.of(),
-                    request.normCache()
-            );
-            if (mutationPlan.shouldPersist()) {
-                upserts.add(mutationPlan);
-            }
-            if (mutationPlan.isNew()) {
-                created++;
-            } else if (mutationPlan.shouldPersist()) {
-                updated++;
-            }
-        }
-
-        return new CalendarSyncMutations(
-                upserts,
-                deletions,
-                replacementEventIds(upserts),
-                created,
-                updated,
-                deleted
-        );
+        final ExistingChunkState chunkState = loadExistingChunkState(request);
+        final ChunkResultBuilder result = new ChunkResultBuilder(request.googleEvents().size());
+        processGoogleEvents(request, chunkState, result);
+        return result.toMutations();
     }
 
-    private CalendarEventMutationPlan processEvent(final Long userId,
-                                                   final com.api.user.ApplicationUser user,
+    private boolean isEmptyChunk(final CalendarSyncChunkRequest request) {
+        return request.googleEvents() == null || request.googleEvents().isEmpty();
+    }
+
+    private ExistingChunkState loadExistingChunkState(final CalendarSyncChunkRequest request) {
+        final Map<String, CalendarEvent> eventsByGoogleId = existingEventResolver.loadExistingEventsByGoogleEventId(
+                request.userId(),
+                request.googleEvents(),
+                request.fullSync()
+        );
+        final Map<Long, Map<String, Integer>> serviceIdentityByEventId =
+                existingEventResolver.loadServiceIdentityByEventId(eventsByGoogleId.values());
+        return new ExistingChunkState(eventsByGoogleId, serviceIdentityByEventId);
+    }
+
+    private void processGoogleEvents(final CalendarSyncChunkRequest request,
+                                     final ExistingChunkState chunkState,
+                                     final ChunkResultBuilder result) {
+        for (final GoogleCalendarSyncEvent googleEvent : request.googleEvents()) {
+            processGoogleEvent(request, chunkState, result, googleEvent);
+        }
+    }
+
+    private void processGoogleEvent(final CalendarSyncChunkRequest request,
+                                    final ExistingChunkState chunkState,
+                                    final ChunkResultBuilder result,
+                                    final GoogleCalendarSyncEvent googleEvent) {
+        if (!isUsableGoogleEvent(googleEvent)) {
+            return;
+        }
+
+        final CalendarEvent existingEvent = chunkState.findExistingEvent(googleEvent.googleEventId());
+        if (isDeletedEvent(googleEvent)) {
+            handleDeletedEvent(request, result, existingEvent);
+            return;
+        }
+
+        final CalendarEventMutationPlan mutationPlan = processEvent(
+                request,
+                googleEvent,
+                existingEvent,
+                chunkState.serviceIdentityOf(existingEvent),
+                request.normCache()
+        );
+        result.recordMutation(mutationPlan);
+    }
+
+    private void handleDeletedEvent(final CalendarSyncChunkRequest request,
+                                    final ChunkResultBuilder result,
+                                    final CalendarEvent existingEvent) {
+        if (existingEvent != null && request.allowDeletes()) {
+            result.recordDeletion(existingEvent);
+        }
+    }
+
+    private CalendarEventMutationPlan processEvent(final CalendarSyncChunkRequest request,
                                                    final GoogleCalendarSyncEvent googleEvent,
                                                    final CalendarEvent existingEvent,
-                                                   final CalendarSyncLookups lookups,
                                                    final Map<String, Integer> existingServiceIdentities,
                                                    final Map<String, String> normCache) {
         final String title = googleEvent.summary();
-        final CalendarSyncResolvedEventDetails resolvedDetails = lookupResolver.resolveEventDetails(
-                userId,
-                user,
+        final CalendarSyncResolvedEventDetails resolvedDetails = resolveEventDetails(request, title, normCache);
+        return planResolvedEvent(request, googleEvent, existingEvent, existingServiceIdentities, title, resolvedDetails);
+    }
+
+    private CalendarSyncResolvedEventDetails resolveEventDetails(final CalendarSyncChunkRequest request,
+                                                                 final String title,
+                                                                 final Map<String, String> normCache) {
+        return lookupResolver.resolveEventDetails(
+                request.userId(),
+                request.user(),
                 title,
-                lookups,
+                request.lookups(),
                 normCache
         );
+    }
 
+    private CalendarEventMutationPlan planResolvedEvent(final CalendarSyncChunkRequest request,
+                                                        final GoogleCalendarSyncEvent googleEvent,
+                                                        final CalendarEvent existingEvent,
+                                                        final Map<String, Integer> existingServiceIdentities,
+                                                        final String title,
+                                                        final CalendarSyncResolvedEventDetails resolvedDetails) {
         if (existingEvent == null) {
-            return newEventPlanner.plan(user, googleEvent, resolvedDetails);
+            return newEventPlanner.plan(request.user(), googleEvent, resolvedDetails);
         }
 
         return existingEventPlanner.plan(
@@ -146,5 +157,61 @@ public class CalendarSyncMutationPlanner {
             }
         }
         return replacementIds;
+    }
+
+    private record ExistingChunkState(Map<String, CalendarEvent> eventsByGoogleId,
+                                      Map<Long, Map<String, Integer>> serviceIdentityByEventId) {
+
+        private CalendarEvent findExistingEvent(final String googleEventId) {
+            return eventsByGoogleId.get(googleEventId);
+        }
+
+        private Map<String, Integer> serviceIdentityOf(final CalendarEvent existingEvent) {
+            Map<String, Integer> serviceIdentity = Map.of();
+            if (existingEvent != null) {
+                serviceIdentity = serviceIdentityByEventId.getOrDefault(existingEvent.getId(), Map.of());
+            }
+            return serviceIdentity;
+        }
+    }
+
+    private final class ChunkResultBuilder {
+        private final List<CalendarEventMutationPlan> upserts;
+        private final List<CalendarEvent> deletions;
+        private int created;
+        private int updated;
+        private int deleted;
+
+        private ChunkResultBuilder(final int eventCount) {
+            this.upserts = new ArrayList<>(eventCount);
+            this.deletions = new ArrayList<>();
+        }
+
+        private void recordDeletion(final CalendarEvent existingEvent) {
+            deletions.add(existingEvent);
+            deleted++;
+        }
+
+        private void recordMutation(final CalendarEventMutationPlan mutationPlan) {
+            if (mutationPlan.shouldPersist()) {
+                upserts.add(mutationPlan);
+            }
+            if (mutationPlan.isNew()) {
+                created++;
+            } else if (mutationPlan.shouldPersist()) {
+                updated++;
+            }
+        }
+
+        private CalendarSyncMutations toMutations() {
+            return new CalendarSyncMutations(
+                    upserts,
+                    deletions,
+                    replacementEventIds(upserts),
+                    created,
+                    updated,
+                    deleted
+            );
+        }
     }
 }
