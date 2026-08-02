@@ -198,7 +198,7 @@ class ServiceCatalogServiceTest {
 
         assertEquals(1, result.deleted());
         assertEquals(1, result.linkedCount());
-        verify(serviceRepository).delete(deletable);
+        verify(serviceRepository).deleteAll(List.of(deletable));
         verify(serviceRepository, never()).delete(linked);
     }
 
@@ -216,6 +216,7 @@ class ServiceCatalogServiceTest {
         assertEquals(0, result.deleted());
         assertEquals(2, result.linkedCount());
         verify(serviceRepository, never()).delete(any());
+        verify(serviceRepository, never()).deleteAll(any());
     }
 
     @Test
@@ -230,7 +231,7 @@ class ServiceCatalogServiceTest {
 
         assertEquals(1, result.deleted());
         assertEquals(0, result.linkedCount());
-        verify(serviceRepository).delete(owned);
+        verify(serviceRepository).deleteAll(List.of(owned));
         verify(serviceLinkRepository, times(1)).existsByServiceId(30L);
     }
 

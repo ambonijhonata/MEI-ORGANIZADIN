@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -166,6 +167,7 @@ public class ServiceCatalogService {
 
     private BulkDeleteResult deleteOwnedServices(final Long userId, final Set<Long> serviceIds) {
         final List<Service> ownedServices = serviceRepository.findByUserIdAndIdIn(userId, serviceIds);
+        final List<Service> deletableServices = new ArrayList<>();
         int deleted = 0;
         int linkedCount = 0;
 
@@ -178,8 +180,12 @@ public class ServiceCatalogService {
                 linkedCount++;
                 continue;
             }
-            serviceRepository.delete(service);
-            deleted++;
+            deletableServices.add(service);
+        }
+
+        if (!deletableServices.isEmpty()) {
+            serviceRepository.deleteAll(deletableServices);
+            deleted = deletableServices.size();
         }
 
         return new BulkDeleteResult(deleted, linkedCount);
