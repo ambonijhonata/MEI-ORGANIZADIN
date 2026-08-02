@@ -21,7 +21,6 @@ concurrency:
 
 jobs:
   inspect_push_branch:
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -32,11 +31,13 @@ jobs:
       pr_body: ${{ steps.metadata.outputs.pr_body }}
     steps:
       - name: Checkout branch head
+        if: github.event_name == 'push'
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
       - name: Validate branch naming and commit trailers
+        if: github.event_name == 'push'
         id: metadata
         shell: bash
         run: |
@@ -96,6 +97,7 @@ jobs:
           } >> "${GITHUB_OUTPUT}"
 
       - name: Detect existing open pull request
+        if: github.event_name == 'push'
         id: find_pr
         env:
           GH_TOKEN: ${{ github.token }}
