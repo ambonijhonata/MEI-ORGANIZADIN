@@ -18,7 +18,6 @@ import lombok.Setter;
 @Table(name = "calendar_events", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"user_id", "google_event_id"})
 })
-@SuppressWarnings("PMD.ShortVariable")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class CalendarEvent {
@@ -26,9 +25,6 @@ public class CalendarEvent {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
     private Long eventId;
-
-    @Transient
-    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -109,7 +105,7 @@ public class CalendarEvent {
     }
 
     public Long getId() {
-        return eventId != null ? eventId : id;
+        return eventId;
     }
 
     public String getTitle() {

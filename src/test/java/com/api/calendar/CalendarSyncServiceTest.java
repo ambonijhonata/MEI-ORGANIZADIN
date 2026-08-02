@@ -747,7 +747,7 @@ class CalendarSyncServiceTest {
 
     private void setCalendarEventId(CalendarEvent event, Long eventId) {
         try {
-            var idField = CalendarEvent.class.getDeclaredField("id");
+            var idField = CalendarEvent.class.getDeclaredField("eventId");
             idField.setAccessible(true);
             idField.set(event, eventId);
         } catch (ReflectiveOperationException e) {
