@@ -9,7 +9,6 @@ on:
       - master
     types:
       - synchronize
-      - reopened
 
 permissions:
   contents: read
