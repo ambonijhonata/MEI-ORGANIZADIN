@@ -29,6 +29,7 @@ public class HealthController {
 
     @GetMapping("/healthz")
     public ResponseEntity<Boolean> healthz() {
+        final ResponseEntity<Boolean> cachedResponse = this.healthyResponse;
         return this.healthyResponse;
     }
 
