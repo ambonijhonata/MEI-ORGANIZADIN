@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class HealthController {
 
-    // Reuses one immutable response for the health check endpoint.
+    // Reuses a stable immutable response for the health check endpoint.
     private final ResponseEntity<Boolean> healthyResponse;
 
     public HealthController() {
