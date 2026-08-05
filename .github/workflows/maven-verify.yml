@@ -167,11 +167,18 @@ jobs:
           event_path = pathlib.Path(os.environ["GITHUB_EVENT_PATH"])
           event = json.loads(event_path.read_text(encoding="utf-8"))
           pr_number = event["pull_request"]["number"]
+          head_sha = event["pull_request"]["head"]["sha"]
           repo = os.environ["GITHUB_REPOSITORY"]
           token = os.environ["GITHUB_TOKEN"]
           server_url = os.environ["GITHUB_SERVER_URL"]
           run_id = os.environ["GITHUB_RUN_ID"]
-          sha = os.environ["GITHUB_SHA"]
+          sha = head_sha
+
+          def local_name(tag: str) -> str:
+            return tag.split("}", 1)[-1]
+
+          def child_elements(node, name: str):
+            return [child for child in list(node) if local_name(child.tag) == name]
 
           marker = "<!-- codex-pmd-cpd-summary -->"
           pmd_path = pathlib.Path("target/pmd.xml")
@@ -182,10 +189,10 @@ jobs:
               return []
             root = ET.parse(path).getroot()
             violations = []
-            for file_node in root.findall("file"):
+            for file_node in child_elements(root, "file"):
               file_name = file_node.get("name", "")
               rel_name = file_name.split("/MEI-ORGANIZADIN/")[-1]
-              for violation in file_node.findall("violation"):
+              for violation in child_elements(file_node, "violation"):
                 beginline = violation.get("beginline", "?")
                 rule = violation.get("rule", "unknown-rule")
                 text = " ".join((violation.text or "").split())
@@ -197,10 +204,10 @@ jobs:
               return []
             root = ET.parse(path).getroot()
             duplications = []
-            for duplication in root.findall("duplication"):
+            for duplication in child_elements(root, "duplication"):
               lines = duplication.get("lines", "?")
               files = []
-              for file_node in duplication.findall("file"):
+              for file_node in child_elements(duplication, "file"):
                 file_name = file_node.get("path", "")
                 rel_name = file_name.split("/MEI-ORGANIZADIN/")[-1]
                 line = file_node.get("line", "?")
