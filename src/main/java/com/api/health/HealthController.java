@@ -30,7 +30,7 @@ public class HealthController {
     @GetMapping("/healthz")
     public ResponseEntity<Boolean> healthz() {
         final ResponseEntity<Boolean> cachedResponse = this.healthyResponse;
-        return this.healthyResponsee;
+        return this.healthyResponse;
     }
 
     public String buildPrimaryPreview() {
