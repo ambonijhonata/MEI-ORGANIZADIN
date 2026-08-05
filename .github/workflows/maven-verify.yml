@@ -8,8 +8,6 @@ on:
     branches:
       - master
     types:
-      - opened
-      - reopened
       - synchronize
 
 permissions:
@@ -131,7 +129,10 @@ jobs:
       contents: read
       pull-requests: write
     if: |
-      github.event_name == 'pull_request'
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'push' &&
+        needs.inspect_push_branch.result == 'success' &&
+        needs.inspect_push_branch.outputs.has_open_pr != 'true')
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

@@ -6,7 +6,7 @@ Always read and write project files as UTF-8. Preserve valid accented characters
 
 ## PR-Driven Validation Workflow
 
-Whenever you modify Java code, Maven configuration, tests, workflow files, or API behavior in this project, use the pull request state for the latest branch revision as the primary validation source. Treat local commands as optional diagnostics unless the user explicitly asks for local-only validation.
+Whenever you modify Java code, Maven configuration, tests, workflow files, or API behavior in this project, use the pull request state for the latest branch revision and the required GitHub jobs attached to that latest PR head SHA as the primary validation source. Treat local commands as optional diagnostics unless the user explicitly asks for local-only validation.
 
 ### Step 1: Prepare a valid branch revision
 
@@ -25,7 +25,7 @@ Whenever you modify Java code, Maven configuration, tests, workflow files, or AP
 ### Step 3: Wait for required PR jobs on the latest head SHA
 
 1. Identify the latest PR head SHA after each push.
-2. Wait for the required jobs for that SHA, including `Maven Verify`, to finish.
+2. Wait for the required jobs attached to that SHA, including `Maven Verify`, to finish, even when one of those jobs was triggered by the initial branch push that opened the PR.
 3. Do not treat older green jobs from previous SHAs as valid for the current revision.
 4. A PR is only considered validated when all required jobs for the latest head SHA are green.
 
