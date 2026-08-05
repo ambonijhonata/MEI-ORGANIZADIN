@@ -18,10 +18,6 @@ public class HealthReportCpdProbe {
     private static final String VALOR = "valor";
     private static final String STATUS = "status";
 
-    public HealthReportCpdProbe() {
-        // Explicit constructor to avoid unrelated PMD violations during CPD inspection.
-    }
-
     public String buildPrimaryPreview() {
         final List<String> labels = new ArrayList<>();
         labels.add(AGENDA);
