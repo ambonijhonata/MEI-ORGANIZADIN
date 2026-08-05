@@ -8,6 +8,8 @@ on:
     branches:
       - master
     types:
+      - opened
+      - reopened
       - synchronize
 
 permissions:
@@ -129,10 +131,7 @@ jobs:
       contents: read
       pull-requests: write
     if: |
-      github.event_name == 'pull_request' ||
-      (github.event_name == 'push' &&
-        needs.inspect_push_branch.result == 'success' &&
-        needs.inspect_push_branch.outputs.has_open_pr != 'true')
+      github.event_name == 'pull_request'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -276,12 +275,10 @@ jobs:
     if: |
       github.event_name == 'push' &&
       needs.inspect_push_branch.result == 'success' &&
-      needs.inspect_push_branch.outputs.has_open_pr != 'true' &&
-      needs.maven_verify.result == 'success'
+      needs.inspect_push_branch.outputs.has_open_pr != 'true'
     runs-on: ubuntu-latest
     needs:
       - inspect_push_branch
-      - maven_verify
     permissions:
       contents: read
       pull-requests: write
