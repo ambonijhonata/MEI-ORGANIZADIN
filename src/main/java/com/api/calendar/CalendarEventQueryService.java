@@ -4,7 +4,7 @@ import com.api.common.PageRequestSanitizer;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class CalendarEventQueryService {
+    private static final ZoneId CALENDAR_ZONE = ZoneId.of("America/Sao_Paulo");
     private static final int DEFAULT_PAGE = 0;
     private static final int DEFAULT_PAGE_SIZE = 50;
     private static final int MAX_PAGE_SIZE = 100;
@@ -107,16 +108,16 @@ public class CalendarEventQueryService {
     ) {
         final Page<CalendarEvent> page;
         if (eventStart != null && eventEnd != null) {
-            final Instant start = eventStart.atStartOfDay(ZoneOffset.UTC).toInstant();
-            final Instant end = eventEnd.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+            final Instant start = eventStart.atStartOfDay(CALENDAR_ZONE).toInstant();
+            final Instant end = eventEnd.plusDays(1).atStartOfDay(CALENDAR_ZONE).toInstant();
             page = eventRepository.findByUserIdAndEventStartGreaterThanEqualAndEventStartLessThan(
                     userId, start, end, pageable
             );
         } else if (eventStart != null) {
-            final Instant start = eventStart.atStartOfDay(ZoneOffset.UTC).toInstant();
+            final Instant start = eventStart.atStartOfDay(CALENDAR_ZONE).toInstant();
             page = eventRepository.findByUserIdAndEventStartGreaterThanEqual(userId, start, pageable);
         } else if (eventEnd != null) {
-            final Instant end = eventEnd.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+            final Instant end = eventEnd.plusDays(1).atStartOfDay(CALENDAR_ZONE).toInstant();
             page = eventRepository.findByUserIdAndEventStartLessThan(userId, end, pageable);
         } else {
             page = eventRepository.findByUserId(userId, pageable);
