@@ -47,6 +47,7 @@ public class GoogleIdTokenAuthenticationFilter extends OncePerRequestFilter {
                 filterChain.doFilter(request, response);
                 return;
             }
+            SecurityContextHolder.clearContext();
             logValidationResult(accessValidation.status().name(), request);
         }
 

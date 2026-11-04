@@ -4,6 +4,7 @@ import com.api.IntegrationTestBase;
 import com.api.auth.AuthenticatedUser;
 import com.api.calendar.CalendarEvent;
 import com.api.calendar.CalendarEventRepository;
+import com.api.client.ClientRepository;
 import com.api.user.ApplicationUser;
 import com.api.user.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,10 +45,14 @@ class ServiceCatalogBulkDeleteIntegrationTest extends IntegrationTestBase {
     @Autowired
     private CalendarEventRepository calendarEventRepository;
 
+    @Autowired
+    private ClientRepository clientRepository;
+
     @BeforeEach
     void cleanDatabase() {
         calendarEventRepository.deleteAll();
         serviceRepository.deleteAll();
+        clientRepository.deleteAll();
         userRepository.deleteAll();
     }
 
