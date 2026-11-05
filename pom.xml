@@ -206,7 +206,7 @@
                     <failOnViolation>true</failOnViolation>
                     <failurePriority>5</failurePriority>
                     <maxAllowedViolations>0</maxAllowedViolations>
-                    <printFailingErrors>true</printFailingErrors>
+                    <printFailingErrors>false</printFailingErrors>
                     <rulesets>
                         <ruleset>category/java/bestpractices.xml</ruleset>
                         <ruleset>category/java/codestyle.xml</ruleset>
