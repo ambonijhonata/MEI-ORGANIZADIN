@@ -14,6 +14,7 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Optional;
 
 @Entity
 @Table(name = "clients")
@@ -89,7 +90,10 @@ public class Client {
     }
 
     public boolean belongsTo(final Long userId) {
-        return user != null && user.getId() != null && user.getId().equals(userId);
+        return Optional.ofNullable(user)
+                .map(ApplicationUser::getId)
+                .map(id -> id.equals(userId))
+                .orElse(false);
     }
 
     public boolean hasContactInfo() {

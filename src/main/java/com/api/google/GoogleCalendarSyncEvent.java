@@ -10,6 +10,12 @@ public record GoogleCalendarSyncEvent(
         Instant end
 ) {
 
+    private static final String UNTITLED_SUMMARY = "(Sem título)";
+
+    public GoogleCalendarSyncEvent {
+        summary = summary == null || summary.isBlank() ? UNTITLED_SUMMARY : summary;
+    }
+
     public boolean hasUsableId() {
         return googleEventId != null && !googleEventId.isBlank();
     }

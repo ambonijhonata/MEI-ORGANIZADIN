@@ -18,6 +18,7 @@ import org.springframework.data.domain.Sort;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -119,6 +120,19 @@ class ClientServiceTest {
 
         assertNotNull(result);
         verify(clientRepository).findByUserIdAndNameStartsWithIgnoreCase(eq(1L), eq("Ana"), any(PageRequest.class));
+    }
+
+    @Test
+    void shouldListClientsPaginatedWithBlankFilterAsNoFilter() {
+        Sort sort = Sort.by(Sort.Direction.ASC, "id");
+        Page<Client> page = new PageImpl<>(List.of());
+        when(clientRepository.findByUserId(eq(1L), any(PageRequest.class))).thenReturn(page);
+
+        clientService.listClientsPaginated(1L, "  ", 1, 25, sort);
+
+        verify(clientRepository).findByUserId(eq(1L), any(PageRequest.class));
+        verify(clientRepository, never())
+                .findByUserIdAndNameStartsWithIgnoreCase(eq(1L), anyString(), any(PageRequest.class));
     }
 
     @Test
@@ -296,6 +310,21 @@ class ClientServiceTest {
         Optional<Client> result = clientService.findByNormalizedName(1L, "unknown");
 
         assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void shouldListClientsByNormalizedNameKeepingTheFirstClient() {
+        ApplicationUser user = new ApplicationUser("sub", "email@test.com", "Name");
+        Client firstMaria = new Client(user, "Maria", "maria");
+        Client duplicateMaria = new Client(user, "Maria Silva", "maria");
+        Client ana = new Client(user, "Ana", "ana");
+        when(clientRepository.findAllByUserId(1L)).thenReturn(List.of(firstMaria, duplicateMaria, ana));
+
+        Map<String, Client> clients = clientService.listClientsByNormalizedName(1L);
+
+        assertEquals(2, clients.size());
+        assertSame(firstMaria, clients.get("maria"));
+        assertSame(ana, clients.get("ana"));
     }
 
     @Test
