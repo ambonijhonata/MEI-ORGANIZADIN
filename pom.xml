@@ -28,6 +28,7 @@
         <mockito.version>5.17.0</mockito.version>
         <springdoc.version>2.8.6</springdoc.version>
         <lombok.version>1.18.46</lombok.version>
+        <jacoco.playwright.surefireArgLine></jacoco.playwright.surefireArgLine>
     </properties>
 
     <dependencies>
@@ -191,6 +192,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <argLine>
+                        @{jacoco.playwright.surefireArgLine}
                         -XX:+EnableDynamicAgentLoading
                         --add-opens java.base/java.lang=ALL-UNNAMED
                         --add-opens java.base/java.lang.reflect=ALL-UNNAMED
@@ -228,4 +230,147 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>playwright-coverage</id>
+            <properties>
+                <jacoco.playwright.destFile>${project.build.directory}/jacoco-playwright.exec</jacoco.playwright.destFile>
+                <jacoco.playwright.unitDestFile>${project.build.directory}/jacoco-playwright-unit.exec</jacoco.playwright.unitDestFile>
+                <jacoco.playwright.mergedDestFile>${project.build.directory}/jacoco-playwright-merged.exec</jacoco.playwright.mergedDestFile>
+                <jacoco.playwright.reportDirectory>${project.build.directory}/site/jacoco-playwright</jacoco.playwright.reportDirectory>
+                <jacoco.playwright.minimumLineCoverage>0.70</jacoco.playwright.minimumLineCoverage>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.jacoco</groupId>
+                        <artifactId>jacoco-maven-plugin</artifactId>
+                        <version>0.8.12</version>
+                        <executions>
+                            <execution>
+                                <id>playwright-prepare-surefire-agent</id>
+                                <phase>initialize</phase>
+                                <goals>
+                                    <goal>prepare-agent</goal>
+                                </goals>
+                                <configuration>
+                                    <propertyName>jacoco.playwright.surefireArgLine</propertyName>
+                                    <destFile>${jacoco.playwright.unitDestFile}</destFile>
+                                    <append>true</append>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>playwright-prepare-agent</id>
+                                <phase>initialize</phase>
+                                <goals>
+                                    <goal>prepare-agent</goal>
+                                </goals>
+                                <configuration>
+                                    <propertyName>spring-boot.run.jvmArguments</propertyName>
+                                    <destFile>${jacoco.playwright.destFile}</destFile>
+                                    <append>false</append>
+                                    <output>tcpserver</output>
+                                    <address>127.0.0.1</address>
+                                    <port>6300</port>
+                                    <dumpOnExit>false</dumpOnExit>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>playwright-dump</id>
+                                <goals>
+                                    <goal>dump</goal>
+                                </goals>
+                                <configuration>
+                                    <address>127.0.0.1</address>
+                                    <port>6300</port>
+                                    <destFile>${jacoco.playwright.destFile}</destFile>
+                                    <append>false</append>
+                                    <reset>false</reset>
+                                    <retryCount>10</retryCount>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>playwright-merge</id>
+                                <goals>
+                                    <goal>merge</goal>
+                                </goals>
+                                <configuration>
+                                    <destFile>${jacoco.playwright.mergedDestFile}</destFile>
+                                    <fileSets>
+                                        <fileSet>
+                                            <directory>${project.build.directory}</directory>
+                                            <includes>
+                                                <include>jacoco-playwright-unit.exec</include>
+                                                <include>jacoco-playwright.exec</include>
+                                            </includes>
+                                        </fileSet>
+                                    </fileSets>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>playwright-report</id>
+                                <goals>
+                                    <goal>report</goal>
+                                </goals>
+                                <configuration>
+                                    <dataFile>${jacoco.playwright.mergedDestFile}</dataFile>
+                                    <outputDirectory>${jacoco.playwright.reportDirectory}</outputDirectory>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>playwright-check</id>
+                                <goals>
+                                    <goal>check</goal>
+                                </goals>
+                                <configuration>
+                                    <dataFile>${jacoco.playwright.mergedDestFile}</dataFile>
+                                    <rules>
+                                        <rule>
+                                            <element>BUNDLE</element>
+                                            <limits>
+                                                <limit>
+                                                    <counter>LINE</counter>
+                                                    <value>COVEREDRATIO</value>
+                                                    <minimum>${jacoco.playwright.minimumLineCoverage}</minimum>
+                                                </limit>
+                                            </limits>
+                                        </rule>
+                                        <rule>
+                                            <element>PACKAGE</element>
+                                            <includes>
+                                                <include>com.api.client</include>
+                                            </includes>
+                                            <limits>
+                                                <limit>
+                                                    <counter>LINE</counter>
+                                                    <value>COVEREDRATIO</value>
+                                                    <minimum>1.0</minimum>
+                                                </limit>
+                                                <limit>
+                                                    <counter>BRANCH</counter>
+                                                    <value>COVEREDRATIO</value>
+                                                    <minimum>1.0</minimum>
+                                                </limit>
+                                                <limit>
+                                                    <counter>INSTRUCTION</counter>
+                                                    <value>COVEREDRATIO</value>
+                                                    <minimum>1.0</minimum>
+                                                </limit>
+                                                <limit>
+                                                    <counter>METHOD</counter>
+                                                    <value>COVEREDRATIO</value>
+                                                    <minimum>1.0</minimum>
+                                                </limit>
+                                            </limits>
+                                        </rule>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

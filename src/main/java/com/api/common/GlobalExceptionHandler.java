@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -29,6 +30,7 @@ public class GlobalExceptionHandler {
     private static final String PAGE_FIELD = "page";
     private static final String SIZE_FIELD = "size";
     private static final String REQUEST_FIELD = "request";
+    private static final String REQUEST_REQUIRED = "request is required";
     private static final String PAGE_INDEX_PREFIX = "Page index";
     private static final String PAGE_SIZE_PREFIX = "Page size";
 
@@ -121,6 +123,7 @@ public class GlobalExceptionHandler {
             MethodArgumentNotValidException.class,
             InvalidRequestParameterException.class,
             MethodArgumentTypeMismatchException.class,
+            HttpMessageNotReadableException.class,
             IllegalArgumentException.class
     })
     public ResponseEntity<ValidationErrorResponse> handleValidationExceptions(final Exception exception) {
@@ -140,6 +143,10 @@ public class GlobalExceptionHandler {
                     : REQUEST_FIELD;
             response = validationErrorResponse(List.of(
                     new FieldError(fieldName, fieldName + INVALID_SUFFIX)
+            ));
+        } else if (exception instanceof HttpMessageNotReadableException) {
+            response = validationErrorResponse(List.of(
+                    new FieldError(REQUEST_FIELD, REQUEST_REQUIRED)
             ));
         } else if (exception instanceof IllegalArgumentException illegalArgEx) {
             response = resolveIllegalArgumentValidationError(illegalArgEx);

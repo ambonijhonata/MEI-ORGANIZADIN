@@ -8,6 +8,8 @@ import java.lang.reflect.Method;
 import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class ClientTest {
 
@@ -85,6 +87,50 @@ class ClientTest {
         client.updatePersonalInfo("12345678901", null, null, null);
 
         assertTrue(client.hasContactInfo());
+    }
+
+    @Test
+    void shouldEvaluateOwnershipForMissingAndMatchingUsers() {
+        Client withoutUser = new Client(null, "Maria", "maria");
+        assertFalse(withoutUser.belongsTo(1L));
+
+        ApplicationUser userWithoutId = mock(ApplicationUser.class);
+        Client withoutUserId = new Client(userWithoutId, "Maria", "maria");
+        assertFalse(withoutUserId.belongsTo(1L));
+
+        ApplicationUser identifiedUser = mock(ApplicationUser.class);
+        when(identifiedUser.getId()).thenReturn(1L);
+        Client ownedClient = new Client(identifiedUser, "Maria", "maria");
+        assertTrue(ownedClient.belongsTo(1L));
+        assertFalse(ownedClient.belongsTo(2L));
+        assertFalse(ownedClient.belongsTo(null));
+    }
+
+    @Test
+    void shouldEvaluateEveryContactInfoField() {
+        assertTrue(clientWithContact("123", null, null, null).hasContactInfo());
+        assertTrue(clientWithContact(null, LocalDate.of(1990, 1, 1), null, null).hasContactInfo());
+        assertTrue(clientWithContact(null, null, "maria@test.com", null).hasContactInfo());
+        assertTrue(clientWithContact(null, null, null, "11999999999").hasContactInfo());
+    }
+
+    @Test
+    void shouldEvaluateNormalizedName() {
+        assertFalse(new Client(user, "Maria", null).hasNormalizedName("maria"));
+
+        Client client = new Client(user, "Maria", "maria");
+        assertTrue(client.hasNormalizedName("maria"));
+        assertFalse(client.hasNormalizedName("ana"));
+    }
+
+    private Client clientWithContact(
+            final String cpf,
+            final LocalDate dateOfBirth,
+            final String email,
+            final String phone) {
+        Client client = new Client(user, "Maria", "maria");
+        client.updatePersonalInfo(cpf, dateOfBirth, email, phone);
+        return client;
     }
 
     private static void invokeLifecycleMethod(final Client client, final String methodName) {
