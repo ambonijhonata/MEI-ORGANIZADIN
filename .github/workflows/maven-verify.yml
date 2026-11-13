@@ -125,6 +125,9 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - inspect_push_branch
+    permissions:
+      contents: read
+      pull-requests: write
     if: |
       github.event_name == 'pull_request' ||
       (github.event_name == 'push' &&
@@ -145,16 +148,138 @@ jobs:
         shell: bash
         run: mvn --batch-mode verify
 
+      - name: Summarize PMD and CPD for the pull request
+        if: always() && github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python <<'PY'
+          import json
+          import os
+          import pathlib
+          import urllib.error
+          import urllib.request
+          import xml.etree.ElementTree as ET
+
+          event_path = pathlib.Path(os.environ["GITHUB_EVENT_PATH"])
+          event = json.loads(event_path.read_text(encoding="utf-8"))
+          pr_number = event["pull_request"]["number"]
+          head_sha = event["pull_request"]["head"]["sha"]
+          repo = os.environ["GITHUB_REPOSITORY"]
+          token = os.environ["GITHUB_TOKEN"]
+          server_url = os.environ["GITHUB_SERVER_URL"]
+          run_id = os.environ["GITHUB_RUN_ID"]
+          sha = head_sha
+
+          def local_name(tag: str) -> str:
+            return tag.split("}", 1)[-1]
+
+          def child_elements(node, name: str):
+            return [child for child in list(node) if local_name(child.tag) == name]
+
+          marker = "<!-- codex-pmd-cpd-summary -->"
+          pmd_path = pathlib.Path("target/pmd.xml")
+          cpd_path = pathlib.Path("target/cpd.xml")
+
+          def summarize_pmd(path: pathlib.Path) -> list[str]:
+            if not path.exists():
+              return []
+            root = ET.parse(path).getroot()
+            violations = []
+            for file_node in child_elements(root, "file"):
+              file_name = file_node.get("name", "")
+              rel_name = file_name.split("/MEI-ORGANIZADIN/")[-1]
+              for violation in child_elements(file_node, "violation"):
+                beginline = violation.get("beginline", "?")
+                rule = violation.get("rule", "unknown-rule")
+                text = " ".join((violation.text or "").split())
+                violations.append(f"- `{rule}` — `{rel_name}:{beginline}`\n  - {text}")
+            return violations
+
+          def summarize_cpd(path: pathlib.Path) -> list[str]:
+            if not path.exists():
+              return []
+            root = ET.parse(path).getroot()
+            duplications = []
+            for duplication in child_elements(root, "duplication"):
+              lines = duplication.get("lines", "?")
+              files = []
+              for file_node in child_elements(duplication, "file"):
+                file_name = file_node.get("path", "")
+                rel_name = file_name.split("/MEI-ORGANIZADIN/")[-1]
+                line = file_node.get("line", "?")
+                files.append(f"  - `{rel_name}:{line}`")
+              duplication_summary = [f"- Duplicação de {lines} linhas", *files]
+              duplications.append("\n".join(duplication_summary))
+            return duplications
+
+          pmd_items = summarize_pmd(pmd_path)
+          cpd_items = summarize_cpd(cpd_path)
+
+          body_lines = [
+            marker,
+            "## Resumo de qualidade do código",
+            "",
+            f"Commit analisado: `{sha[:7]}`",
+            f"[Ver run completo]({server_url}/{repo}/actions/runs/{run_id})",
+            ""
+          ]
+
+          if pmd_items:
+            body_lines.extend(["### PMD", *pmd_items[:20], ""])
+            if len(pmd_items) > 20:
+              body_lines.append(f"_Mais {len(pmd_items) - 20} violações de PMD não listadas neste resumo._")
+              body_lines.append("")
+
+          if cpd_items:
+            body_lines.extend(["### CPD", *cpd_items[:20], ""])
+            if len(cpd_items) > 20:
+              body_lines.append(f"_Mais {len(cpd_items) - 20} duplicações de CPD não listadas neste resumo._")
+              body_lines.append("")
+
+          if not pmd_items and not cpd_items:
+            body_lines.extend([
+              "Nenhuma violação de PMD ou CPD foi encontrada nesta revisão.",
+              ""
+            ])
+
+          body = "\n".join(body_lines).rstrip() + "\n"
+
+          api_base = f"https://api.github.com/repos/{repo}"
+          headers = {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "codex-quality-summary"
+          }
+
+          def request_json(method: str, url: str, payload: dict | None = None):
+            data = None if payload is None else json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(url, data=data, method=method, headers=headers)
+            with urllib.request.urlopen(req) as response:
+              return json.loads(response.read().decode("utf-8"))
+
+          comments_url = f"{api_base}/issues/{pr_number}/comments?per_page=100"
+          comments = request_json("GET", comments_url)
+          existing = next((comment for comment in comments if marker in comment.get("body", "")), None)
+
+          if existing:
+            request_json("PATCH", f"{api_base}/issues/comments/{existing['id']}", {"body": body})
+          else:
+            request_json("POST", f"{api_base}/issues/{pr_number}/comments", {"body": body})
+          PY
+
   open_pull_request:
     if: |
       github.event_name == 'push' &&
       needs.inspect_push_branch.result == 'success' &&
-      needs.inspect_push_branch.outputs.has_open_pr != 'true' &&
-      needs.maven_verify.result == 'success'
+      needs.inspect_push_branch.outputs.has_open_pr != 'true'
     runs-on: ubuntu-latest
     needs:
       - inspect_push_branch
-      - maven_verify
     permissions:
       contents: read
       pull-requests: write
